@@ -94,6 +94,21 @@ jobs:
             echo "OK: actAs presente."
           fi
 
+          echo "Checking actAs per Cloud Run service agent..."
+          PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
+          CR_AGENT="service-$PROJECT_NUMBER@serverless-robot-prod.iam.gserviceaccount.com"
+          if gcloud iam service-accounts get-iam-policy "$RUNTIME_SA" --project "$PROJECT_ID" --format=json > rsapol.json 2>/dev/null; then
+            if jq -e --arg m "serviceAccount:$CR_AGENT" '.bindings[]?|select(.role=="roles/iam.serviceAccountUser").members[]?|select(.==$m)' rsapol.json >/dev/null; then
+              echo "OK: Cloud Run service agent può actAs il runtime SA."
+            else
+              echo "::error::Manca il binding roles/iam.serviceAccountUser su $RUNTIME_SA per $CR_AGENT"
+              echo "Esegui: gcloud iam service-accounts add-iam-policy-binding \"$RUNTIME_SA\" --project \"$PROJECT_ID\" --member \"serviceAccount:$CR_AGENT\" --role roles/iam.serviceAccountUser"
+              exit 1
+            fi
+          else
+            echo "::warning::Impossibile leggere la policy del runtime SA. Se il deploy fallisce con 'Unsupported service account', aggiungi il binding sopra per il service agent."
+          fi
+
       - name: Preflight: Artifact Registry access
         shell: bash
         env:
