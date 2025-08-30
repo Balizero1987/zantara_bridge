@@ -5,6 +5,7 @@
 Pipeline CI/CD sicura via GitHub OIDC (WIF) con deploy su Cloud Run e post-deploy checks automatici.
 
 ## Endpoints principali
+<!-- PR check trigger -->
 
 - POST `/actions/calendar/create`
   - Body: `{ "title", "start", "end", "attendees?", "description?", "calendarId?" }`
