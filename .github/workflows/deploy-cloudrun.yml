@@ -35,7 +35,7 @@ jobs:
         run: bash ./post_deploy_check.sh
 
       - name: Upload post-deploy results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: post_deploy_results.txt
           path: post_deploy_results.txt
