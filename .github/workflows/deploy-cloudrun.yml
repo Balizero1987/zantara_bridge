@@ -76,16 +76,18 @@ jobs:
           echo "Active identity: $(gcloud auth list --filter=status:ACTIVE --format='value(account)')"
           echo "Target project: $PROJECT_ID"
           echo "Runtime SA: $RUNTIME_SA"
-          echo "Checking actAs (roles/iam.serviceAccountUser) on runtime SA for deploy SA..."
-          if gcloud iam service-accounts get-iam-policy "$RUNTIME_SA" --project "$PROJECT_ID" --format=json > policy.json 2>/dev/null; then
-            if jq -e --arg m "serviceAccount:$DEPLOY_SA" '.bindings[]?|select(.role=="roles/iam.serviceAccountUser").members[]?|select(.==$m)' policy.json >/dev/null; then
-              echo "actAs binding present."
-            else
-              echo "::error::Missing roles/iam.serviceAccountUser on $RUNTIME_SA for $DEPLOY_SA"; exit 1;
-            fi
+          echo "Checking actAs (iam.serviceAccounts.actAs) via test-iam-permissions..."
+          PERMS=$(gcloud iam service-accounts test-iam-permissions "$RUNTIME_SA" \
+            --project "$PROJECT_ID" \
+            --permissions iam.serviceAccounts.actAs \
+            --format='value(permissions)') || true
+          if [[ "$PERMS" != *"iam.serviceAccounts.actAs"* ]]; then
+            echo "::error::Manca il permesso iam.serviceAccounts.actAs per $DEPLOY_SA su $RUNTIME_SA"
+            echo "Esegui (con permessi IAM Admin):"
+            echo "gcloud iam service-accounts add-iam-policy-binding \"$RUNTIME_SA\" --project \"$PROJECT_ID\" --member \"serviceAccount:$DEPLOY_SA\" --role roles/iam.serviceAccountUser"
+            exit 1
           else
-            echo "::warning::Cannot read IAM policy for $RUNTIME_SA (insufficient perms). If deploy fails with actAs denied, grant:"
-            echo "gcloud iam service-accounts add-iam-policy-binding \"$RUNTIME_SA\" --project \"$PROJECT_ID\" --member serviceAccount:$DEPLOY_SA --role roles/iam.serviceAccountUser"
+            echo "OK: actAs presente."
           fi
 
       - name: Deploy to Cloud Run
