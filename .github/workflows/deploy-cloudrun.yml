@@ -3,13 +3,22 @@ name: Deploy Cloud Run
 on:
   push:
     branches: ["main"]
+  pull_request:
   workflow_dispatch:
 concurrency:
   group: cloudrun-prod
   cancel-in-progress: true
 
 jobs:
+  pr-check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: PR validation
+        run: echo "PR check only. Skipping deploy."
+
   build-and-deploy:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment: prod
     permissions:
