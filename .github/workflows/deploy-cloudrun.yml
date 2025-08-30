@@ -1,5 +1,9 @@
 name: Deploy Cloud Run
 
+permissions:
+  id-token: write
+  contents: read
+
 on:
   push:
     branches: ["main"]
@@ -27,7 +31,7 @@ jobs:
           gcloud run deploy zantara-chat-v3 \
             --region asia-southeast2 \
             --image asia-southeast2-docker.pkg.dev/involuted-box-469105-r0/zantara-repo/zantara-chat:manual \
-            --set-env-vars "API_KEY=${{ secrets.API_KEY }},IMPERSONATE_USER=${{ secrets.IMPERSONATE_USER }},MEMORY_DRIVE_FOLDER_ID=${{ secrets.MEMORY_DRIVE_FOLDER_ID }},BALI_ZERO_CALENDAR_ID=${{ secrets.BALI_ZERO_CALENDAR_ID }},ZANTARA_SHARED_DRIVE_ID=${{ secrets.ZANTARA_SHARED_DRIVE_ID }},GMAIL_SENDER=${{ secrets.GMAIL_SENDER }},CORS_ORIGINS=${{ secrets.CORS_ORIGINS }},USE_AI_SUMMARY=${{ secrets.USE_AI_SUMMARY }}" \
+            --set-env-vars "API_KEY=${{ secrets.API_KEY }},IMPERSONATE_USER=${{ secrets.IMPERSONATE_USER }},MEMORY_DRIVE_FOLDER_ID=${{ secrets.MEMORY_DRIVE_FOLDER_ID }},BALI_ZERO_CALENDAR_ID=${{ secrets.BALI_ZERO_CALENDAR_ID }}" \
             --set-secrets "SA_JSON_SECRET=${{ secrets.SA_JSON_SECRET }},OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" \
             --allow-unauthenticated
 
