@@ -76,6 +76,10 @@ jobs:
           echo "Active identity: $(gcloud auth list --filter=status:ACTIVE --format='value(account)')"
           echo "Target project: $PROJECT_ID"
           echo "Runtime SA: $RUNTIME_SA"
+          echo "Deploy SA:  $DEPLOY_SA"
+          echo "Checking that both SAs exist in project..."
+          gcloud iam service-accounts describe "$DEPLOY_SA" --project "$PROJECT_ID" >/dev/null || { echo "::error::Deploy SA non esiste: $DEPLOY_SA"; exit 1; }
+          gcloud iam service-accounts describe "$RUNTIME_SA" --project "$PROJECT_ID" >/dev/null || { echo "::error::Runtime SA non esiste: $RUNTIME_SA"; exit 1; }
           echo "Checking actAs (iam.serviceAccounts.actAs) via test-iam-permissions..."
           PERMS=$(gcloud iam service-accounts test-iam-permissions "$RUNTIME_SA" \
             --project "$PROJECT_ID" \
@@ -91,6 +95,7 @@ jobs:
           fi
 
       - name: Deploy to Cloud Run
+        id: deploy
         run: |
           set -euo pipefail
           PROJECT_ID=$(printf '%s' "${{ secrets.GCP_PROJECT_ID }}" | tr -d '\r\n' | xargs)
@@ -105,6 +110,17 @@ jobs:
             --allow-unauthenticated \
             --set-env-vars "API_KEY=${{ secrets.API_KEY }},IMPERSONATE_USER=${{ secrets.IMPERSONATE_USER }},MEMORY_DRIVE_FOLDER_ID=${{ secrets.MEMORY_DRIVE_FOLDER_ID }},BALI_ZERO_CALENDAR_ID=${{ secrets.BALI_ZERO_CALENDAR_ID }},ZANTARA_SHARED_DRIVE_ID=${{ secrets.ZANTARA_SHARED_DRIVE_ID }},GMAIL_SENDER=${{ secrets.GMAIL_SENDER }},CORS_ORIGINS=${{ secrets.CORS_ORIGINS }},USE_AI_SUMMARY=${{ secrets.USE_AI_SUMMARY }}" \
             --set-secrets "SA_JSON_SECRET=${SA_JSON_SM}:latest,OPENAI_API_KEY=${OPENAI_SM}:latest"
+
+      - name: Create failure artifact if missing
+        if: always()
+        run: |
+          if [[ ! -f post_deploy_results.txt ]]; then
+            {
+              echo "status: failure"
+              echo "reason: deploy step failed or tests not executed"
+              echo "hint: controlla il binding actAs sul Service Account runtime"
+            } > post_deploy_results.txt
+          fi
 
       - name: Resolve Cloud Run URL
         id: resolve-url
