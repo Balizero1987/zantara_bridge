@@ -62,6 +62,32 @@ jobs:
             echo "::warning::GCP_PROJECT_ID contains whitespace; remove trailing spaces/newlines."
           fi
 
+      - name: Preflight: identity and actAs check
+        shell: bash
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_RUNTIME_SA_EMAIL: ${{ secrets.GCP_RUNTIME_SA_EMAIL }}
+          GCP_DEPLOY_SA_EMAIL: ${{ secrets.GCP_DEPLOY_SA_EMAIL }}
+        run: |
+          set -euo pipefail
+          PROJECT_ID=$(printf '%s' "$GCP_PROJECT_ID" | tr -d '\r\n' | xargs)
+          RUNTIME_SA=$(printf '%s' "$GCP_RUNTIME_SA_EMAIL" | tr -d '\r\n' | xargs)
+          DEPLOY_SA=$(printf '%s' "$GCP_DEPLOY_SA_EMAIL" | tr -d '\r\n' | xargs)
+          echo "Active identity: $(gcloud auth list --filter=status:ACTIVE --format='value(account)')"
+          echo "Target project: $PROJECT_ID"
+          echo "Runtime SA: $RUNTIME_SA"
+          echo "Checking actAs (roles/iam.serviceAccountUser) on runtime SA for deploy SA..."
+          if gcloud iam service-accounts get-iam-policy "$RUNTIME_SA" --project "$PROJECT_ID" --format=json > policy.json 2>/dev/null; then
+            if jq -e --arg m "serviceAccount:$DEPLOY_SA" '.bindings[]?|select(.role=="roles/iam.serviceAccountUser").members[]?|select(.==$m)' policy.json >/dev/null; then
+              echo "actAs binding present."
+            else
+              echo "::error::Missing roles/iam.serviceAccountUser on $RUNTIME_SA for $DEPLOY_SA"; exit 1;
+            fi
+          else
+            echo "::warning::Cannot read IAM policy for $RUNTIME_SA (insufficient perms). If deploy fails with actAs denied, grant:"
+            echo "gcloud iam service-accounts add-iam-policy-binding \"$RUNTIME_SA\" --project \"$PROJECT_ID\" --member serviceAccount:$DEPLOY_SA --role roles/iam.serviceAccountUser"
+          fi
+
       - name: Deploy to Cloud Run
         run: |
           set -euo pipefail
