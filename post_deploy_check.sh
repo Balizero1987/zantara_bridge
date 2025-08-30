@@ -28,4 +28,22 @@ curl -s -X POST "$SERVICE_URL/actions/calendar/create" \
   -H "Content-Type: application/json" \
   -d "$PAYLOAD" | tee -a "$OUT" >/dev/null || true
 
+step "Drive upload smoke (/actions/drive/upload)"
+UPLOAD_PAYLOAD=$(jq -n --arg fn "smoke-$(date -u +%Y%m%dT%H%M%SZ).txt" --arg ct "text/plain" --arg c "Zantara smoke test $(date -u)" '{filename:$fn,mimeType:$ct,content:$c}')
+curl -s -X POST "$SERVICE_URL/actions/drive/upload" \
+  -H "Content-Type: application/json" \
+  -d "$UPLOAD_PAYLOAD" | tee -a "$OUT" >/dev/null || true
+
+step "Gmail draft smoke (/actions/email/draft)"
+DRAFT_PAYLOAD=$(jq -n --arg to "info@balizero.com" --arg s "Smoke Draft Zantara" --arg t "Bozza generata automaticamente" '{to:$to,subject:$s,text:$t}')
+curl -s -X POST "$SERVICE_URL/actions/email/draft" \
+  -H "Content-Type: application/json" \
+  -d "$DRAFT_PAYLOAD" | tee -a "$OUT" >/dev/null || true
+
+step "Memory save smoke (/actions/memory/save)"
+MEM_PAYLOAD=$(jq -n --arg title "PostDeploy Check" --arg content "Nota automatica post-deploy" --argjson tags '["deploy","smoke"]' '{title:$title,content:$content,tags:$tags}')
+curl -s -X POST "$SERVICE_URL/actions/memory/save" \
+  -H "Content-Type: application/json" \
+  -d "$MEM_PAYLOAD" | tee -a "$OUT" >/dev/null || true
+
 echo -e "\nDone. Results saved to $OUT"
