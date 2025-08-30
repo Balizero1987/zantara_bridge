@@ -48,5 +48,10 @@ gcloud artifacts repositories add-iam-policy-binding "$REPO" \
   --member "serviceAccount:$SERVICE_AGENT" \
   --role "roles/artifactregistry.reader"
 
-echo "Done."
+echo "Grant deploy SA read on Artifact Registry (to reference image at deploy)"
+gcloud artifacts repositories add-iam-policy-binding "$REPO" \
+  --location "$REGION" \
+  --member "serviceAccount:$DEPLOY_SA" \
+  --role "roles/artifactregistry.reader"
 
+echo "Done."
