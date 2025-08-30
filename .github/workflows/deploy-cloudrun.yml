@@ -94,6 +94,31 @@ jobs:
             echo "OK: actAs presente."
           fi
 
+      - name: Preflight: Artifact Registry access
+        shell: bash
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_DEPLOY_SA_EMAIL: ${{ secrets.GCP_DEPLOY_SA_EMAIL }}
+        run: |
+          set -euo pipefail
+          PROJECT_ID=$(printf '%s' "$GCP_PROJECT_ID" | tr -d '\r\n' | xargs)
+          DEPLOY_SA=$(printf '%s' "$GCP_DEPLOY_SA_EMAIL" | tr -d '\r\n' | xargs)
+          LOCATION=asia-southeast2
+          REPO=zantara-repo
+          IMAGE_PATH="$LOCATION-docker.pkg.dev/$PROJECT_ID/$REPO/zantara-chat:manual"
+          echo "Verifica accesso Artifact Registry come deploy SA ($DEPLOY_SA)"
+          if ! gcloud artifacts docker images describe "$IMAGE_PATH" --project "$PROJECT_ID" --location "$LOCATION" >/dev/null 2>&1; then
+            echo "::error::Accesso negato a Artifact Registry per $DEPLOY_SA su repo $REPO ($LOCATION)"
+            echo "Concedi (IAM Admin):"
+            echo "gcloud artifacts repositories add-iam-policy-binding \"$REPO\" --location \"$LOCATION\" --member \"serviceAccount:$DEPLOY_SA\" --role roles/artifactregistry.reader"
+            echo "Nota: anche l'agente di servizio di Cloud Run deve avere reader per il pull runtime:"
+            echo "PROJECT_NUMBER=\$(gcloud projects describe \"$PROJECT_ID\" --format='value(projectNumber)'); SA=service-\$PROJECT_NUMBER@serverless-robot-prod.iam.gserviceaccount.com"
+            echo "gcloud artifacts repositories add-iam-policy-binding \"$REPO\" --location \"$LOCATION\" --member \"serviceAccount:\$SA\" --role roles/artifactregistry.reader"
+            exit 1
+          else
+            echo "OK: Artifact Registry access (deploy SA)."
+          fi
+
       - name: Deploy to Cloud Run
         id: deploy
         run: |
