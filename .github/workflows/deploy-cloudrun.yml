@@ -129,6 +129,37 @@ jobs:
             echo "::warning::Impossibile leggere IAM policy del repo; permessi insufficienti sull'account corrente."
           fi
 
+      - name: Preflight: Secret Manager versions
+        shell: bash
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          SA_JSON_SECRET_NAME: ${{ secrets.SA_JSON_SECRET_NAME }}
+          OPENAI_API_KEY_SM_NAME: ${{ secrets.OPENAI_API_KEY_SM_NAME }}
+        run: |
+          set -euo pipefail
+          PROJECT_ID=$(printf '%s' "$GCP_PROJECT_ID" | tr -d '\r\n' | xargs)
+          S1=$(printf '%s' "$SA_JSON_SECRET_NAME" | tr -d '\r\n' | xargs)
+          S2=$(printf '%s' "$OPENAI_API_KEY_SM_NAME" | tr -d '\r\n' | xargs)
+          for S in "$S1" "$S2"; do
+            echo "Controllo segreto: $S"
+            if ! gcloud secrets describe "$S" --project "$PROJECT_ID" >/dev/null 2>&1; then
+              echo "::error::Secret non trovato: $S (project=$PROJECT_ID)"
+              echo "Crea e aggiungi una versione, ad es.:"
+              echo "gcloud secrets create $S --project $PROJECT_ID"
+              echo "printf '%s' '<VALORE>' | gcloud secrets versions add $S --project $PROJECT_ID --data-file=-"
+              exit 1
+            fi
+            EN_VER=$(gcloud secrets versions list "$S" --project "$PROJECT_ID" --filter='state=ENABLED' --format='value(name)' | head -n1)
+            if [[ -z "$EN_VER" ]]; then
+              echo "::error::Nessuna versione ENABLED per il secret $S"
+              echo "Aggiungi una versione (abilitata), ad es.:"
+              echo "printf '%s' '<VALORE>' | gcloud secrets versions add $S --project $PROJECT_ID --data-file=-"
+              exit 1
+            else
+              echo "OK: versione abilitata trovata ($EN_VER) per $S"
+            fi
+          done
+
       - name: Deploy to Cloud Run
         id: deploy
         run: |
