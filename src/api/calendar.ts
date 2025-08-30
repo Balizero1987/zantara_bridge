@@ -1,6 +1,7 @@
 import { Request, Response, Express } from 'express';
 import { google } from 'googleapis';
 import { impersonatedClient } from '../google';
+import { requireApiKey } from '../middleware/auth';
 import { createCalendarEventHandler } from '../actions/calendar/create';
 import { listCalendarEventsHandler } from '../actions/calendar/list';
 
@@ -9,10 +10,10 @@ function logCalendarAction(action: string, details: any) {
 }
 
 export const calendarRoutes = (app: Express) => {
-  app.post('/actions/calendar/create', createCalendarEventHandler);
+  app.post('/actions/calendar/create', requireApiKey, createCalendarEventHandler);
 
   // Leggi evento per verifica post-creazione
-  app.get('/actions/calendar/get', async (req: Request, res: Response) => {
+  app.get('/actions/calendar/get', requireApiKey, async (req: Request, res: Response) => {
     try {
       const calendarId = (req.query.calendarId as string) || process.env.BALI_ZERO_CALENDAR_ID;
       if (!calendarId) {
@@ -59,5 +60,5 @@ export const calendarRoutes = (app: Express) => {
   });
 
   // List upcoming events with optional overrides
-  app.get('/actions/calendar/list', listCalendarEventsHandler);
+  app.get('/actions/calendar/list', requireApiKey, listCalendarEventsHandler);
 };

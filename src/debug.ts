@@ -194,8 +194,8 @@ export function debugRoutes(app: Express) {
 
     res.json({ ok: true, env, results, ts: new Date().toISOString() });
   });
-  // Public actions endpoint: whoami
-  app.get('/actions/debug/whoami', actionsWhoamiHandler);
+  // Actions endpoint: whoami (protected with API key)
+  app.get('/actions/debug/whoami', requireApiKey as any, actionsWhoamiHandler as any);
 }
 
 export function debugRawRoutes(app: Express) {

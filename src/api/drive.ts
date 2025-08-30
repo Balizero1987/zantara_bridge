@@ -1,6 +1,7 @@
 import { Request, Response, Express } from 'express';
 import { google } from 'googleapis';
 import { impersonatedClient } from '../google';
+import { requireApiKey } from '../middleware/auth';
 import { uploadDriveFileHandler } from '../actions/drive/upload';
 
 function logDriveAction(action: string, details: any) {
@@ -8,11 +9,11 @@ function logDriveAction(action: string, details: any) {
 }
 
 export const driveRoutes = (app: Express) => {
-  // Upload generic file into memory folder
-  app.post('/actions/drive/upload', uploadDriveFileHandler);
+  // Upload generic file into memory folder (protected)
+  app.post('/actions/drive/upload', requireApiKey, uploadDriveFileHandler);
 
   // Crea file Google Doc in una cartella
-  app.post('/actions/drive/create', async (req: Request, res: Response) => {
+  app.post('/actions/drive/create', requireApiKey, async (req: Request, res: Response) => {
     try {
       const name = (req.body?.name as string) || 'SmokeTest Zantara';
       // Prefer the memory root if present, fallback to DRIVE_FOLDER_ID
@@ -46,7 +47,7 @@ export const driveRoutes = (app: Express) => {
   });
 
   // Leggi metadati file per verifica post-creazione
-  app.get('/actions/drive/get', async (req: Request, res: Response) => {
+  app.get('/actions/drive/get', requireApiKey, async (req: Request, res: Response) => {
     try {
       const fileId = (req.query.fileId as string) || '';
       if (!fileId) return res.status(400).json({ ok: false, error: 'Missing fileId' });
@@ -71,7 +72,7 @@ export const driveRoutes = (app: Express) => {
   });
 
   // Elenca i contenuti di una cartella (Drive/Shared Drive)
-  app.get('/actions/drive/list-folder', async (req: Request, res: Response) => {
+  app.get('/actions/drive/list-folder', requireApiKey, async (req: Request, res: Response) => {
     try {
       const folderId = (req.query.folderId as string) || process.env.MEMORY_DRIVE_FOLDER_ID || process.env.DRIVE_FOLDER_ID || '';
       if (!folderId) return res.status(400).json({ ok: false, error: 'Missing folderId and no default folder configured' });
@@ -110,5 +111,67 @@ export const driveRoutes = (app: Express) => {
     }
   });
 
-  // (Altri endpoint Drive qui...)
+  // Aggiungi permessi a un file Drive (editor/viewer)
+  app.post('/actions/drive/permissions/add', async (req: Request, res: Response) => {
+    const { fileId, email, role } = req.body;
+    if (!fileId || !email || !role || !['writer', 'reader'].includes(role)) {
+      (req as any).log?.warn?.({ action: 'drive.permissions.add', fileId, email, role });
+      return res.status(400).json({ ok: false, error: 'fileId, email, role (writer|reader) richiesti' });
+    }
+    try {
+      const user = process.env.IMPERSONATE_USER || '';
+      const ic = await impersonatedClient(user, [
+        'https://www.googleapis.com/auth/drive',
+      ]);
+      const drive = google.drive({ version: 'v3', auth: ic.auth });
+      const result = await drive.permissions.create({
+        fileId,
+        requestBody: {
+          type: 'user',
+          role,
+          emailAddress: email,
+        },
+        sendNotificationEmail: false,
+        supportsAllDrives: true,
+      } as any);
+      (req as any).log?.info?.({ action: 'drive.permissions.add', fileId, email, role, permissionId: result.data.id });
+      res.json({ ok: true, permissionId: result.data.id });
+    } catch (e: any) {
+      (req as any).log?.error?.({ action: 'drive.permissions.add', fileId, email, role, error: e.message });
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  // Rimuovi permesso da un file Drive (via permissionId o email)
+  app.post('/actions/drive/permissions/remove', async (req: Request, res: Response) => {
+    const { fileId, permissionId, email } = req.body;
+    if (!fileId || (!permissionId && !email)) {
+      (req as any).log?.warn?.({ action: 'drive.permissions.remove', fileId, permissionId, email });
+      return res.status(400).json({ ok: false, error: 'fileId e (permissionId o email) richiesti' });
+    }
+    try {
+      const user = process.env.IMPERSONATE_USER || '';
+      const ic = await impersonatedClient(user, [
+        'https://www.googleapis.com/auth/drive',
+      ]);
+      const drive = google.drive({ version: 'v3', auth: ic.auth });
+      let permId = permissionId;
+      if (!permId && email) {
+        // Cerca permissionId via email
+        const perms = await drive.permissions.list({ fileId, supportsAllDrives: true } as any);
+        const found = perms.data.permissions?.find((p: any) => p.emailAddress === email);
+        if (!found) {
+          (req as any).log?.warn?.({ action: 'drive.permissions.remove', fileId, email, msg: 'Permesso non trovato' });
+          return res.status(404).json({ ok: false, error: 'Permesso non trovato per email' });
+        }
+        permId = found.id;
+      }
+      await drive.permissions.delete({ fileId, permissionId: permId, supportsAllDrives: true } as any);
+      (req as any).log?.info?.({ action: 'drive.permissions.remove', fileId, permissionId: permId, email });
+      res.json({ ok: true });
+    } catch (e: any) {
+      (req as any).log?.error?.({ action: 'drive.permissions.remove', fileId, permissionId, email, error: e.message });
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
 };

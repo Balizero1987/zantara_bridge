@@ -3,6 +3,7 @@ import { google } from 'googleapis';
 import { impersonatedClient } from '../google';
 import { sendEmailHandler } from '../actions/email/send';
 import { saveEmailDraftHandler } from '../actions/email/draft';
+import { requireApiKey } from '../middleware/auth';
 
 // Helper per logging strutturato
 function logGmailAction(action: string, details: any) {
@@ -10,11 +11,11 @@ function logGmailAction(action: string, details: any) {
 }
 
 export const gmailRoutes = (app: Express) => {
-  // New alias endpoint
-  app.post('/actions/email/send', sendEmailHandler);
-  app.post('/actions/email/draft', saveEmailDraftHandler);
+  // New alias endpoints (protected)
+  app.post('/actions/email/send', requireApiKey, sendEmailHandler);
+  app.post('/actions/email/draft', requireApiKey, saveEmailDraftHandler);
 
-  app.post('/actions/gmail/send', async (req: Request, res: Response) => {
+  app.post('/actions/gmail/send', requireApiKey, async (req: Request, res: Response) => {
     try {
       const { to, subject, text } = req.body;
       if (!to || !subject || !text) {
