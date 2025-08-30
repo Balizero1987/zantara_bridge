@@ -1,45 +1,58 @@
 name: Deploy Cloud Run
+cd ~/Desktop/zantara_bridge
 
-permissions:
-  id-token: write
-  contents: read
+cat > .github/workflows/deploy-cloudrun.yml <<'YAML'
 
-on:
-  push:
-    branches: ["main"]
-  workflow_dispatch:
+steps:
+  - name: Checkout
+    uses: actions/checkout@v4
 
-jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
+  - name: Authenticate with Google Cloud
+    uses: google-github-actions/auth@v2
+    with:
+      workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+      service_account: ${{ secrets.GCP_DEPLOY_SA_EMAIL }}
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+  - name: Set up gcloud CLI
+    uses: google-github-actions/setup-gcloud@v2
+    with:
+      project_id: involuted-box-469105-r0
 
-      - name: Authenticate with Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
-          service_account: ${{ secrets.GCP_DEPLOY_SA_EMAIL }}
+  - name: Deploy to Cloud Run
+    shell: bash
+    run: |
+      set -euo pipefail
+      gcloud run deploy "zantara-chat-v3" \
+        --project "involuted-box-469105-r0" \
+        --region "asia-southeast2" \
+        --image "asia-southeast2-docker.pkg.dev/involuted-box-469105-r0/zantara-repo/zantara-chat:manual" \
+        --allow-unauthenticated \
+        --set-env-vars "API_KEY=${{ secrets.API_KEY }},IMPERSONATE_USER=${{ secrets.IMPERSONATE_USER }},MEMORY_DRIVE_FOLDER_ID=${{ secrets.MEMORY_DRIVE_FOLDER_ID }},BALI_ZERO_CALENDAR_ID=${{ secrets.BALI_ZERO_CALENDAR_ID }},ZANTARA_SHARED_DRIVE_ID=${{ secrets.ZANTARA_SHARED_DRIVE_ID }},GMAIL_SENDER=${{ secrets.GMAIL_SENDER }},CORS_ORIGINS=${{ secrets.CORS_ORIGINS }},USE_AI_SUMMARY=${{ secrets.USE_AI_SUMMARY }}" \
+        --set-secrets "SA_JSON_SECRET=SA_JSON_SECRET:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest"
 
-      - name: Set up gcloud CLI
-        uses: google-github-actions/setup-gcloud@v2
+  - name: Resolve Service URL
+    id: svc
+    run: |
+      URL=$(gcloud run services describe "zantara-chat-v3" --region "asia-southeast2" --format='value(status.url)')
+      echo "url=$URL" >> "$GITHUB_OUTPUT"
+      echo "Service URL: $URL"
 
-      - name: Deploy to Cloud Run
-        run: |
-          gcloud run deploy zantara-chat-v3 \
-            --region asia-southeast2 \
-            --image asia-southeast2-docker.pkg.dev/involuted-box-469105-r0/zantara-repo/zantara-chat:manual \
-            --set-env-vars "API_KEY=${{ secrets.API_KEY }},IMPERSONATE_USER=${{ secrets.IMPERSONATE_USER }},MEMORY_DRIVE_FOLDER_ID=${{ secrets.MEMORY_DRIVE_FOLDER_ID }},BALI_ZERO_CALENDAR_ID=${{ secrets.BALI_ZERO_CALENDAR_ID }}" \
-            --set-secrets "SA_JSON_SECRET=${{ secrets.SA_JSON_SECRET }},OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" \
-            --allow-unauthenticated
+  - name: Ensure scripts present
+    run: |
+      ls -la
+      test -f post_deploy_check.sh || { echo "post_deploy_check.sh missing"; exit 2; }
+      test -f scripts/read_after_write.js || { echo "scripts/read_after_write.js missing"; exit 2; }
+      chmod +x post_deploy_check.sh
 
-      - name: Run post-deploy test
-        run: bash ./post_deploy_check.sh
+  - name: Post-deploy checks (read-after-write)
+    env:
+      SERVICE_URL: ${{ steps.svc.outputs.url }}
+      API_KEY: ${{ secrets.API_KEY }}
+    run: ./post_deploy_check.sh
 
-      - name: Upload post-deploy results
-        uses: actions/upload-artifact@v4
-        with:
-          name: post_deploy_results.txt
-          path: post_deploy_results.txt
+  - name: Upload post-deploy results
+    uses: actions/upload-artifact@v4
+    with:
+      name: post_deploy_results
+      path: post_deploy_results.txt
+
