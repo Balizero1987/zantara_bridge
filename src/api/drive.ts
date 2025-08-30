@@ -3,6 +3,9 @@ import { google } from 'googleapis';
 import { impersonatedClient } from '../google';
 import { requireApiKey } from '../middleware/auth';
 import { uploadDriveFileHandler } from '../actions/drive/upload';
+import { renameDriveFileHandler } from '../actions/drive/rename';
+import { moveDriveFileHandler } from '../actions/drive/move';
+import { deleteDriveFileHandler } from '../actions/drive/delete';
 
 function logDriveAction(action: string, details: any) {
   console.log(`[DRIVE] ${action}`, JSON.stringify(details));
@@ -11,6 +14,9 @@ function logDriveAction(action: string, details: any) {
 export const driveRoutes = (app: Express) => {
   // Upload generic file into memory folder (protected)
   app.post('/actions/drive/upload', requireApiKey, uploadDriveFileHandler);
+  app.post('/actions/drive/rename', requireApiKey, renameDriveFileHandler);
+  app.post('/actions/drive/move', requireApiKey, moveDriveFileHandler);
+  app.post('/actions/drive/delete', requireApiKey, deleteDriveFileHandler);
 
   // Crea file Google Doc in una cartella
   app.post('/actions/drive/create', requireApiKey, async (req: Request, res: Response) => {
@@ -112,7 +118,7 @@ export const driveRoutes = (app: Express) => {
   });
 
   // Aggiungi permessi a un file Drive (editor/viewer)
-  app.post('/actions/drive/permissions/add', async (req: Request, res: Response) => {
+  app.post('/actions/drive/permissions/add', requireApiKey, async (req: Request, res: Response) => {
     const { fileId, email, role } = req.body;
     if (!fileId || !email || !role || !['writer', 'reader'].includes(role)) {
       (req as any).log?.warn?.({ action: 'drive.permissions.add', fileId, email, role });
@@ -143,7 +149,7 @@ export const driveRoutes = (app: Express) => {
   });
 
   // Rimuovi permesso da un file Drive (via permissionId o email)
-  app.post('/actions/drive/permissions/remove', async (req: Request, res: Response) => {
+  app.post('/actions/drive/permissions/remove', requireApiKey, async (req: Request, res: Response) => {
     const { fileId, permissionId, email } = req.body;
     if (!fileId || (!permissionId && !email)) {
       (req as any).log?.warn?.({ action: 'drive.permissions.remove', fileId, permissionId, email });

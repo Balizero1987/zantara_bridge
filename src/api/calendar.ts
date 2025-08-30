@@ -1,16 +1,126 @@
+  // Esporta tutti gli eventi di un calendario in JSON
+  app.get('/actions/calendar/backup', async (req: Request, res: Response) => {
+    try {
+      const calendarId = (req.query.calendarId as string) || process.env.BALI_ZERO_CALENDAR_ID;
+      if (!calendarId) return res.status(400).json({ ok: false, error: 'Missing calendarId and BALI_ZERO_CALENDAR_ID' });
+      const user = process.env.IMPERSONATE_USER || '';
+      const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/calendar.readonly', 'https://www.googleapis.com/auth/calendar']);
+      const calendar = google.calendar({ version: 'v3', auth: ic.auth });
+      let events: any[] = [];
+      let pageToken: string | undefined = undefined;
+      do {
+        const { data } = await calendar.events.list({
+          calendarId,
+          maxResults: 2500,
+          pageToken,
+          singleEvents: true,
+        });
+        events = events.concat(data.items || []);
+        pageToken = data.nextPageToken;
+      } while (pageToken);
+      res.json({ ok: true, calendarId, count: events.length, events });
+    } catch (e: any) {
+      (req as any).log?.error?.({ module: 'calendar.backup', error: e.message });
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  // Importa eventi da JSON (array di eventi Google Calendar)
+  app.post('/actions/calendar/restore', async (req: Request, res: Response) => {
+    try {
+      const calendarId = (req.body?.calendarId as string) || process.env.BALI_ZERO_CALENDAR_ID;
+      const events = req.body?.events;
+      if (!calendarId || !Array.isArray(events)) {
+        (req as any).log?.warn?.({ module: 'calendar.restore', error: 'Missing calendarId or events' });
+        return res.status(400).json({ ok: false, error: 'Missing calendarId or events' });
+      }
+      const user = process.env.IMPERSONATE_USER || '';
+      const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/calendar']);
+      const calendar = google.calendar({ version: 'v3', auth: ic.auth });
+      let success = 0, failed = 0, errors: any[] = [];
+      for (const ev of events) {
+        try {
+          await calendar.events.insert({ calendarId, requestBody: ev });
+          success++;
+        } catch (err: any) {
+          failed++;
+          errors.push({ event: ev?.id || null, error: err.message });
+        }
+      }
+      (req as any).log?.info?.({ module: 'calendar.restore', calendarId, success, failed });
+      res.json({ ok: true, calendarId, success, failed, errors });
+    } catch (e: any) {
+      (req as any).log?.error?.({ module: 'calendar.restore', error: e.message });
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
 import { Request, Response, Express } from 'express';
 import { google } from 'googleapis';
 import { impersonatedClient } from '../google';
 import { requireApiKey } from '../middleware/auth';
-import { createCalendarEventHandler } from '../actions/calendar/create';
-import { listCalendarEventsHandler } from '../actions/calendar/list';
 
 function logCalendarAction(action: string, details: any) {
   console.log(`[CALENDAR] ${action}`, JSON.stringify(details));
 }
 
 export const calendarRoutes = (app: Express) => {
-  app.post('/actions/calendar/create', requireApiKey, createCalendarEventHandler);
+  app.post('/actions/calendar/create', requireApiKey, async (req: Request, res: Response) => {
+    try {
+      const calendarId = (req.body?.calendarId as string) || process.env.BALI_ZERO_CALENDAR_ID;
+      if (!calendarId) {
+        return res.status(400).json({ ok: false, error: 'Missing calendarId and BALI_ZERO_CALENDAR_ID' });
+      }
+      const now = new Date();
+      const startIso = (req.body?.start as string) || now.toISOString();
+      const endIso = (req.body?.end as string) || new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+      const summary = (req.body?.summary as string) || 'Zantara SmokeTest';
+      const attendees = (req.body?.attendees as string[]) || ['zero@balizero.com'];
+      const user = process.env.IMPERSONATE_USER || '';
+      const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/calendar']);
+      const calendar = google.calendar({ version: 'v3', auth: ic.auth });
+      const insertRes = await calendar.events.insert({
+        calendarId,
+        requestBody: {
+          summary,
+          start: { dateTime: startIso },
+          end: { dateTime: endIso },
+          attendees: attendees.map(email => ({ email })),
+          reminders: { useDefault: true },
+        },
+        sendUpdates: 'none',
+      });
+      const data = insertRes.data as any;
+      const status = (data?.status || '').toLowerCase();
+      const logEntry = {
+        module: 'calendar.create',
+        phase: 'resp',
+        calendarId,
+        id: data?.id,
+        organizer: data?.organizer?.email || null,
+        status: data?.status || null,
+        summary: data?.summary || summary,
+        htmlLink: data?.htmlLink || null,
+      };
+      if (status && status !== 'confirmed') {
+        (req as any).log?.warn?.(logEntry);
+      } else {
+        (req as any).log?.info?.(logEntry);
+      }
+      res.json({
+        ok: true,
+        action: 'calendar.create',
+        eventId: data?.id,
+        htmlLink: data?.htmlLink,
+        calendarId,
+        organizer: data?.organizer?.email || null,
+        status: data?.status || null,
+        summary: data?.summary || summary,
+      });
+    } catch (e: any) {
+  (req as any).log?.error?.({ module: 'calendar.create', error: e.message });
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
 
   // Leggi evento per verifica post-creazione
   app.get('/actions/calendar/get', requireApiKey, async (req: Request, res: Response) => {
@@ -59,6 +169,88 @@ export const calendarRoutes = (app: Express) => {
     }
   });
 
-  // List upcoming events with optional overrides
-  app.get('/actions/calendar/list', requireApiKey, listCalendarEventsHandler);
+  // List events for a given day (UTC bounds) on the configured calendar
+  app.get('/actions/calendar/list', requireApiKey, async (req: Request, res: Response) => {
+    try {
+      const calendarId = (req.query.calendarId as string) || process.env.BALI_ZERO_CALENDAR_ID;
+      if (!calendarId) return res.status(400).json({ ok: false, error: 'Missing calendarId and BALI_ZERO_CALENDAR_ID' });
+      const dateStr = (req.query.date as string) || new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      const timeMin = new Date(`${dateStr}T00:00:00.000Z`).toISOString();
+      const timeMax = new Date(`${dateStr}T23:59:59.999Z`).toISOString();
+
+      const user = process.env.IMPERSONATE_USER || '';
+      const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/calendar.readonly', 'https://www.googleapis.com/auth/calendar']);
+      const calendar = google.calendar({ version: 'v3', auth: ic.auth });
+      const { data } = await calendar.events.list({
+        calendarId,
+        timeMin,
+        timeMax,
+        singleEvents: true,
+        orderBy: 'startTime',
+        maxResults: 100,
+      });
+      const items = (data.items || []).map(ev => ({
+        id: ev.id,
+        summary: ev.summary,
+        organizer: (ev as any)?.organizer?.email || null,
+        status: ev.status,
+        start: ev.start?.dateTime || ev.start?.date || null,
+        end: ev.end?.dateTime || ev.end?.date || null,
+        htmlLink: ev.htmlLink,
+      }));
+  (req as any).log?.info?.({ module: 'calendar.list', calendarId, date: dateStr, count: items.length });
+      res.json({ ok: true, action: 'calendar.list', calendarId, date: dateStr, events: items });
+    } catch (e: any) {
+  (req as any).log?.error?.({ module: 'calendar.list', error: e.message });
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  // Aggiorna evento esistente
+  app.post('/actions/calendar/update', requireApiKey, async (req: Request, res: Response) => {
+    try {
+      const calendarId = (req.body?.calendarId as string) || process.env.BALI_ZERO_CALENDAR_ID;
+      const eventId = (req.body?.eventId as string) || '';
+      if (!calendarId || !eventId) {
+        (req as any).log?.warn?.({ module: 'calendar.update', phase: 'input', error: 'Missing calendarId or eventId' });
+        return res.status(400).json({ ok: false, error: 'Missing calendarId or eventId' });
+      }
+      const updates = req.body?.updates || {};
+      const user = process.env.IMPERSONATE_USER || '';
+      const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/calendar']);
+      const calendar = google.calendar({ version: 'v3', auth: ic.auth });
+      const updateRes = await calendar.events.patch({
+        calendarId,
+        eventId,
+        requestBody: updates,
+      });
+      const data = updateRes.data;
+      (req as any).log?.info?.({ module: 'calendar.update', calendarId, eventId, updates, status: data.status });
+      res.json({ ok: true, action: 'calendar.update', event: data });
+    } catch (e: any) {
+      (req as any).log?.error?.({ module: 'calendar.update', error: e.message });
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  // Elimina evento
+  app.post('/actions/calendar/delete', requireApiKey, async (req: Request, res: Response) => {
+    try {
+      const calendarId = (req.body?.calendarId as string) || process.env.BALI_ZERO_CALENDAR_ID;
+      const eventId = (req.body?.eventId as string) || '';
+      if (!calendarId || !eventId) {
+        (req as any).log?.warn?.({ module: 'calendar.delete', phase: 'input', error: 'Missing calendarId or eventId' });
+        return res.status(400).json({ ok: false, error: 'Missing calendarId or eventId' });
+      }
+      const user = process.env.IMPERSONATE_USER || '';
+      const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/calendar']);
+      const calendar = google.calendar({ version: 'v3', auth: ic.auth });
+      await calendar.events.delete({ calendarId, eventId });
+      (req as any).log?.info?.({ module: 'calendar.delete', calendarId, eventId, status: 'deleted' });
+      res.json({ ok: true, action: 'calendar.delete', eventId });
+    } catch (e: any) {
+      (req as any).log?.error?.({ module: 'calendar.delete', error: e.message });
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
 };
