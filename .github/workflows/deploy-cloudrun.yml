@@ -76,6 +76,10 @@ jobs:
           echo "Active identity: $(gcloud auth list --filter=status:ACTIVE --format='value(account)')"
           echo "Target project: $PROJECT_ID"
           echo "Runtime SA: $RUNTIME_SA"
+          echo "Deploy SA:  $DEPLOY_SA"
+          echo "Checking that both SAs exist in project..."
+          gcloud iam service-accounts describe "$DEPLOY_SA" --project "$PROJECT_ID" >/dev/null || { echo "::error::Deploy SA non esiste: $DEPLOY_SA"; exit 1; }
+          gcloud iam service-accounts describe "$RUNTIME_SA" --project "$PROJECT_ID" >/dev/null || { echo "::error::Runtime SA non esiste: $RUNTIME_SA"; exit 1; }
           echo "Checking actAs (iam.serviceAccounts.actAs) via test-iam-permissions..."
           PERMS=$(gcloud iam service-accounts test-iam-permissions "$RUNTIME_SA" \
             --project "$PROJECT_ID" \
@@ -90,7 +94,74 @@ jobs:
             echo "OK: actAs presente."
           fi
 
+      - name: Preflight: Artifact Registry access
+        shell: bash
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_DEPLOY_SA_EMAIL: ${{ secrets.GCP_DEPLOY_SA_EMAIL }}
+        run: |
+          set -euo pipefail
+          PROJECT_ID=$(printf '%s' "$GCP_PROJECT_ID" | tr -d '\r\n' | xargs)
+          DEPLOY_SA=$(printf '%s' "$GCP_DEPLOY_SA_EMAIL" | tr -d '\r\n' | xargs)
+          LOCATION=asia-southeast2
+          REPO=zantara-repo
+          IMAGE_PATH="$LOCATION-docker.pkg.dev/$PROJECT_ID/$REPO/zantara-chat:manual"
+          echo "Verifica accesso Artifact Registry come deploy SA ($DEPLOY_SA)"
+          if ! gcloud artifacts docker images describe "$IMAGE_PATH" --project "$PROJECT_ID" --location "$LOCATION" >/dev/null 2>&1; then
+            echo "::error::Accesso negato a Artifact Registry per $DEPLOY_SA su repo $REPO ($LOCATION)"
+            echo "Concedi (IAM Admin):"
+            echo "gcloud artifacts repositories add-iam-policy-binding \"$REPO\" --location \"$LOCATION\" --member \"serviceAccount:$DEPLOY_SA\" --role roles/artifactregistry.reader"
+            echo "Nota: anche l'agente di servizio di Cloud Run deve avere reader per il pull runtime:"
+            echo "PROJECT_NUMBER=\$(gcloud projects describe \"$PROJECT_ID\" --format='value(projectNumber)'); SA=service-\$PROJECT_NUMBER@serverless-robot-prod.iam.gserviceaccount.com"
+            echo "gcloud artifacts repositories add-iam-policy-binding \"$REPO\" --location \"$LOCATION\" --member \"serviceAccount:\$SA\" --role roles/artifactregistry.reader"
+            exit 1
+          else
+            echo "OK: Artifact Registry access (deploy SA)."
+          fi
+          echo "Verifico binding roles/artifactregistry.reader sul repo per il deploy SA..."
+          if gcloud artifacts repositories get-iam-policy "$REPO" --location "$LOCATION" --project "$PROJECT_ID" --format=json > repo_policy.json 2>/dev/null; then
+            if jq -e --arg m "serviceAccount:$DEPLOY_SA" '.bindings[]?|select(.role=="roles/artifactregistry.reader").members[]?|select(.==$m)' repo_policy.json >/dev/null; then
+              echo "Binding reader presente sul repo."
+            else
+              echo "::warning::Non vedo il binding reader sul repo per $DEPLOY_SA; potrebbe essere a livello progetto."
+            fi
+          else
+            echo "::warning::Impossibile leggere IAM policy del repo; permessi insufficienti sull'account corrente."
+          fi
+
+      - name: Preflight: Secret Manager versions
+        shell: bash
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          SA_JSON_SECRET_NAME: ${{ secrets.SA_JSON_SECRET_NAME }}
+          OPENAI_API_KEY_SM_NAME: ${{ secrets.OPENAI_API_KEY_SM_NAME }}
+        run: |
+          set -euo pipefail
+          PROJECT_ID=$(printf '%s' "$GCP_PROJECT_ID" | tr -d '\r\n' | xargs)
+          S1=$(printf '%s' "$SA_JSON_SECRET_NAME" | tr -d '\r\n' | xargs)
+          S2=$(printf '%s' "$OPENAI_API_KEY_SM_NAME" | tr -d '\r\n' | xargs)
+          for S in "$S1" "$S2"; do
+            echo "Controllo segreto: $S"
+            if ! gcloud secrets describe "$S" --project "$PROJECT_ID" >/dev/null 2>&1; then
+              echo "::error::Secret non trovato: $S (project=$PROJECT_ID)"
+              echo "Crea e aggiungi una versione, ad es.:"
+              echo "gcloud secrets create $S --project $PROJECT_ID"
+              echo "printf '%s' '<VALORE>' | gcloud secrets versions add $S --project $PROJECT_ID --data-file=-"
+              exit 1
+            fi
+            EN_VER=$(gcloud secrets versions list "$S" --project "$PROJECT_ID" --filter='state=ENABLED' --format='value(name)' | head -n1)
+            if [[ -z "$EN_VER" ]]; then
+              echo "::error::Nessuna versione ENABLED per il secret $S"
+              echo "Aggiungi una versione (abilitata), ad es.:"
+              echo "printf '%s' '<VALORE>' | gcloud secrets versions add $S --project $PROJECT_ID --data-file=-"
+              exit 1
+            else
+              echo "OK: versione abilitata trovata ($EN_VER) per $S"
+            fi
+          done
+
       - name: Deploy to Cloud Run
+        id: deploy
         run: |
           set -euo pipefail
           PROJECT_ID=$(printf '%s' "${{ secrets.GCP_PROJECT_ID }}" | tr -d '\r\n' | xargs)
@@ -100,11 +171,22 @@ jobs:
           gcloud run deploy zantara-chat-v3 \
             --project "$PROJECT_ID" \
             --region asia-southeast2 \
-            --image asia-southeast2-docker.pkg.dev/involuted-box-469105-r0/zantara-repo/zantara-chat:manual \
+            --image "asia-southeast2-docker.pkg.dev/$PROJECT_ID/zantara-repo/zantara-chat:manual" \
             --service-account "$RUNTIME_SA" \
             --allow-unauthenticated \
             --set-env-vars "API_KEY=${{ secrets.API_KEY }},IMPERSONATE_USER=${{ secrets.IMPERSONATE_USER }},MEMORY_DRIVE_FOLDER_ID=${{ secrets.MEMORY_DRIVE_FOLDER_ID }},BALI_ZERO_CALENDAR_ID=${{ secrets.BALI_ZERO_CALENDAR_ID }},ZANTARA_SHARED_DRIVE_ID=${{ secrets.ZANTARA_SHARED_DRIVE_ID }},GMAIL_SENDER=${{ secrets.GMAIL_SENDER }},CORS_ORIGINS=${{ secrets.CORS_ORIGINS }},USE_AI_SUMMARY=${{ secrets.USE_AI_SUMMARY }}" \
             --set-secrets "SA_JSON_SECRET=${SA_JSON_SM}:latest,OPENAI_API_KEY=${OPENAI_SM}:latest"
+
+      - name: Create failure artifact if missing
+        if: always()
+        run: |
+          if [[ ! -f post_deploy_results.txt ]]; then
+            {
+              echo "status: failure"
+              echo "reason: deploy step failed or tests not executed"
+              echo "hint: controlla il binding actAs sul Service Account runtime"
+            } > post_deploy_results.txt
+          fi
 
       - name: Resolve Cloud Run URL
         id: resolve-url
