@@ -2,6 +2,7 @@ import { Request, Response, Express } from 'express';
 import { google } from 'googleapis';
 import { impersonatedClient } from '../google';
 import { createCalendarEventHandler } from '../actions/calendar/create';
+import { listCalendarEventsHandler } from '../actions/calendar/list';
 
 function logCalendarAction(action: string, details: any) {
   console.log(`[CALENDAR] ${action}`, JSON.stringify(details));
@@ -57,40 +58,6 @@ export const calendarRoutes = (app: Express) => {
     }
   });
 
-  // List events for a given day (UTC bounds) on the configured calendar
-  app.get('/actions/calendar/list', async (req: Request, res: Response) => {
-    try {
-      const calendarId = (req.query.calendarId as string) || process.env.BALI_ZERO_CALENDAR_ID;
-      if (!calendarId) return res.status(400).json({ ok: false, error: 'Missing calendarId and BALI_ZERO_CALENDAR_ID' });
-      const dateStr = (req.query.date as string) || new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-      const timeMin = new Date(`${dateStr}T00:00:00.000Z`).toISOString();
-      const timeMax = new Date(`${dateStr}T23:59:59.999Z`).toISOString();
-
-      const user = process.env.IMPERSONATE_USER || '';
-      const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/calendar.readonly', 'https://www.googleapis.com/auth/calendar']);
-      const calendar = google.calendar({ version: 'v3', auth: ic.auth });
-      const { data } = await calendar.events.list({
-        calendarId,
-        timeMin,
-        timeMax,
-        singleEvents: true,
-        orderBy: 'startTime',
-        maxResults: 100,
-      });
-      const items = (data.items || []).map(ev => ({
-        id: ev.id,
-        summary: ev.summary,
-        organizer: (ev as any)?.organizer?.email || null,
-        status: ev.status,
-        start: ev.start?.dateTime || ev.start?.date || null,
-        end: ev.end?.dateTime || ev.end?.date || null,
-        htmlLink: ev.htmlLink,
-      }));
-  (req as any).log?.info?.({ module: 'calendar.list', calendarId, date: dateStr, count: items.length });
-      res.json({ ok: true, action: 'calendar.list', calendarId, date: dateStr, events: items });
-    } catch (e: any) {
-  (req as any).log?.error?.({ module: 'calendar.list', error: e.message });
-      res.status(500).json({ ok: false, error: e.message });
-    }
-  });
+  // List upcoming events with optional overrides
+  app.get('/actions/calendar/list', listCalendarEventsHandler);
 };

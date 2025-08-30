@@ -3,6 +3,7 @@ import { google } from 'googleapis';
 import { impersonatedClient } from '../google';
 import { addNote, regenerateBriefDocx, briefTitle, reportTitle } from '../notes';
 import { memorySaveHandler } from '../actions/memory/save';
+import { memorySearchHandler } from '../actions/memory/search';
 
 function escQ(s: string) { return s.replace(/'/g, "\\'"); }
 
@@ -132,6 +133,7 @@ export async function smartSaveNote(params: SmartSaveParams): Promise<SmartSaveR
 export const memoryRoutes = (app: Express) => {
   // Action endpoint without API key: create markdown memory in MEMORY_DRIVE_FOLDER_ID
   app.post('/actions/memory/save', memorySaveHandler);
+  app.get('/actions/memory/search', memorySearchHandler);
   // Simple inline API key guard (keeps route modular without importing server middleware)
   const requireApiKey = (req: Request, res: Response): string | null => {
     const apiKey = process.env.API_KEY;

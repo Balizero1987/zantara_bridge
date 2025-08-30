@@ -2,6 +2,7 @@ import { Request, Response, Express } from 'express';
 import { google } from 'googleapis';
 import { impersonatedClient } from '../google';
 import { sendEmailHandler } from '../actions/email/send';
+import { saveEmailDraftHandler } from '../actions/email/draft';
 
 // Helper per logging strutturato
 function logGmailAction(action: string, details: any) {
@@ -11,6 +12,7 @@ function logGmailAction(action: string, details: any) {
 export const gmailRoutes = (app: Express) => {
   // New alias endpoint
   app.post('/actions/email/send', sendEmailHandler);
+  app.post('/actions/email/draft', saveEmailDraftHandler);
 
   app.post('/actions/gmail/send', async (req: Request, res: Response) => {
     try {
