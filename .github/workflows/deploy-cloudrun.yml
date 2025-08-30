@@ -37,21 +37,52 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Validate required secrets
+        shell: bash
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_RUNTIME_SA_EMAIL: ${{ secrets.GCP_RUNTIME_SA_EMAIL }}
+          SA_JSON_SECRET_NAME: ${{ secrets.SA_JSON_SECRET_NAME }}
+          OPENAI_API_KEY_SM_NAME: ${{ secrets.OPENAI_API_KEY_SM_NAME }}
+          API_KEY: ${{ secrets.API_KEY }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for v in GCP_PROJECT_ID GCP_RUNTIME_SA_EMAIL SA_JSON_SECRET_NAME OPENAI_API_KEY_SM_NAME API_KEY; do
+            if [[ -z "${!v}" ]]; then
+              echo "::error::Missing secret: $v";
+              missing=1
+            fi
+          done
+          if [[ $missing -ne 0 ]]; then
+            echo "Required secrets are missing. Configure them in repo settings.";
+            exit 1
+          fi
+          if [[ "$GCP_PROJECT_ID" =~ [[:space:]] ]]; then
+            echo "::warning::GCP_PROJECT_ID contains whitespace; remove trailing spaces/newlines."
+          fi
+
       - name: Deploy to Cloud Run
         run: |
+          set -euo pipefail
+          PROJECT_ID=$(printf '%s' "${{ secrets.GCP_PROJECT_ID }}" | tr -d '\r\n' | xargs)
+          RUNTIME_SA=$(printf '%s' "${{ secrets.GCP_RUNTIME_SA_EMAIL }}" | tr -d '\r\n' | xargs)
+          SA_JSON_SM=$(printf '%s' "${{ secrets.SA_JSON_SECRET_NAME }}" | tr -d '\r\n' | xargs)
+          OPENAI_SM=$(printf '%s' "${{ secrets.OPENAI_API_KEY_SM_NAME }}" | tr -d '\r\n' | xargs)
           gcloud run deploy zantara-chat-v3 \
-            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --project "$PROJECT_ID" \
             --region asia-southeast2 \
             --image asia-southeast2-docker.pkg.dev/involuted-box-469105-r0/zantara-repo/zantara-chat:manual \
-            --service-account "${{ secrets.GCP_RUNTIME_SA_EMAIL }}" \
+            --service-account "$RUNTIME_SA" \
             --allow-unauthenticated \
             --set-env-vars "API_KEY=${{ secrets.API_KEY }},IMPERSONATE_USER=${{ secrets.IMPERSONATE_USER }},MEMORY_DRIVE_FOLDER_ID=${{ secrets.MEMORY_DRIVE_FOLDER_ID }},BALI_ZERO_CALENDAR_ID=${{ secrets.BALI_ZERO_CALENDAR_ID }},ZANTARA_SHARED_DRIVE_ID=${{ secrets.ZANTARA_SHARED_DRIVE_ID }},GMAIL_SENDER=${{ secrets.GMAIL_SENDER }},CORS_ORIGINS=${{ secrets.CORS_ORIGINS }},USE_AI_SUMMARY=${{ secrets.USE_AI_SUMMARY }}" \
-            --set-secrets "SA_JSON_SECRET=${{ secrets.SA_JSON_SECRET_NAME }}:latest,OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY_SM_NAME }}:latest"
+            --set-secrets "SA_JSON_SECRET=${SA_JSON_SM}:latest,OPENAI_API_KEY=${OPENAI_SM}:latest"
 
       - name: Resolve Cloud Run URL
         id: resolve-url
         run: |
-          URL=$(gcloud run services describe zantara-chat-v3 --project "${{ secrets.GCP_PROJECT_ID }}" --region asia-southeast2 --format='value(status.url)')
+          PROJECT_ID=$(printf '%s' "${{ secrets.GCP_PROJECT_ID }}" | tr -d '\r\n' | xargs)
+          URL=$(gcloud run services describe zantara-chat-v3 --project "$PROJECT_ID" --region asia-southeast2 --format='value(status.url)')
           echo "SERVICE_URL=$URL" >> "$GITHUB_ENV"
           echo "Resolved URL: $URL"
 
