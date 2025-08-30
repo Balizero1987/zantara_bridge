@@ -1,8 +1,6 @@
-name: Deploy Cloud Run
+name: Deploy Cloud Run (manual)
 
 on:
-  push:
-    branches: ["main"]
   workflow_dispatch:
 
 jobs:
@@ -94,21 +92,6 @@ jobs:
             echo "OK: actAs presente."
           fi
 
-          echo "Checking actAs per Cloud Run service agent..."
-          PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
-          CR_AGENT="service-$PROJECT_NUMBER@serverless-robot-prod.iam.gserviceaccount.com"
-          if gcloud iam service-accounts get-iam-policy "$RUNTIME_SA" --project "$PROJECT_ID" --format=json > rsapol.json 2>/dev/null; then
-            if jq -e --arg m "serviceAccount:$CR_AGENT" '.bindings[]?|select(.role=="roles/iam.serviceAccountUser").members[]?|select(.==$m)' rsapol.json >/dev/null; then
-              echo "OK: Cloud Run service agent può actAs il runtime SA."
-            else
-              echo "::error::Manca il binding roles/iam.serviceAccountUser su $RUNTIME_SA per $CR_AGENT"
-              echo "Esegui: gcloud iam service-accounts add-iam-policy-binding \"$RUNTIME_SA\" --project \"$PROJECT_ID\" --member \"serviceAccount:$CR_AGENT\" --role roles/iam.serviceAccountUser"
-              exit 1
-            fi
-          else
-            echo "::warning::Impossibile leggere la policy del runtime SA. Se il deploy fallisce con 'Unsupported service account', aggiungi il binding sopra per il service agent."
-          fi
-
       - name: Preflight: Artifact Registry access
         shell: bash
         env:
@@ -192,17 +175,6 @@ jobs:
             --set-env-vars "API_KEY=${{ secrets.API_KEY }},IMPERSONATE_USER=${{ secrets.IMPERSONATE_USER }},MEMORY_DRIVE_FOLDER_ID=${{ secrets.MEMORY_DRIVE_FOLDER_ID }},BALI_ZERO_CALENDAR_ID=${{ secrets.BALI_ZERO_CALENDAR_ID }},ZANTARA_SHARED_DRIVE_ID=${{ secrets.ZANTARA_SHARED_DRIVE_ID }},GMAIL_SENDER=${{ secrets.GMAIL_SENDER }},CORS_ORIGINS=${{ secrets.CORS_ORIGINS }},USE_AI_SUMMARY=${{ secrets.USE_AI_SUMMARY }}" \
             --set-secrets "SA_JSON_SECRET=${SA_JSON_SM}:latest,OPENAI_API_KEY=${OPENAI_SM}:latest"
 
-      - name: Create failure artifact if missing
-        if: always()
-        run: |
-          if [[ ! -f post_deploy_results.txt ]]; then
-            {
-              echo "status: failure"
-              echo "reason: deploy step failed or tests not executed"
-              echo "hint: controlla il binding actAs sul Service Account runtime"
-            } > post_deploy_results.txt
-          fi
-
       - name: Resolve Cloud Run URL
         id: resolve-url
         run: |
@@ -224,3 +196,4 @@ jobs:
           name: post_deploy_results.txt
           path: post_deploy_results.txt
           retention-days: 7
+
