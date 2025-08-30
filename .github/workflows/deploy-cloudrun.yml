@@ -4,10 +4,14 @@ on:
   push:
     branches: ["main"]
   workflow_dispatch:
+concurrency:
+  group: cloudrun-prod
+  cancel-in-progress: true
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    environment: prod
     permissions:
       contents: read
       id-token: write
@@ -36,6 +40,23 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      - name: Configure Artifact Registry and image tag
+        shell: bash
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          set -euo pipefail
+          PROJECT_ID=$(printf '%s' "$GCP_PROJECT_ID" | tr -d '\r\n' | xargs)
+          REGION=asia-southeast2
+          SHORT_SHA="${GITHUB_SHA::7}"
+          IMAGE_URI="$REGION-docker.pkg.dev/$PROJECT_ID/zantara-repo/zantara-chat:$SHORT_SHA"
+          echo "IMAGE_URI=$IMAGE_URI" >> "$GITHUB_ENV"
+          gcloud auth configure-docker "$REGION-docker.pkg.dev" -q
+
+      - name: Build and push image
+        run: |
+          docker buildx build --platform linux/amd64 -t "$IMAGE_URI" --push .
 
       - name: Validate required secrets
         shell: bash
@@ -120,7 +141,7 @@ jobs:
           DEPLOY_SA=$(printf '%s' "$GCP_DEPLOY_SA_EMAIL" | tr -d '\r\n' | xargs)
           LOCATION=asia-southeast2
           REPO=zantara-repo
-          IMAGE_PATH="$LOCATION-docker.pkg.dev/$PROJECT_ID/$REPO/zantara-chat:manual"
+          IMAGE_PATH="$IMAGE_URI"
           echo "Verifica accesso Artifact Registry come deploy SA ($DEPLOY_SA)"
           if ! gcloud artifacts docker images describe "$IMAGE_PATH" --project "$PROJECT_ID" --location "$LOCATION" >/dev/null 2>&1; then
             echo "::error::Accesso negato a Artifact Registry per $DEPLOY_SA su repo $REPO ($LOCATION)"
@@ -202,7 +223,7 @@ jobs:
           gcloud run deploy zantara-chat-v3 \
             --project "$PROJECT_ID" \
             --region asia-southeast2 \
-            --image "asia-southeast2-docker.pkg.dev/$PROJECT_ID/zantara-repo/zantara-chat:manual" \
+            --image "$IMAGE_URI" \
             --service-account "$RUNTIME_SA" \
             --allow-unauthenticated \
             --set-env-vars "API_KEY=${{ secrets.API_KEY }},IMPERSONATE_USER=${{ secrets.IMPERSONATE_USER }},MEMORY_DRIVE_FOLDER_ID=${{ secrets.MEMORY_DRIVE_FOLDER_ID }},BALI_ZERO_CALENDAR_ID=${{ secrets.BALI_ZERO_CALENDAR_ID }},ZANTARA_SHARED_DRIVE_ID=${{ secrets.ZANTARA_SHARED_DRIVE_ID }},GMAIL_SENDER=${{ secrets.GMAIL_SENDER }},CORS_ORIGINS=${{ secrets.CORS_ORIGINS }},USE_AI_SUMMARY=${{ secrets.USE_AI_SUMMARY }}" \
@@ -240,3 +261,18 @@ jobs:
           name: post_deploy_results.txt
           path: post_deploy_results.txt
           retention-days: 7
+
+      - name: Comment status on commit
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = core.getInput('job-status') || process.env['JOB_STATUS'] || '${{ job.status }}';
+            const url = process.env['GITHUB_SERVER_URL'] + '/' + process.env['GITHUB_REPOSITORY'] + '/actions/runs/' + process.env['GITHUB_RUN_ID'];
+            const body = `Cloud Run deploy ${status}\n\nImage: ${process.env.IMAGE_URI || '(n/a)'}\nRun: ${url}`;
+            await github.rest.repos.createCommitComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: context.sha,
+              body
+            });
