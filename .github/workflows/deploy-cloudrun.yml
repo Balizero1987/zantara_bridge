@@ -181,8 +181,16 @@ jobs:
           set -euo pipefail
           PROJECT_ID=$(printf '%s' "${{ secrets.GCP_PROJECT_ID }}" | tr -d '\r\n' | xargs)
           RUNTIME_SA=$(printf '%s' "${{ secrets.GCP_RUNTIME_SA_EMAIL }}" | tr -d '\r\n' | xargs)
-          SA_JSON_SM=$(printf '%s' "${{ secrets.SA_JSON_SECRET_NAME }}" | tr -d '\r\n' | xargs)
-          OPENAI_SM=$(printf '%s' "${{ secrets.OPENAI_API_KEY_SM_NAME }}" | tr -d '\r\n' | xargs)
+          SA_JSON_SM_RAW=$(printf '%s' "${{ secrets.SA_JSON_SECRET_NAME }}" | tr -d '\r\n' | xargs)
+          OPENAI_SM_RAW=$(printf '%s' "${{ secrets.OPENAI_API_KEY_SM_NAME }}" | tr -d '\r\n' | xargs)
+          # Normalize secret names: accept short name or full resource path and extract name
+          normalize_secret_name() {
+            local s="$1"
+            echo "$s" | sed -E 's#^projects/[^/]+/secrets/([^/]+)(/versions/[^/]+)?$#\1#'
+          }
+          SA_JSON_SM=$(normalize_secret_name "$SA_JSON_SM_RAW")
+          OPENAI_SM=$(normalize_secret_name "$OPENAI_SM_RAW")
+          echo "Using secrets -> SA_JSON_SECRET=$SA_JSON_SM, OPENAI_API_KEY=$OPENAI_SM"
           gcloud run deploy zantara-chat-v3 \
             --project "$PROJECT_ID" \
             --region asia-southeast2 \
