@@ -46,3 +46,35 @@ export function requireApiKey(req: Request, res: Response, next: NextFunction) {
   if (!match) return res.status(401).json({ ok: false, error: 'Unauthorized' });
   return next();
 }
+
+/**
+ * Prefer OIDC ID token (Authorization: Bearer <JWT>) and fallback to API Key.
+ * Audience from API_AUDIENCE (comma-separated allowed). Issuer allowlist via ALLOWED_ISSUERS.
+ */
+export async function requireAuth(req: Request, res: Response, next: NextFunction) {
+  const bearer = (req.header('authorization') || '')
+    .replace(/\s+/g, ' ')
+    .replace(/^Bearer\s+/i, '')
+    .trim();
+  if (bearer) {
+    try {
+      const { OAuth2Client } = require('google-auth-library');
+      const client = new OAuth2Client();
+      const audRaw = (process.env.API_AUDIENCE || process.env.CHAT_AUDIENCE || '').trim();
+      const audiences = audRaw ? audRaw.split(',').map((s: string) => s.trim()).filter(Boolean) : undefined;
+      const ticket = await client.verifyIdToken({ idToken: bearer, audience: audiences });
+      const payload = ticket.getPayload();
+      const allowedIss = (process.env.ALLOWED_ISSUERS || 'https://accounts.google.com,accounts.google.com')
+        .split(',').map((s: string) => s.trim());
+      if (!payload || (allowedIss.length && !allowedIss.includes(String(payload.iss)))) {
+        return res.status(401).json({ ok: false, error: 'Invalid issuer' });
+      }
+      (req as any).principal = { sub: payload.sub, email: payload.email, iss: payload.iss, aud: payload.aud };
+      return next();
+    } catch (e: any) {
+      (req as any).log?.warn?.({ action: 'auth.requireAuth.jwt.verify_failed', error: e?.message || String(e) });
+      // fallthrough to API key
+    }
+  }
+  return requireApiKey(req, res, next);
+}

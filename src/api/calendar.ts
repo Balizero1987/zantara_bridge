@@ -57,8 +57,12 @@
 import { Request, Response, Express } from 'express';
 import { google } from 'googleapis';
 import { impersonatedClient } from '../google';
-import { requireApiKey } from '../middleware/auth';
+import { requireAuth as requireApiKey } from '../middleware/auth';
 import { quickAddCalendarEventHandler } from '../actions/calendar/quickadd';
+import { calendarAvailabilityHandler } from '../actions/calendar/availability';
+import { calendarSubscribeHandler } from '../actions/calendar/subscribe';
+import { calendarFreebusyHandler } from '../actions/calendar/freebusy';
+import { calendarRemindersHandler } from '../actions/calendar/reminders';
 
 function logCalendarAction(action: string, details: any) {
   console.log(`[CALENDAR] ${action}`, JSON.stringify(details));
@@ -256,5 +260,9 @@ export const calendarRoutes = (app: Express) => {
   
 // Quick add natural-language event
 app.post('/actions/calendar/quickadd', requireApiKey, quickAddCalendarEventHandler);
+  app.post('/actions/calendar/availability', requireApiKey, calendarAvailabilityHandler);
+  app.post('/actions/calendar/subscribe', requireApiKey, calendarSubscribeHandler);
+  app.post('/actions/calendar/freebusy', requireApiKey, calendarFreebusyHandler);
+  app.post('/actions/calendar/reminders', requireApiKey, calendarRemindersHandler);
 });
 };
