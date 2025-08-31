@@ -5,6 +5,10 @@ import { sendEmailHandler } from '../actions/email/send';
 import { saveEmailDraftHandler } from '../actions/email/draft';
 import { listEmailsHandler } from '../actions/gmail/list';
 import { getEmailHandler } from '../actions/gmail/get';
+import { emailSearchHandler } from '../actions/gmail/search';
+import { emailDeleteHandler } from '../actions/gmail/delete';
+import { emailLabelsHandler } from '../actions/gmail/labels';
+import { emailStarHandler } from '../actions/gmail/star';
 import { requireAuth as requireApiKey } from '../middleware/auth';
 import { replyEmailHandler } from '../actions/email/reply';
 
@@ -20,6 +24,10 @@ export const gmailRoutes = (app: Express) => {
   app.get('/actions/email/list', requireApiKey, listEmailsHandler);
   app.get('/actions/email/get', requireApiKey, getEmailHandler);
   app.post('/actions/email/reply', requireApiKey, replyEmailHandler);
+  app.get('/actions/email/search', requireApiKey, emailSearchHandler);
+  app.post('/actions/email/delete', requireApiKey, emailDeleteHandler);
+  app.post('/actions/email/labels', requireApiKey, emailLabelsHandler);
+  app.post('/actions/email/star', requireApiKey, emailStarHandler);
 
   app.post('/actions/gmail/send', requireApiKey, async (req: Request, res: Response) => {
     try {

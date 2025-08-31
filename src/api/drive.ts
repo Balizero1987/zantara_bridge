@@ -9,6 +9,10 @@ import { deleteDriveFileHandler } from '../actions/drive/delete';
 import { modifyDriveFileHandler } from '../actions/drive/modify';
 import { shareDriveFileHandler } from '../actions/drive/share';
 import { searchDriveHandler } from '../actions/drive/search';
+import { duplicateDriveFileHandler } from '../actions/drive/duplicate';
+import { commentDriveFileHandler } from '../actions/drive/comment';
+import { convertDriveFileHandler } from '../actions/drive/convert';
+import { permissionsAuditHandler } from '../actions/drive/permissions_audit';
 
 function logDriveAction(action: string, details: any) {
   console.log(`[DRIVE] ${action}`, JSON.stringify(details));
@@ -23,6 +27,10 @@ export const driveRoutes = (app: Express) => {
   app.post('/actions/drive/delete', requireApiKey, deleteDriveFileHandler);
   app.post('/actions/drive/share', requireApiKey, shareDriveFileHandler);
   app.get('/actions/drive/search', requireApiKey, searchDriveHandler);
+  app.post('/actions/drive/duplicate', requireApiKey, duplicateDriveFileHandler);
+  app.post('/actions/drive/comment', requireApiKey, commentDriveFileHandler);
+  app.post('/actions/drive/convert', requireApiKey, convertDriveFileHandler);
+  app.get('/actions/drive/permissions/audit', requireApiKey, permissionsAuditHandler);
 
   // Crea file Google Doc in una cartella
   app.post('/actions/drive/create', requireApiKey, async (req: Request, res: Response) => {

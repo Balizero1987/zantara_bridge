@@ -9,6 +9,10 @@ import { memoryEntrySaveHandler } from '../actions/memory/entries/save';
 import { memoryEntrySearchHandler } from '../actions/memory/entries/search';
 import { memoryWeeklySummaryHandler } from '../actions/memory/entries/summary';
 import { memoryEntryTagHandler } from '../actions/memory/entries/tag';
+import { memoryMonthlySummaryHandler } from '../actions/memory/summary_monthly';
+import { memoryEntryDeleteHandler } from '../actions/memory/entry_delete';
+import { memoryEntryRestoreHandler } from '../actions/memory/entry_restore';
+import { memoryEntryMergeHandler } from '../actions/memory/entry_merge';
 
 function escQ(s: string) { return s.replace(/'/g, "\\'"); }
 
@@ -144,6 +148,10 @@ export const memoryRoutes = (app: Express) => {
   app.get('/actions/memory/entry/search', requireApiKey, memoryEntrySearchHandler);
   app.get('/actions/memory/summary', requireApiKey, memoryWeeklySummaryHandler);
   app.post('/actions/memory/entry/tag', requireApiKey, memoryEntryTagHandler);
+  app.get('/actions/memory/summary/monthly', requireApiKey, memoryMonthlySummaryHandler);
+  app.post('/actions/memory/entry/delete', requireApiKey, memoryEntryDeleteHandler);
+  app.post('/actions/memory/entry/restore', requireApiKey, memoryEntryRestoreHandler);
+  app.post('/actions/memory/entry/merge', requireApiKey, memoryEntryMergeHandler);
   // Simple inline API key guard (keeps route modular without importing server middleware)
   const requireApiKey = (req: Request, res: Response): string | null => {
     const apiKey = process.env.API_KEY;
