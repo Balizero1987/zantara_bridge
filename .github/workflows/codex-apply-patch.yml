@@ -3,7 +3,7 @@ on:
 workflow_dispatch:
 inputs:
 branch:
-description: "Branch PR"
+description: "Branch PR (verrà creato/ricreato)"
 required: true
 default: "codex/update"
 title:
@@ -11,7 +11,7 @@ description: "PR title"
 required: true
 default: "Codex update"
 body:
-description: "PR body"
+description: "PR body (opzionale)"
 required: false
 default: ""
 patch_b64:
@@ -30,7 +30,7 @@ uses: actions/checkout@v4
 with:
 fetch-depth: 0
 
-  - name: Decode patch
+    - name: Decode patch
     run: echo "${{ inputs.patch_b64 }}" | base64 -d > patch.diff
 
   - name: Apply patch (safe)
@@ -40,7 +40,7 @@ fetch-depth: 0
       git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
       git checkout -B "${{ inputs.branch }}"
       git apply --whitespace=nowarn patch.diff
-      # Se git ha generato file .rej, falliamo subito
+      # Fail if any .rej files were produced
       if ls -1 **/*.rej 2>/dev/null | grep -q .; then
         echo "::error::Patch rejected"
         grep -nH '' **/*.rej || true
