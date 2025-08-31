@@ -1,0 +1,58 @@
+name: Codex Apply Patch
+on:
+workflow_dispatch:
+inputs:
+branch:
+description: "Branch PR"
+required: true
+default: "codex/update"
+title:
+description: "PR title"
+required: true
+default: "Codex update"
+body:
+description: "PR body"
+required: false
+default: ""
+patch_b64:
+description: "Base64 of unified diff"
+required: true
+
+jobs:
+apply:
+runs-on: ubuntu-latest
+permissions:
+contents: write
+pull-requests: write
+steps:
+- name: Checkout
+uses: actions/checkout@v4
+with:
+fetch-depth: 0
+
+  - name: Decode patch
+    run: echo "${{ inputs.patch_b64 }}" | base64 -d > patch.diff
+
+  - name: Apply patch (safe)
+    run: |
+      set -e
+      git config user.name "github-actions[bot]"
+      git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      git checkout -B "${{ inputs.branch }}"
+      git apply --whitespace=nowarn patch.diff
+      # Se git ha generato file .rej, falliamo subito
+      if ls -1 **/*.rej 2>/dev/null | grep -q .; then
+        echo "::error::Patch rejected"
+        grep -nH '' **/*.rej || true
+        exit 1
+      fi
+
+  - name: Create PR
+    uses: peter-evans/create-pull-request@v6
+    with:
+      branch: ${{ inputs.branch }}
+      title: ${{ inputs.title }}
+      body: ${{ inputs.body }}
+      commit-message: ${{ inputs.title }}
+      committer: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+      author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
