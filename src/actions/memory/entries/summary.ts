@@ -12,10 +12,8 @@ export async function memoryWeeklySummaryHandler(req: Request, res: Response) {
     const snap = await db.collection('memory_entries').doc(String(userId)).collection('entries').where('ts','>=', weekAgo).orderBy('ts','desc').limit(1000).get();
     const items = snap.docs.map(d=>d.data() as any);
     // naive summary: list titles/bullets from first sentence chunks
-    const bullets = items.slice(0,50).map(e => `• ${new Date(e.ts).toISOString().slice(0,10)}: ${String(e.text).split('
-')[0].slice(0,120)}`);
-    const summary = bullets.join('
-');
+    const bullets = items.slice(0,50).map(e => `• ${new Date(e.ts).toISOString().slice(0,10)}: ${String(e.text).split('\n')[0].slice(0,120)}`);
+    const summary = bullets.join('\n');
     return res.json({ ok: true, userId, count: items.length, summary });
   } catch (e: any) {
     return res.status(500).json({ ok: false, error: e?.message || 'memory.weeklySummary failed' });
