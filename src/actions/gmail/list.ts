@@ -21,7 +21,7 @@ export async function listEmailsHandler(req: Request, res: Response) {
       const h = (name: string) => headers.find(x => x.name === name)?.value || null;
       return { id: g.data.id, threadId: g.data.threadId, subject: h('Subject'), from: h('From'), date: h('Date'), snippet: g.data.snippet };
     }));
-    (req as any).log?.info?.({ action: 'email.list', labelIds, count: details.length });
+    (req as any).log?.info?.({ action: 'email.list', labelIds: [label], count: details.length });
     return res.json({ ok: true, items: details });
   } catch (e: any) {
     const status = e?.response?.status || 500;
