@@ -5,7 +5,7 @@ import { sendEmailHandler } from '../actions/email/send';
 import { saveEmailDraftHandler } from '../actions/email/draft';
 import { listEmailsHandler } from '../actions/gmail/list';
 import { getEmailHandler } from '../actions/gmail/get';
-import { requireApiKey } from '../middleware/auth';
+import { requireAuth as requireApiKey } from '../middleware/auth';
 import { replyEmailHandler } from '../actions/email/reply';
 
 // Helper per logging strutturato

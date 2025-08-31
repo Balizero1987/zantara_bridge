@@ -1,7 +1,7 @@
 import { Request, Response, Express } from 'express';
 import { google } from 'googleapis';
 import { impersonatedClient } from '../google';
-import { requireApiKey } from '../middleware/auth';
+import { requireAuth as requireApiKey } from '../middleware/auth';
 import { uploadDriveFileHandler } from '../actions/drive/upload';
 import { renameDriveFileHandler } from '../actions/drive/rename';
 import { moveDriveFileHandler } from '../actions/drive/move';

@@ -4,7 +4,7 @@ import { impersonatedClient } from '../google';
 import { addNote, regenerateBriefDocx, briefTitle, reportTitle } from '../notes';
 import { memorySaveHandler } from '../actions/memory/save';
 import { memorySearchHandler } from '../actions/memory/search';
-import { requireApiKey } from '../middleware/auth';
+import { requireAuth as requireApiKey } from '../middleware/auth';
 import { memoryEntrySaveHandler } from '../actions/memory/entries/save';
 import { memoryEntrySearchHandler } from '../actions/memory/entries/search';
 import { memoryWeeklySummaryHandler } from '../actions/memory/entries/summary';
