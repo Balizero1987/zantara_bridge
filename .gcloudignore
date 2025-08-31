@@ -1,0 +1,31 @@
+# Exclude Git metadata and GitHub config
+.git/
+.github/
+
+# Node modules and build outputs
+node_modules/
+**/node_modules/
+dist/
+build/
+coverage/
+
+# Local env and secrets
+.env
+.env.*
+openai.key
+service-account.json
+zantara-key.json
+
+# OS/editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Artifacts/exports
+*.tgz
+*.bundle
+post_deploy_results.txt
+
+# Accidental folders
+zantara-chat 2/
