@@ -6,6 +6,9 @@ import { uploadDriveFileHandler } from '../actions/drive/upload';
 import { renameDriveFileHandler } from '../actions/drive/rename';
 import { moveDriveFileHandler } from '../actions/drive/move';
 import { deleteDriveFileHandler } from '../actions/drive/delete';
+import { modifyDriveFileHandler } from '../actions/drive/modify';
+import { shareDriveFileHandler } from '../actions/drive/share';
+import { searchDriveHandler } from '../actions/drive/search';
 
 function logDriveAction(action: string, details: any) {
   console.log(`[DRIVE] ${action}`, JSON.stringify(details));
@@ -14,9 +17,12 @@ function logDriveAction(action: string, details: any) {
 export const driveRoutes = (app: Express) => {
   // Upload generic file into memory folder (protected)
   app.post('/actions/drive/upload', requireApiKey, uploadDriveFileHandler);
+  app.post('/actions/drive/modify', requireApiKey, modifyDriveFileHandler);
   app.post('/actions/drive/rename', requireApiKey, renameDriveFileHandler);
   app.post('/actions/drive/move', requireApiKey, moveDriveFileHandler);
   app.post('/actions/drive/delete', requireApiKey, deleteDriveFileHandler);
+  app.post('/actions/drive/share', requireApiKey, shareDriveFileHandler);
+  app.get('/actions/drive/search', requireApiKey, searchDriveHandler);
 
   // Crea file Google Doc in una cartella
   app.post('/actions/drive/create', requireApiKey, async (req: Request, res: Response) => {

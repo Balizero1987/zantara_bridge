@@ -58,6 +58,7 @@ import { Request, Response, Express } from 'express';
 import { google } from 'googleapis';
 import { impersonatedClient } from '../google';
 import { requireApiKey } from '../middleware/auth';
+import { quickAddCalendarEventHandler } from '../actions/calendar/quickadd';
 
 function logCalendarAction(action: string, details: any) {
   console.log(`[CALENDAR] ${action}`, JSON.stringify(details));
@@ -252,5 +253,8 @@ export const calendarRoutes = (app: Express) => {
       (req as any).log?.error?.({ module: 'calendar.delete', error: e.message });
       res.status(500).json({ ok: false, error: e.message });
     }
-  });
+  
+// Quick add natural-language event
+app.post('/actions/calendar/quickadd', requireApiKey, quickAddCalendarEventHandler);
+});
 };

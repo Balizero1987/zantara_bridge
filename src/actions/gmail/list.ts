@@ -4,12 +4,16 @@ import { impersonatedClient } from '../../google';
 
 export async function listEmailsHandler(req: Request, res: Response) {
   try {
-    const labelIds = (req.query.labelId as string) ? [String(req.query.labelId)] : ['INBOX'];
-    const maxResults = Math.max(1, Math.min(parseInt(String(req.query.maxResults || '10'), 10) || 10, 50));
+    const label = (req.query.label as string) || (req.query.labelId as string) || 'INBOX';
+    const q = (req.query.query as string) || (req.query.q as string) || '';
+    const from = (req.query.from as string) || '';
+    const maxResults = Math.max(1, Math.min(parseInt(String(req.query.limit || req.query.maxResults || '10'), 10) || 10, 50));
     const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/gmail.readonly']);
     const gmail = google.gmail({ version: 'v1', auth: ic.auth });
-    const list = await gmail.users.messages.list({ userId: 'me', labelIds, maxResults });
+    let query = q;
+    if (from) query = `${query} from:${from}`.trim();
+    const list = await gmail.users.messages.list({ userId: 'me', labelIds: [label], maxResults, q: query || undefined });
     const messages = list.data.messages || [];
     const details = await Promise.all(messages.map(async (m) => {
       const g = await gmail.users.messages.get({ userId: 'me', id: m.id!, format: 'metadata', metadataHeaders: ['Subject','From','Date'] });
@@ -26,4 +30,3 @@ export async function listEmailsHandler(req: Request, res: Response) {
     return res.status(status).json({ ok: false, error: e?.message || 'email.list failed', details: gerr || undefined });
   }
 }
-

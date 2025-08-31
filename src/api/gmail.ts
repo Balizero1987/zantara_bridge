@@ -6,6 +6,7 @@ import { saveEmailDraftHandler } from '../actions/email/draft';
 import { listEmailsHandler } from '../actions/gmail/list';
 import { getEmailHandler } from '../actions/gmail/get';
 import { requireApiKey } from '../middleware/auth';
+import { replyEmailHandler } from '../actions/email/reply';
 
 // Helper per logging strutturato
 function logGmailAction(action: string, details: any) {
@@ -18,6 +19,7 @@ export const gmailRoutes = (app: Express) => {
   app.post('/actions/email/draft', requireApiKey, saveEmailDraftHandler);
   app.get('/actions/email/list', requireApiKey, listEmailsHandler);
   app.get('/actions/email/get', requireApiKey, getEmailHandler);
+  app.post('/actions/email/reply', requireApiKey, replyEmailHandler);
 
   app.post('/actions/gmail/send', requireApiKey, async (req: Request, res: Response) => {
     try {

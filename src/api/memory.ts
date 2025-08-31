@@ -5,6 +5,10 @@ import { addNote, regenerateBriefDocx, briefTitle, reportTitle } from '../notes'
 import { memorySaveHandler } from '../actions/memory/save';
 import { memorySearchHandler } from '../actions/memory/search';
 import { requireApiKey } from '../middleware/auth';
+import { memoryEntrySaveHandler } from '../actions/memory/entries/save';
+import { memoryEntrySearchHandler } from '../actions/memory/entries/search';
+import { memoryWeeklySummaryHandler } from '../actions/memory/entries/summary';
+import { memoryEntryTagHandler } from '../actions/memory/entries/tag';
 
 function escQ(s: string) { return s.replace(/'/g, "\\'"); }
 
@@ -135,6 +139,11 @@ export const memoryRoutes = (app: Express) => {
   // Action endpoint without API key: create markdown memory in MEMORY_DRIVE_FOLDER_ID
   app.post('/actions/memory/save', requireApiKey, memorySaveHandler);
   app.get('/actions/memory/search', requireApiKey, memorySearchHandler);
+  // Firestore-backed memory entries
+  app.post('/actions/memory/entry/save', requireApiKey, memoryEntrySaveHandler);
+  app.get('/actions/memory/entry/search', requireApiKey, memoryEntrySearchHandler);
+  app.get('/actions/memory/summary', requireApiKey, memoryWeeklySummaryHandler);
+  app.post('/actions/memory/entry/tag', requireApiKey, memoryEntryTagHandler);
   // Simple inline API key guard (keeps route modular without importing server middleware)
   const requireApiKey = (req: Request, res: Response): string | null => {
     const apiKey = process.env.API_KEY;
