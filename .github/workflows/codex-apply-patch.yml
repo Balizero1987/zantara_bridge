@@ -1,6 +1,8 @@
 name: Codex Apply Patch
 
 on:
+  repository_dispatch:
+    types: [patch_from_zantara]
   workflow_dispatch:
     inputs:
       branch:
@@ -18,8 +20,6 @@ on:
       patch_b64:
         description: "Base64 of unified diff"
         required: true
-  repository_dispatch:
-    types: [codex-apply-patch]
 
 permissions:
   contents: write
@@ -34,6 +34,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install GitHub CLI
+        run: |
+          sudo apt update
+          sudo apt install gh -y
+
       - name: Resolve inputs (dispatch or manual)
         id: params
         run: |
@@ -47,7 +52,6 @@ jobs:
             echo "title=${{ inputs.title }}" >> $GITHUB_OUTPUT
             echo "body=${{ inputs.body }}" >> $GITHUB_OUTPUT
             printf %s "${{ inputs.patch_b64 }}" | base64 -d > patch.diff
-          fi
 
       - name: Apply patch (with fallback)
         run: |
