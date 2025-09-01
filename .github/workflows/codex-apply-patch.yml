@@ -50,7 +50,7 @@ fetch-depth: 0
         exit 1
       fi
 
-  - name: Create PR
+- name: Create PR
     uses: peter-evans/create-pull-request@v6
     with:
       branch: ${{ inputs.branch }}
