@@ -1,0 +1,9 @@
+{
+  "event_type": "codex-apply-patch",
+  "client_payload": {
+    "branch": "codex/update",
+    "title": "Codex update",
+    "body": "Triggered via repository_dispatch",
+    "patch_b64": "ZGlmZiAtLWdpdCBhL0NPREVYX0NMT1VEX09LIGIvQ09ERVhfQ0xPVURfT0sKbmV3IGZpbGUgbW9kZSAxMDA2NDQKaW5kZXggMDAwMDAwMC4uYjMxZDFiOQotLS0gL2Rldi9udWxsCisrKyBiL0NPREVYX0NMT1VEX09LCkBAIC0wLDAgKzEgQEAKK2NvZGV4IGNsb3VkIG9rCg=="
+  }
+}

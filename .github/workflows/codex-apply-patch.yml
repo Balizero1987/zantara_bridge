@@ -2,7 +2,7 @@ name: Codex Apply Patch
 
 on:
   repository_dispatch:
-    types: [patch_from_zantara]
+    types: [codex-apply-patch]
   workflow_dispatch:
     inputs:
       branch:
@@ -69,6 +69,7 @@ jobs:
           git push origin "${{ steps.params.outputs.branch }}" || echo "No changes pushed"
 
       - name: Create PR
+        id: cpr
         uses: peter-evans/create-pull-request@v6
         with:
           base: main
