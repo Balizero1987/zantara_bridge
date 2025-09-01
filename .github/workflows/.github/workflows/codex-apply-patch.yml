@@ -1,0 +1,87 @@
+name: Codex Apply Patch
+on:
+workflow_dispatch:
+inputs:
+branch:
+description: "Branch PR (verrà creato/ricreato)"
+required: true
+default: "codex/update"
+title:
+description: "PR title"
+required: true
+default: "Codex update"
+body:
+description: "PR body (opzionale)"
+required: false
+default: ""
+patch_b64:
+description: "Base64 of unified diff"
+required: true
+repository_dispatch:
+types: [codex-apply-patch]
+
+permissions:
+contents: write
+pull-requests: write
+
+jobs:
+apply-patch:
+runs-on: ubuntu-latest
+steps:
+- name: Checkout
+uses: actions/checkout@v4
+with:
+fetch-depth: 0
+
+  - name: Resolve inputs (dispatch or manual)
+    id: params
+    shell: bash
+    run: |
+      set -euo pipefail
+      BRANCH=${{ github.event_name == 'repository_dispatch' && github.event.client_payload.branch || inputs.branch }}
+      TITLE=${{ github.event_name == 'repository_dispatch' && github.event.client_payload.title || inputs.title }}
+      BODY=${{ github.event_name == 'repository_dispatch' && github.event.client_payload.body || inputs.body }}
+      PATCH_B64=${{ github.event_name == 'repository_dispatch' && github.event.client_payload.patch_b64 || inputs.patch_b64 }}
+      echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
+      echo "title=${TITLE}" >> "$GITHUB_OUTPUT"
+      printf %s "${BODY}" > body.txt
+      printf %s "${PATCH_B64}" | base64 -d > patch.diff
+      echo "Patch length: ${#PATCH_B64}"
+
+  - name: Debug patch header
+    shell: bash
+    run: |
+      set -euo pipefail
+      echo "--- patch.diff (first 40 lines) ---"
+      head -n 40 patch.diff || true
+      echo "--- end header ---"
+
+  - name: Apply patch (safe)
+    shell: bash
+    run: |
+      set -euo pipefail
+      git config user.name "github-actions[bot]"
+      git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      git checkout -B "${{ steps.params.outputs.branch }}"
+      echo "Applying patch with git apply..."
+      if ! git apply --whitespace=nowarn patch.diff; then
+        echo "git apply failed, trying 3-way..."
+        git apply -3 --whitespace=nowarn patch.diff
+      fi
+      echo "Files changed:"; git status --porcelain
+      if find . -type f -name '*.rej' -print -quit | grep -q .; then
+        echo "::error::Patch rejected (.rej files present)"
+        find . -type f -name '*.rej' -print
+        exit 1
+      fi
+
+  - name: Create PR
+    uses: peter-evans/create-pull-request@v6
+    with:
+      base: ${{ github.event.repository.default_branch }}
+      branch: ${{ steps.params.outputs.branch }}
+      title: ${{ steps.params.outputs.title }}
+      body-path: body.txt
+      commit-message: ${{ steps.params.outputs.title }}
+      committer: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+      author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
