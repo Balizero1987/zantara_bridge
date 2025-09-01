@@ -38,15 +38,21 @@ fetch-depth: 0
     shell: bash
     run: |
       set -euo pipefail
-      BRANCH=${{ github.event_name == 'repository_dispatch' && github.event.client_payload.branch || inputs.branch }}
-      TITLE=${{ github.event_name == 'repository_dispatch' && github.event.client_payload.title || inputs.title }}
-      BODY=${{ github.event_name == 'repository_dispatch' && github.event.client_payload.body || inputs.body }}
-      PATCH_B64=${{ github.event_name == 'repository_dispatch' && github.event.client_payload.patch_b64 || inputs.patch_b64 }}
+      if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+        BRANCH="${{ github.event.client_payload.branch }}"
+        TITLE="${{ github.event.client_payload.title }}"
+        BODY="${{ github.event.client_payload.body }}"
+        PATCH_B64="${{ github.event.client_payload.patch_b64 }}"
+      else
+        BRANCH="${{ inputs.branch }}"
+        TITLE="${{ inputs.title }}"
+        BODY="${{ inputs.body }}"
+        PATCH_B64="${{ inputs.patch_b64 }}"
+      fi
       echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
       echo "title=${TITLE}" >> "$GITHUB_OUTPUT"
       printf %s "${BODY}" > body.txt
       printf %s "${PATCH_B64}" | base64 -d > patch.diff
-      echo "Patch length: ${#PATCH_B64}"
 
   - name: Apply patch (safe)
     shell: bash
@@ -55,9 +61,7 @@ fetch-depth: 0
       git config user.name "github-actions[bot]"
       git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
       git checkout -B "${{ steps.params.outputs.branch }}"
-      if ! git apply --whitespace=nowarn patch.diff; then
-        git apply -3 --whitespace=nowarn patch.diff
-      fi
+      git apply --whitespace=nowarn patch.diff || git apply -3 --whitespace=nowarn patch.diff
       if find . -type f -name '*.rej' -print -quit | grep -q .; then
         echo "::error::Patch rejected (.rej files present)"
         find . -type f -name '*.rej' -print
