@@ -57,4 +57,19 @@ jobs:
           commit-message: ${{ inputs.title }}
           committer: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
           author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          if ls -1 **/*.rej 2>/dev/null | grep -q .; then
+            echo "::error::Patch rejected"
+            grep -nH '' **/*.rej || true
+            exit 1
+          fi
 
+       - name: Create PR
+         uses: peter-evans/create-pull-request@v6
+         with:
+         branch: ${{ inputs.branch }}
+         base: main
+         title: ${{ inputs.title }}
+         body: ${{ inputs.body }}
+         commit-message: ${{ inputs.title }} 
+         committer: "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+         author: "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
