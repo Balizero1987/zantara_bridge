@@ -36,7 +36,7 @@ fetch-depth: 0
 - name: Decode patch
     run: echo "${{ inputs.patch_b64 }}" | base64 -d > patch.diff
 
-  - name: Apply patch (safe)
+- name: Apply patch (safe)
     run: |
       set -e
       git config user.name "github-actions[bot]"
