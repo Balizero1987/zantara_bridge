@@ -28,6 +28,9 @@ permissions:
 jobs:
   apply-patch:
     runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_CODEX_TOKEN }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -65,7 +68,9 @@ jobs:
             git apply -3 --whitespace=nowarn patch.diff
           fi
           if find . -type f -name '*.rej' -print -quit | grep -q .; then
-            echo "::error::Patch rejected (.rej files present)"; find . -name '*.rej' -print; exit 1
+            echo "::error::Patch rejected (.rej files present)"
+            find . -name '*.rej' -print
+            exit 1
           fi
           git add -A
           git commit -m "${{ steps.params.outputs.title }}" || echo "No changes to commit"
