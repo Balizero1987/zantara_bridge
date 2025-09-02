@@ -1,58 +1,92 @@
 name: Codex Apply Patch
+
 on:
-workflow_dispatch:
-inputs:
-branch:
-description: "Branch PR"
-required: true
-default: "codex/update"
-title:
-description: "PR title"
-required: true
-default: "Codex update"
-body:
-description: "PR body"
-required: false
-default: ""
-patch_b64:
-description: "Base64 of unified diff"
-required: true
+  repository_dispatch:
+    types: [codex-apply-patch]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch PR (verrà creato/ricreato)"
+        required: true
+        default: "codex/update"
+      title:
+        description: "PR title"
+        required: true
+        default: "Codex update"
+      body:
+        description: "PR body (opzionale)"
+        required: false
+        default: ""
+      patch_b64:
+        description: "Base64 of unified diff"
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
-apply:
-runs-on: ubuntu-latest
-permissions:
-contents: write
-pull-requests: write
-steps:
-- name: Checkout
-uses: actions/checkout@v4
-with:
-fetch-depth: 0
+  apply-patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-  - name: Decode patch
-    run: echo "${{ inputs.patch_b64 }}" | base64 -d > patch.diff
+      - name: Install GitHub CLI
+        run: |
+          sudo apt update
+          sudo apt install gh -y
 
-  - name: Apply patch (safe)
-    run: |
-      set -e
-      git config user.name "github-actions[bot]"
-      git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-      git checkout -B "${{ inputs.branch }}"
-      git apply --whitespace=nowarn patch.diff
-      # Se git ha generato file .rej, falliamo subito
-      if ls -1 **/*.rej 2>/dev/null | grep -q .; then
-        echo "::error::Patch rejected"
-        grep -nH '' **/*.rej || true
-        exit 1
-      fi
+      - name: Resolve inputs (dispatch or manual)
+        id: params
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "branch=${{ github.event.client_payload.branch }}" >> $GITHUB_OUTPUT
+            echo "title=${{ github.event.client_payload.title }}" >> $GITHUB_OUTPUT
+            echo "body=${{ github.event.client_payload.body }}" >> $GITHUB_OUTPUT
+            printf %s "${{ github.event.client_payload.patch_b64 }}" | base64 -d > patch.diff
+          else
+            echo "branch=${{ inputs.branch }}" >> $GITHUB_OUTPUT
+            echo "title=${{ inputs.title }}" >> $GITHUB_OUTPUT
+            echo "body=${{ inputs.body }}" >> $GITHUB_OUTPUT
+            printf %s "${{ inputs.patch_b64 }}" | base64 -d > patch.diff
 
-  - name: Create PR
-    uses: peter-evans/create-pull-request@v6
-    with:
-      branch: ${{ inputs.branch }}
-      title: ${{ inputs.title }}
-      body: ${{ inputs.body }}
-      commit-message: ${{ inputs.title }}
-      committer: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
-      author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+      - name: Apply patch (with fallback)
+        run: |
+          set -e
+          git config user.name "Codex Bot"
+          git config user.email "codex@zantara.ai"
+          git checkout -B "${{ steps.params.outputs.branch }}"
+          echo "Applying patch..."
+          if ! git apply --whitespace=nowarn patch.diff; then
+            echo "Fallback 3-way merge"
+            git apply -3 --whitespace=nowarn patch.diff
+          fi
+          git add -A
+          git commit -m "${{ steps.params.outputs.title }}" || echo "No changes to commit"
+          git push origin "${{ steps.params.outputs.branch }}" || echo "No changes pushed"
+
+      - name: Create PR
+        id: cpr
+        uses: peter-evans/create-pull-request@v6
+        with:
+          base: main
+          branch: ${{ steps.params.outputs.branch }}
+          title: ${{ steps.params.outputs.title }}
+          body: ${{ steps.params.outputs.body }}
+          commit-message: ${{ steps.params.outputs.title }}
+          committer: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+
+      - name: Comment PR with summary
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=$(gh pr list --head "${{ steps.params.outputs.branch }}" --state open --json number -q '.[0].number' || echo "")
+          if [ -n "$PR_NUMBER" ]; then
+            CHANGES=$(git diff --name-only HEAD~1 HEAD | xargs -r printf "- %s\n")
+            MSG="✅ Patch applied. Changed files:\n${CHANGES:-(none)}"
+            gh pr comment "$PR_NUMBER" --body "$MSG"
+          fi
