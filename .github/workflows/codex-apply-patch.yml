@@ -24,6 +24,16 @@ jobs:
           printf %s "${{ github.event.client_payload.patch_b64 }}" | base64 -d > patch.diff
           echo "Patch length: $(wc -c < patch.diff || true)"
 
+      - name: Debug dispatch payload
+        shell: bash
+        run: |
+          echo "== DISPATCH DEBUG =="
+          echo "Branch: ${{ steps.params.outputs.branch }}"
+          echo "Title:  ${{ steps.params.outputs.title }}"
+          echo "Body:   ${{ steps.params.outputs.body }}"
+          head -n 20 patch.diff || true
+          echo "== END DEBUG =="
+
       - name: Apply patch (with fallback)
         shell: bash
         run: |
