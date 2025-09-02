@@ -39,42 +39,37 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          BRANCH=${{ github.event_name == 'repository_dispatch' && github.event.client_payload.branch || inputs.branch }}
-          TITLE=${{ github.event_name == 'repository_dispatch' && github.event.client_payload.title || inputs.title }}
-          BODY=${{ github.event_name == 'repository_dispatch' && github.event.client_payload.body || inputs.body }}
-          PATCH_B64=${{ github.event_name == 'repository_dispatch' && github.event.client_payload.patch_b64 || inputs.patch_b64 }}
-          echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
-          echo "title=${TITLE}" >> "$GITHUB_OUTPUT"
-          printf %s "${BODY}" > body.txt
-          printf %s "${PATCH_B64}" | base64 -d > patch.diff
-          echo "Patch length: ${#PATCH_B64}"
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "branch=${{ github.event.client_payload.branch }}" >> $GITHUB_OUTPUT
+            echo "title=${{ github.event.client_payload.title }}"  >> $GITHUB_OUTPUT
+            echo "body=${{ github.event.client_payload.body }}"    >> $GITHUB_OUTPUT
+            printf %s "${{ github.event.client_payload.patch_b64 }}" | base64 -d > patch.diff
+          else
+            echo "branch=${{ inputs.branch }}" >> $GITHUB_OUTPUT
+            echo "title=${{ inputs.title }}"   >> $GITHUB_OUTPUT
+            echo "body=${{ inputs.body }}"     >> $GITHUB_OUTPUT
+            printf %s "${{ inputs.patch_b64 }}" | base64 -d > patch.diff
+          fi
+          echo "Patch length: $(wc -c < patch.diff || true)"
 
-      - name: Debug patch header
+      - name: Apply patch (with fallback)
         shell: bash
         run: |
-          set -euo pipefail
-          echo "--- patch.diff (first 40 lines) ---"
-          head -n 40 patch.diff || true
-          echo "--- end header ---"
-
-      - name: Apply patch (safe)
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          set -e
+          git config user.name "Codex Bot"
+          git config user.email "codex@zantara.ai"
           git checkout -B "${{ steps.params.outputs.branch }}"
-          echo "Applying patch with git apply..."
+          echo "Applying patch..."
           if ! git apply --whitespace=nowarn patch.diff; then
-            echo "git apply failed, trying 3-way..."
+            echo "Fallback 3-way merge"
             git apply -3 --whitespace=nowarn patch.diff
           fi
-          echo "Files changed:"; git status --porcelain
           if find . -type f -name '*.rej' -print -quit | grep -q .; then
-            echo "::error::Patch rejected (.rej files present)"
-            find . -type f -name '*.rej' -print
-            exit 1
+            echo "::error::Patch rejected (.rej files present)"; find . -name '*.rej' -print; exit 1
           fi
+          git add -A
+          git commit -m "${{ steps.params.outputs.title }}" || echo "No changes to commit"
+          git push origin "${{ steps.params.outputs.branch }}" || echo "No changes pushed"
 
       - name: Create PR
         uses: peter-evans/create-pull-request@v6
@@ -82,7 +77,7 @@ jobs:
           base: ${{ github.event.repository.default_branch }}
           branch: ${{ steps.params.outputs.branch }}
           title: ${{ steps.params.outputs.title }}
-          body-path: body.txt
+          body: ${{ steps.params.outputs.body }}
           commit-message: ${{ steps.params.outputs.title }}
           committer: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
           author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
