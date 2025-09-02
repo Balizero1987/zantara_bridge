@@ -1,0 +1,37 @@
+name: Codex Apply Patch
+
+on:
+  repository_dispatch:
+    types: [codex-apply-patch]
+
+jobs:
+  apply-patch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Decode patch
+        run: |
+          echo "${{ github.event.client_payload.patch_b64 }}" | base64 -d > patch.diff
+
+      - name: Apply patch
+        run: |
+          set -e
+          git config user.name "Codex Bot"
+          git config user.email "codex@zantera.ai"
+          git checkout -B ${{ github.event.client_payload.branch }}
+          git apply patch.diff || git apply -3 patch.diff
+          git add -A
+          git commit -m "${{ github.event.client_payload.title }}"
+          git push origin ${{ github.event.client_payload.branch }}
+
+      - name: Create PR
+        uses: peter-evans/create-pull-request@v6
+        with:
+          base: main
+          branch: ${{ github.event.client_payload.branch }}
+          title: ${{ github.event.client_payload.title }}
+          body: ${{ github.event.client_payload.body }}
