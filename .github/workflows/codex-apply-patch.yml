@@ -1,28 +1,57 @@
 name: Codex Apply Patch
+
 on:
   repository_dispatch:
     types: [codex-apply-patch]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch PR (verrà creato/ricreato)"
+        required: true
+        default: "codex/update"
+      title:
+        description: "PR title"
+        required: true
+        default: "Codex update"
+      body:
+        description: "PR body (opzionale)"
+        required: false
+        default: ""
+      patch_b64:
+        description: "Base64 of unified diff"
+        required: true
+
 permissions:
   contents: write
   pull-requests: write
+
 jobs:
-  apply:
+  apply-patch:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - name: Resolve inputs (dispatch or manual)
         id: params
         shell: bash
         run: |
           set -euo pipefail
-          echo "branch=${{ github.event.client_payload.branch }}" >> $GITHUB_OUTPUT
-          echo "title=${{ github.event.client_payload.title }}"  >> $GITHUB_OUTPUT
-          echo "body=${{ github.event.client_payload.body }}"    >> $GITHUB_OUTPUT
-          printf %s "${{ github.event.client_payload.patch_b64 }}" | base64 -d > patch.diff
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "branch=${{ github.event.client_payload.branch }}" >> $GITHUB_OUTPUT
+            echo "title=${{ github.event.client_payload.title }}"  >> $GITHUB_OUTPUT
+            echo "body=${{ github.event.client_payload.body }}"    >> $GITHUB_OUTPUT
+            printf %s "${{ github.event.client_payload.patch_b64 }}" | base64 -d > patch.diff
+          else
+            echo "branch=${{ inputs.branch }}" >> $GITHUB_OUTPUT
+            echo "title=${{ inputs.title }}"   >> $GITHUB_OUTPUT
+            echo "body=${{ inputs.body }}"     >> $GITHUB_OUTPUT
+            printf %s "${{ inputs.patch_b64 }}" | base64 -d > patch.diff
+          fi
           echo "Patch length: $(wc -c < patch.diff || true)"
+
       - name: Apply patch (with fallback)
         shell: bash
         run: |
@@ -42,24 +71,13 @@ jobs:
           git commit -m "${{ steps.params.outputs.title }}" || echo "No changes to commit"
           git push origin "${{ steps.params.outputs.branch }}" || echo "No changes pushed"
 
-      - name: Open PR (github-script)
-        uses: actions/github-script@v7
+      - name: Create PR
+        uses: peter-evans/create-pull-request@v6
         with:
-          github-token: ${{ secrets.CODEX_DISPATCH_TOKEN }}
-        env:
-          BRANCH: ${{ steps.params.outputs.branch }}
-          TITLE:  ${{ steps.params.outputs.title }}
-          BODY:   ${{ steps.params.outputs.body }}
-        script: |
-          const { BRANCH, TITLE, BODY } = process.env;
-          const { owner, repo } = context.repo;
-          const prs = await github.rest.pulls.list({ owner, repo, state: 'open', head: `${owner}:${BRANCH}` });
-          if (prs.data.length) {
-            core.notice(`PR already open: ${prs.data[0].html_url}`);
-            return;
-          }
-          const { data: pr } = await github.rest.pulls.create({
-            owner, repo, head: BRANCH, base: 'main',
-            title: TITLE || 'Codex Patch', body: BODY || ''
-          });
-          core.notice(`PR created: ${pr.html_url}`);
+          base: ${{ github.event.repository.default_branch }}
+          branch: ${{ steps.params.outputs.branch }}
+          title: ${{ steps.params.outputs.title }}
+          body: ${{ steps.params.outputs.body }}
+          commit-message: ${{ steps.params.outputs.title }}
+          committer: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
+          author: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>
