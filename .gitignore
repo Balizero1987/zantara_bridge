@@ -34,3 +34,12 @@ zantara-chat 2/node_modules/
 .github/workflows/* 2.yml
 .github/workflows/deploy-cloudrun
 .github/workflows/deploy-cloudrun-manual 2.yml
+
+# codex tmp
+CODEX_TEST
+codex.patch
+payload.json
+t.patchwc
+*.save
+setup_codex_dispatch.sh^*
+
