@@ -1,0 +1,33 @@
+name: claude-review
+on:
+  pull_request: { types: [opened, synchronize, reopened] }
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: diff
+        run: |
+          BASE=${{ github.event.pull_request.base.sha }}
+          HEAD=${{ github.event.pull_request.head.sha }}
+          git diff --unified=0 "$BASE" "$HEAD" | head -c 35000 > diff.txt
+      - id: ask
+        run: |
+          PROMPT="Review this diff. Be concise, list risks, tests to add, and quick fixes.\n\n```diff\n$(cat diff.txt)\n```"
+          BODY=$(jq -n --arg m "$PROMPT" --arg model "${{ vars.CLAUDE_MODEL || 'claude-3-7-sonnet' }}" \
+            '{model:$model,max_tokens:4000,messages:[{role:"user",content:$m}]}')
+          curl -sS https://api.anthropic.com/v1/messages \
+            -H "x-api-key: ${{ secrets.ANTHROPIC_API_KEY }}" \
+            -H "anthropic-version: 2023-06-01" \
+            -H "content-type: application/json" \
+            -d "$BODY" | jq -r '.content[0].text' > review.md
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('review.md','utf8');
+            github.rest.issues.createComment({
+              owner: context.repo.owner, repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number, body
+            });
