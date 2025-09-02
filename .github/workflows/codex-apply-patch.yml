@@ -57,7 +57,7 @@ jobs:
         run: |
           set -e
           git config user.name "Codex Bot"
-          git config user.email "codex@zantera.ai"
+          git config user.email "codex@zantara.ai"
           git checkout -B "${{ steps.params.outputs.branch }}"
           echo "Applying patch..."
           if ! git apply --whitespace=nowarn patch.diff; then

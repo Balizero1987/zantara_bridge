@@ -6,14 +6,20 @@ import { Request, Response, NextFunction } from 'express';
  *  - Header: X-Api-Key
  *  - Header: Authorization: Bearer <key>
  *  - Query: ?api_key=<key> or ?apikey=<key>
- * Supports multiple keys via env `API_KEYS` (comma-separated) in addition to `API_KEY`.
+ * Supports multiple keys via env `API_KEYS` (comma-separated) in addition to `API_KEY` and `CODEX_DISPATCH_TOKEN`.
  */
 export function requireApiKey(req: Request, res: Response, next: NextFunction) {
   const envKeys = ((process.env.API_KEYS || '')
     .split(',')
     .map(s => s.trim())
     .filter(Boolean));
-  if (process.env.API_KEY && process.env.API_KEY.trim()) envKeys.push(process.env.API_KEY.trim());
+
+  if (process.env.API_KEY && process.env.API_KEY.trim()) {
+    envKeys.push(process.env.API_KEY.trim());
+  }
+  if (process.env.CODEX_DISPATCH_TOKEN && process.env.CODEX_DISPATCH_TOKEN.trim()) {
+    envKeys.push(process.env.CODEX_DISPATCH_TOKEN.trim());
+  }
 
   const bearer = (req.header('authorization') || '')
     .replace(/\s+/g, ' ')
@@ -23,7 +29,6 @@ export function requireApiKey(req: Request, res: Response, next: NextFunction) {
   const queryKey = (req.query.api_key as string) || (req.query.apikey as string) || '';
   const provided = (headerKey || bearer || queryKey || '').trim();
 
-  // Temporary debug (non-sensitive): only presence flags, never the key value
   try {
     (req as any).log?.info?.({
       action: 'auth.requireApiKey.debug',
