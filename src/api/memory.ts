@@ -153,7 +153,7 @@ export const memoryRoutes = (app: Express) => {
   app.post('/actions/memory/entry/restore', requireApiKey, memoryEntryRestoreHandler);
   app.post('/actions/memory/entry/merge', requireApiKey, memoryEntryMergeHandler);
   // Simple inline API key guard (keeps route modular without importing server middleware)
-  const requireApiKey = (req: Request, res: Response): string | null => {
+  const inlineRequireApiKey = (req: Request, res: Response): string | null => {
     const apiKey = process.env.API_KEY;
     const bearer = req.header('authorization')?.replace(/^Bearer\s+/i, '');
     const provided = req.header('x-api-key') || bearer || (req.query.api_key as string | undefined);
@@ -163,7 +163,7 @@ export const memoryRoutes = (app: Express) => {
   };
 
   app.post('/memory/smart-save', async (req: Request, res: Response) => {
-    if (!requireApiKey(req, res)) return;
+    if (!inlineRequireApiKey(req, res)) return;
     try {
       const { title, content, owner } = req.body || {};
       if (!process.env.MEMORY_DRIVE_FOLDER_ID) {
@@ -181,7 +181,7 @@ export const memoryRoutes = (app: Express) => {
 
   // Backward-compatible alias: /memory/save -> smartSaveNote
   app.post('/memory/save', async (req: Request, res: Response) => {
-    if (!requireApiKey(req, res)) return;
+    if (!inlineRequireApiKey(req, res)) return;
     try {
       const { title, content } = req.body || {};
       if (!title || !content) return res.status(400).json({ ok: false, error: 'Missing title/content' });
@@ -197,7 +197,7 @@ export const memoryRoutes = (app: Express) => {
 
   // List generated DOCX files (Brief + Report) for an owner/date
   app.get('/memory/list-docs', async (req: Request, res: Response) => {
-    if (!requireApiKey(req, res)) return;
+    if (!inlineRequireApiKey(req, res)) return;
     try {
       const ownerRaw = (req.query.owner as string) || '';
       const dateStr = (req.query.date as string) || new Date().toISOString().slice(0,10);
