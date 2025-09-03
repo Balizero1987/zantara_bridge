@@ -1,0 +1,244 @@
+openapi: 3.1.0
+info:
+  title: ZANTARA Actions API
+  version: 1.2.0
+servers:
+  - url: https://{host}
+    variables:
+      host:
+        default: example.run.app
+        description: Sostituisci con l’URL pubblico del tuo Cloud Run
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkEnvelope'
+
+  /actions/codex/dispatch:
+    post:
+      summary: Dispatch a task to Codex
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodexDispatchRequest'
+      responses:
+        "202":
+          description: Accettato
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodexDispatchResponse'
+
+  /actions/codex/status/{request_id}:
+    get:
+      summary: Get Codex task status
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: request_id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Stato job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodexStatusResponse'
+
+  /actions/chat/recap:
+    post:
+      summary: Salva un recap di chat su Drive + Firestore
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: X-Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecapCreateRequest'
+      responses:
+        "201":
+          description: Recap salvato
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecapCreateResponse'
+
+  /actions/chat/recaps:
+    get:
+      summary: Lista dei recap di un utente
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: Lista recap
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/RecapSummary'
+
+  /actions/calendar/create:
+    post:
+      summary: Crea un evento nel calendario condiviso
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarCreateRequest'
+      responses:
+        "201":
+          description: Evento creato
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarCreateResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    OkEnvelope:
+      type: object
+      properties:
+        ok: { type: boolean }
+        data: { type: object }
+
+    CodexDispatchRequest:
+      type: object
+      required: [event_type, payload]
+      properties:
+        event_type: { type: string, example: codex-apply-patch }
+        payload:
+          type: object
+          additionalProperties: true
+
+    CodexDispatchResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        data:
+          type: object
+          properties:
+            request_id: { type: string }
+            status: { type: string, enum: [queued] }
+
+    CodexStatusResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        data:
+          type: object
+          properties:
+            request_id: { type: string }
+            status: { type: string, enum: [queued,running,done,error] }
+            output: { type: object, additionalProperties: true }
+            error: { type: string }
+
+    RecapCreateRequest:
+      type: object
+      required: [userId, chatId, fullText]
+      properties:
+        userId: { type: string }
+        chatId: { type: string }
+        title: { type: string }
+        summary: { type: string }
+        fullText: { type: string }
+
+    RecapCreateResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        data:
+          type: object
+          properties:
+            request_id: { type: string }
+            drive:
+              type: object
+              properties:
+                id: { type: string }
+                link: { type: string }
+
+    RecapSummary:
+      type: object
+      properties:
+        chatId: { type: string }
+        userId: { type: string }
+        title: { type: string }
+        summary: { type: string }
+        drive:
+          type: object
+          properties:
+            id: { type: string }
+            link: { type: string }
+        ts: { type: string, format: date-time }
+
+    CalendarCreateRequest:
+      type: object
+      required: [summary, start]
+      properties:
+        userId: { type: string }
+        summary: { type: string }
+        description: { type: string }
+        start: { type: string, format: date-time }
+        end: { type: string, format: date-time }
+        attendees:
+          type: array
+          items:
+            type: object
+            properties:
+              email: { type: string }
+              displayName: { type: string }
+
+    CalendarCreateResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        data:
+          type: object
+          properties:
+            eventId: { type: string }
+            htmlLink: { type: string }
