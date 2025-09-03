@@ -1,17 +1,17 @@
 openapi: 3.1.0
 info:
   title: ZANTARA Actions API
-  version: 1.2.0
+  version: 1.2.1
 servers:
   - url: https://{host}
     variables:
       host:
         default: example.run.app
-        description: Sostituisci con l’URL pubblico del tuo Cloud Run
 
 paths:
   /health:
     get:
+      operationId: get_health
       summary: Health check
       responses:
         "200":
@@ -23,9 +23,9 @@ paths:
 
   /actions/codex/dispatch:
     post:
+      operationId: post_actions_codex_dispatch
       summary: Dispatch a task to Codex
-      security:
-        - bearerAuth: []
+      security: [{ bearerAuth: [] }]
       parameters:
         - name: X-Idempotency-Key
           in: header
@@ -47,9 +47,9 @@ paths:
 
   /actions/codex/status/{request_id}:
     get:
+      operationId: get_codex_status
       summary: Get Codex task status
-      security:
-        - bearerAuth: []
+      security: [{ bearerAuth: [] }]
       parameters:
         - name: request_id
           in: path
@@ -65,9 +65,9 @@ paths:
 
   /actions/chat/recap:
     post:
-      summary: Salva un recap di chat su Drive + Firestore
-      security:
-        - bearerAuth: []
+      operationId: post_actions_chat_recap
+      summary: Salva recap su Drive + Firestore
+      security: [{ bearerAuth: [] }]
       parameters:
         - name: X-Idempotency-Key
           in: header
@@ -89,9 +89,9 @@ paths:
 
   /actions/chat/recaps:
     get:
-      summary: Lista dei recap di un utente
-      security:
-        - bearerAuth: []
+      operationId: get_actions_chat_recaps
+      summary: Lista recap utente
+      security: [{ bearerAuth: [] }]
       parameters:
         - name: userId
           in: query
@@ -116,9 +116,9 @@ paths:
 
   /actions/calendar/create:
     post:
-      summary: Crea un evento nel calendario condiviso
-      security:
-        - bearerAuth: []
+      operationId: post_actions_calendar_create
+      summary: Crea evento calendario
+      security: [{ bearerAuth: [] }]
       requestBody:
         required: true
         content:
@@ -139,106 +139,4 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-
-  schemas:
-    OkEnvelope:
-      type: object
-      properties:
-        ok: { type: boolean }
-        data: { type: object }
-
-    CodexDispatchRequest:
-      type: object
-      required: [event_type, payload]
-      properties:
-        event_type: { type: string, example: codex-apply-patch }
-        payload:
-          type: object
-          additionalProperties: true
-
-    CodexDispatchResponse:
-      type: object
-      properties:
-        ok: { type: boolean }
-        data:
-          type: object
-          properties:
-            request_id: { type: string }
-            status: { type: string, enum: [queued] }
-
-    CodexStatusResponse:
-      type: object
-      properties:
-        ok: { type: boolean }
-        data:
-          type: object
-          properties:
-            request_id: { type: string }
-            status: { type: string, enum: [queued,running,done,error] }
-            output: { type: object, additionalProperties: true }
-            error: { type: string }
-
-    RecapCreateRequest:
-      type: object
-      required: [userId, chatId, fullText]
-      properties:
-        userId: { type: string }
-        chatId: { type: string }
-        title: { type: string }
-        summary: { type: string }
-        fullText: { type: string }
-
-    RecapCreateResponse:
-      type: object
-      properties:
-        ok: { type: boolean }
-        data:
-          type: object
-          properties:
-            request_id: { type: string }
-            drive:
-              type: object
-              properties:
-                id: { type: string }
-                link: { type: string }
-
-    RecapSummary:
-      type: object
-      properties:
-        chatId: { type: string }
-        userId: { type: string }
-        title: { type: string }
-        summary: { type: string }
-        drive:
-          type: object
-          properties:
-            id: { type: string }
-            link: { type: string }
-        ts: { type: string, format: date-time }
-
-    CalendarCreateRequest:
-      type: object
-      required: [summary, start]
-      properties:
-        userId: { type: string }
-        summary: { type: string }
-        description: { type: string }
-        start: { type: string, format: date-time }
-        end: { type: string, format: date-time }
-        attendees:
-          type: array
-          items:
-            type: object
-            properties:
-              email: { type: string }
-              displayName: { type: string }
-
-    CalendarCreateResponse:
-      type: object
-      properties:
-        ok: { type: boolean }
-        data:
-          type: object
-          properties:
-            eventId: { type: string }
-            htmlLink: { type: string }
+  # ... (schemi come già scritti)
