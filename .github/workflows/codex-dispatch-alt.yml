@@ -40,9 +40,10 @@ jobs:
           git remote set-url origin https://x-access-token:${{ secrets.CODEX_DISPATCH_TOKEN }}@github.com/${{ github.repository }}
 
       - name: Push changes
+        env:
+          BRANCH: ${{ github.event.client_payload.branch || 'codex/alt-update' }}
         run: |
-          BRANCH="${{ github.event.client_payload.branch || 'codex/alt-update' }}"
-          git push origin "$BRANCH" --force
+          git push origin HEAD:$BRANCH --force
 
       - name: Create PR if not exists
         uses: actions/github-script@v7
