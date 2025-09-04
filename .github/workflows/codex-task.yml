@@ -1,0 +1,49 @@
+name: Codex Task
+on:
+  repository_dispatch:
+    types: [codex-task]
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Setup Git auth
+        run: |
+          git config user.name "Codex Bot"
+          git config user.email "codex@zantara.ai"
+          git remote set-url origin https://x-access-token:${{ secrets.CODEX_DISPATCH_TOKEN }}@github.com/${{ github.repository }}
+      - name: Create branch and scaffold task
+        env:
+          BRANCH_CTX: ${{ github.event.client_payload.branch || 'codex/task' }}
+          TITLE_CTX:  ${{ github.event.client_payload.title  || 'Codex task' }}
+          BODY_CTX:   ${{ github.event.client_payload.body   || '' }}
+          PAYLOAD_CTX:${{ toJson(github.event.client_payload) }}
+        run: |
+          BRANCH="$BRANCH_CTX"; TITLE="$TITLE_CTX"
+          git checkout -B "$BRANCH"
+          mkdir -p tasks
+          printf '%s' "$PAYLOAD_CTX" > "tasks/${BRANCH//\//-}.json"
+          git add tasks
+          git commit -m "$TITLE" || true
+      - name: Push
+        env: { BRANCH_CTX: ${{ github.event.client_payload.branch || 'codex/task' }} }
+        run: |
+          BRANCH="$BRANCH_CTX"
+          git push origin HEAD:$BRANCH --force
+      - name: Open PR
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.CODEX_DISPATCH_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const branch = "${{ github.event.client_payload.branch || 'codex/task' }}";
+            const title  = "${{ github.event.client_payload.title  || 'Codex task' }}";
+            const body   = "${{ github.event.client_payload.body   || '' }}";
+            const prs = await github.rest.pulls.list({ owner, repo, state: "open", head: `${owner}:${branch}` });
+            if (prs.data.length === 0) {
+              await github.rest.pulls.create({ owner, repo, head: branch, base: "main", title, body });
+            }
