@@ -2,6 +2,11 @@ name: Codex Task
 on:
   repository_dispatch:
     types: [codex-task]
+  workflow_dispatch:
+    inputs:
+      branch: { required: true, type: string }
+      title:  { required: true, type: string }
+      body:   { required: false, type: string }
 permissions:
   contents: write
   pull-requests: write
@@ -16,34 +21,39 @@ jobs:
           git config user.name "Codex Bot"
           git config user.email "codex@zantara.ai"
           git remote set-url origin https://x-access-token:${{ secrets.CODEX_DISPATCH_TOKEN }}@github.com/${{ github.repository }}
-      - name: Create branch and scaffold task
-        env:
-          BRANCH_CTX: ${{ github.event.client_payload.branch || 'codex/task' }}
-          TITLE_CTX:  ${{ github.event.client_payload.title  || 'Codex task' }}
-          BODY_CTX:   ${{ github.event.client_payload.body   || '' }}
-          PAYLOAD_CTX:${{ toJson(github.event.client_payload) }}
+      - name: Resolve inputs
+        id: inp
         run: |
-          BRANCH="$BRANCH_CTX"; TITLE="$TITLE_CTX"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "BRANCH=${{ inputs.branch }}" >> $GITHUB_OUTPUT
+            echo "TITLE=${{ inputs.title }}"  >> $GITHUB_OUTPUT
+            echo "BODY=${{ inputs.body }}"    >> $GITHUB_OUTPUT
+          else
+            echo "BRANCH=${{ github.event.client_payload.branch || 'codex/task' }}" >> $GITHUB_OUTPUT
+            echo "TITLE=${{ github.event.client_payload.title  || 'Codex task' }}"  >> $GITHUB_OUTPUT
+            echo "BODY=${{ github.event.client_payload.body   || '' }}"            >> $GITHUB_OUTPUT
+          fi
+      - name: Create branch and scaffold
+        run: |
+          BRANCH="${{ steps.inp.outputs.BRANCH }}"
+          TITLE="${{ steps.inp.outputs.TITLE }}"
+          BODY="${{ steps.inp.outputs.BODY }}"
           git checkout -B "$BRANCH"
           mkdir -p tasks
-          printf '%s' "$PAYLOAD_CTX" > "tasks/${BRANCH//\//-}.json"
+          printf "%s\n" "$BODY" > "tasks/${BRANCH//\//-}.txt"
           git add tasks
           git commit -m "$TITLE" || true
       - name: Push
-        env: { BRANCH_CTX: ${{ github.event.client_payload.branch || 'codex/task' }} }
-        run: |
-          BRANCH="$BRANCH_CTX"
-          git push origin HEAD:$BRANCH --force
-      - name: Open PR
+        env: { BRANCH: ${{ steps.inp.outputs.BRANCH }} }
+        run: git push origin HEAD:$BRANCH --force
+      - name: Open PR if missing
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.CODEX_DISPATCH_TOKEN }}
           script: |
             const { owner, repo } = context.repo;
-            const branch = "${{ github.event.client_payload.branch || 'codex/task' }}";
-            const title  = "${{ github.event.client_payload.title  || 'Codex task' }}";
-            const body   = "${{ github.event.client_payload.body   || '' }}";
+            const branch = "${{ steps.inp.outputs.BRANCH }}";
+            const title  = "${{ steps.inp.outputs.TITLE }}";
+            const body   = "${{ steps.inp.outputs.BODY }}";
             const prs = await github.rest.pulls.list({ owner, repo, state: "open", head: `${owner}:${branch}` });
-            if (prs.data.length === 0) {
-              await github.rest.pulls.create({ owner, repo, head: branch, base: "main", title, body });
-            }
+            if (!prs.data.length) await github.rest.pulls.create({ owner, repo, head: branch, base: "main", title, body });
