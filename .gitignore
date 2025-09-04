@@ -43,3 +43,6 @@ t.patchwc
 *.save
 setup_codex_dispatch.sh^*
 
+node_modules
+dist
+.DS_Store
