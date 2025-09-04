@@ -17,19 +17,31 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Decode and apply patch
+      - name: Decode patch
         run: |
           echo "${{ github.event.client_payload.patch_b64 }}" | base64 -d > patch.diff
+          echo "Patch salvata in patch.diff"
+
+      - name: Apply patch
+        run: |
           BRANCH="${{ github.event.client_payload.branch || 'codex/alt-update' }}"
           TITLE="${{ github.event.client_payload.title || 'Codex alt update' }}"
           BODY="${{ github.event.client_payload.body || '' }}"
 
-          git config user.name "Codex Bot"
-          git config user.email "codex@zantara.ai"
           git checkout -B "$BRANCH"
           git apply --whitespace=nowarn patch.diff || git apply -3 --whitespace=nowarn patch.diff
           git add -A
-          git commit -m "$TITLE" || echo "No changes to commit"
+          git commit -m "$TITLE" || echo "Nessuna modifica da committare"
+
+      - name: Setup Git auth
+        run: |
+          git config user.name "Codex Bot"
+          git config user.email "codex@zantara.ai"
+          git remote set-url origin https://x-access-token:${{ secrets.CODEX_DISPATCH_TOKEN }}@github.com/${{ github.repository }}
+
+      - name: Push changes
+        run: |
+          BRANCH="${{ github.event.client_payload.branch || 'codex/alt-update' }}"
           git push origin "$BRANCH" --force
 
       - name: Create PR if not exists
@@ -38,9 +50,9 @@ jobs:
           github-token: ${{ secrets.CODEX_DISPATCH_TOKEN }}
           script: |
             const { owner, repo } = context.repo;
-            const branch = process.env.BRANCH || "codex/alt-update";
-            const title = process.env.TITLE || "Codex alt update";
-            const body = process.env.BODY || "";
+            const branch = "${{ github.event.client_payload.branch || 'codex/alt-update' }}";
+            const title = "${{ github.event.client_payload.title || 'Codex alt update' }}";
+            const body = "${{ github.event.client_payload.body || '' }}";
 
             const prs = await github.rest.pulls.list({
               owner,
