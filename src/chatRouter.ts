@@ -20,3 +20,7 @@ router.use(tasksApi);
 router.use(codexApi);
 
 export default router;
+
+// zantara: mount calendar router
+import calendar from "./api/calendar";
+router.use(calendar);
