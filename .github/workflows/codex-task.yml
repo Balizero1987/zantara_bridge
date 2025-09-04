@@ -55,5 +55,5 @@ jobs:
             const branch = "${{ steps.inp.outputs.BRANCH }}";
             const title  = "${{ steps.inp.outputs.TITLE }}";
             const body   = "${{ steps.inp.outputs.BODY }}";
-            const prs = await github.rest.pulls.list({ owner, repo, state: "open", head: `${owner}:${branch}` });
-            if (!prs.data.length) await github.rest.pulls.create({ owner, repo, head: branch, base: "main", title, body });
+            const prs = await github.rest.pulls.list({ owner, repo, state:"open", head:`${owner}:${branch}` });
+            if (!prs.data.length) await github.rest.pulls.create({ owner, repo, head: branch, base:"main", title, body });
