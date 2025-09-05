@@ -1,3 +1,3 @@
-title: feat(gmail): invio email via Gmail API
+title: ci: build+push Artifact Registry e deploy Cloud Run su merge main
 by: Codex Bot
-when: 2025-09-05T07:41:30Z
+when: 2025-09-05T07:47:36Z
