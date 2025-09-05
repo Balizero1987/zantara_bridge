@@ -1,3 +1,3 @@
-title: docs(openapi): completare OpenAPI con tutti i path e schemi
-by: Balizero1987
-when: 2025-09-05T01:45:19Z
+title: Workflow fix: allow empty patches & skip apply
+by: Codex Bot
+when: 2025-09-05T06:42:01Z
