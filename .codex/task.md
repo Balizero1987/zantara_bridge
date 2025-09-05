@@ -1,3 +1,3 @@
-title: feat(drive): integrazione Google Drive (upload/list/save)
+title: feat(gateway): ponte API per dipendenti con token staff
 by: Codex Bot
-when: 2025-09-05T07:47:42Z
+when: 2025-09-05T07:47:32Z
