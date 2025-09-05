@@ -1,3 +1,3 @@
-title: feat(gmail): invio email via Gmail API
+title: feat(drive): integrazione Google Drive (upload/list/save)
 by: Codex Bot
-when: 2025-09-05T07:41:30Z
+when: 2025-09-05T07:47:42Z
