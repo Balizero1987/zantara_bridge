@@ -1,59 +1,123 @@
 name: Codex Task
+
 on:
   repository_dispatch:
     types: [codex-task]
   workflow_dispatch:
     inputs:
-      branch: { required: true, type: string }
-      title:  { required: true, type: string }
-      body:   { required: false, type: string }
+      branch:
+        description: Target branch name
+        required: false
+      title:
+        description: PR title
+        required: false
+      body:
+        description: PR body (text)
+        required: false
+
 permissions:
   contents: write
   pull-requests: write
+
+concurrency:
+  group: codex-task
+  cancel-in-progress: false
+
 jobs:
-  create-pr:
+  apply:
+name: Codex Task
+
+on:
+  repository_dispatch:
+    types: [codex-task]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: Target branch name
+        required: false
+      title:
+        description: PR title
+        required: false
+      body:
+        description: PR body (text)
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: codex-task
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    if: github.event_name == 'repository_dispatch' && github.event.action == 'codex-task' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
-      - name: Setup Git auth
-        run: |
-          git config user.name "Codex Bot"
-          git config user.email "codex@zantara.ai"
-          git remote set-url origin https://x-access-token:${{ secrets.CODEX_DISPATCH_TOKEN }}@github.com/${{ github.repository }}
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Resolve inputs
-        id: inp
+        id: p
+        shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "BRANCH=${{ inputs.branch }}" >> $GITHUB_OUTPUT
-            echo "TITLE=${{ inputs.title }}"  >> $GITHUB_OUTPUT
-            echo "BODY=${{ inputs.body }}"    >> $GITHUB_OUTPUT
+          if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
+            BR="${{ github.event.client_payload.branch }}"
+            TITLE="${{ github.event.client_payload.title }}"
+            BODY="${{ github.event.client_payload.body }}"
           else
-            echo "BRANCH=${{ github.event.client_payload.branch || 'codex/task' }}" >> $GITHUB_OUTPUT
-            echo "TITLE=${{ github.event.client_payload.title  || 'Codex task' }}"  >> $GITHUB_OUTPUT
-            echo "BODY=${{ github.event.client_payload.body   || '' }}"            >> $GITHUB_OUTPUT
+            BR="${{ inputs.branch }}"
+            TITLE="${{ inputs.title }}"
+            BODY="${{ inputs.body }}"
           fi
-      - name: Create branch and scaffold
+          BR="${BR:-codex/task}"
+          TITLE="${TITLE:-Codex task}"
+          printf '%s' "${BODY:-}" > /tmp/body.txt
+          BR_SAFE="$(echo "$BR" | sed -E 's#[^A-Za-z0-9._/-]+#-#g; s#/{2,}#/#g; s#(^-|-$)##g')"
+          echo "branch=$BR_SAFE" >> $GITHUB_OUTPUT
+          echo "title=$TITLE" >> $GITHUB_OUTPUT
+
+      - name: Setup Git auth
+        shell: bash
         run: |
-          BRANCH="${{ steps.inp.outputs.BRANCH }}"
-          TITLE="${{ steps.inp.outputs.TITLE }}"
-          BODY="${{ steps.inp.outputs.BODY }}"
-          git checkout -B "$BRANCH"
-          mkdir -p tasks
-          printf "%s\n" "$BODY" > "tasks/${BRANCH//\//-}.txt"
-          git add tasks
-          git commit -m "$TITLE" || true
+          git config user.name "codex-bot"
+          git config user.email "actions@users.noreply.github.com"
+
+      - name: Create branch and scaffold
+        shell: bash
+        run: |
+          git checkout -B "${{ steps.p.outputs.branch }}"
+          mkdir -p .codex
+          {
+            echo "title: ${{ steps.p.outputs.title }}"
+            echo "by: $GITHUB_ACTOR"
+            echo "when: $(date -u +%FT%TZ)"
+          } > .codex/task.md
+          git add .codex/task.md
+          git commit -m "chore(codex): scaffold task: ${{ steps.p.outputs.title }}" || echo "Nothing to commit"
+
       - name: Push
-        env: { BRANCH: ${{ steps.inp.outputs.BRANCH }} }
-        run: git push origin HEAD:$BRANCH --force
+        shell: bash
+        run: git push --set-upstream origin "${{ steps.p.outputs.branch }}" || true
+
       - name: Open PR if missing
         uses: actions/github-script@v7
+        env:
+          BRANCH: ${{ steps.p.outputs.branch }}
+          TITLE: ${{ steps.p.outputs.title }}
         with:
-          github-token: ${{ secrets.CODEX_DISPATCH_TOKEN }}
           script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('/tmp/body.txt','utf8');
             const { owner, repo } = context.repo;
-            const branch = "${{ steps.inp.outputs.BRANCH }}";
-            const title  = "${{ steps.inp.outputs.TITLE }}";
-            const body   = "${{ steps.inp.outputs.BODY }}";
-            const prs = await github.rest.pulls.list({ owner, repo, state:"open", head:`${owner}:${branch}` });
-            if (!prs.data.length) await github.rest.pulls.create({ owner, repo, head: branch, base:"main", title, body });
+            const head = process.env.BRANCH;
+            const prs = await github.paginate(github.rest.pulls.list, { owner, repo, state: 'open', head: `${owner}:${head}` });
+            if (prs.length === 0) {
+              const pr = await github.rest.pulls.create({ owner, repo, head, base: 'main', title: process.env.TITLE, body });
+              core.info(`PR #${pr.data.number} created`);
+            } else {
+              core.info(`PR #${prs[0].number} already exists`);
+            }
