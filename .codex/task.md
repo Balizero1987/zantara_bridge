@@ -1,3 +1,3 @@
-title: feat(core): rate-limit globale e logging JSON con request_id
+title: feat(gmail): invio email via Gmail API
 by: Codex Bot
-when: 2025-09-05T07:36:40Z
+when: 2025-09-05T07:41:30Z
