@@ -1,3 +1,3 @@
-title: feat(memory): save+search note (Drive+Firestore)
+title: feat(gateway): ponte API per dipendenti con token staff
 by: Codex Bot
-when: 2025-09-05T07:47:39Z
+when: 2025-09-05T07:47:32Z
