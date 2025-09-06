@@ -1,3 +1,5 @@
+etag: BwY-J1fSBJA=
+version: 3
 bindings:
 - members:
   - serviceAccount:zantara@involuted-box-469105-r0.iam.gserviceaccount.com
@@ -169,5 +171,3 @@ bindings:
 - members:
   - serviceAccount:involuted-box-469105-r0@appspot.gserviceaccount.com
   role: roles/networkconnectivity.regionalEndpointAdmin
-- members:
-  - serviceAccount:service-1064094238013@gcp-sa-networkconnectivity.iam.gserviceagentassistant
