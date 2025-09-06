@@ -9,10 +9,6 @@ function logDriveAction(action: string, details: any) {
 export const driveRoutes = (app: Express) => {
   // Crea file Google Doc in una cartella
   app.post('/actions/drive/create', async (req: Request, res: Response) => {
-import { Request, Response, NextFunction, Express } from 'express';
-import { google } from 'googleapis';
-import { impersonatedClient } from '../google';
-...
     try {
       const name = (req.body?.name as string) || 'SmokeTest Zantara';
       const parent = process.env.DRIVE_FOLDER_ID;
@@ -36,5 +32,5 @@ import { impersonatedClient } from '../google';
     }
   });
 
-  // (Altri endpoint Drive qui...)
+  // ... altri endpoint ...
 };
