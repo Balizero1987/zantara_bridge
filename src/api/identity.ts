@@ -45,7 +45,7 @@ router.get("/identity/me", (req: Request, res: Response) => {
     });
   }
 
-  // Fallback: usa header/query come nella tua versione attuale
+  // Fallback: usa header/query come nella tua versione originale
   const email =
     (req.header("x-user-email") || req.query.email || "").toString();
   const role = email === "zero@balizero.com" ? "boss" : "user";
