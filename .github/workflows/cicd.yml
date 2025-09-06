@@ -1,0 +1,44 @@
+name: Zantara CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      # 🔑 Autenticazione con GCP usando il secret che hai creato
+      - name: Auth to GCP
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      # Configura gcloud SDK
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      # 🔧 Deploy su Cloud Run
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy zantara-chat-v3-1064094238013 \
+            --region=asia-southeast2 \
+            --source=. \
+            --allow-unauthenticated
