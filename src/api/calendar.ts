@@ -1,4 +1,4 @@
-import { Request, Response, Router } from 'express';
+import calendarAvailabilityHandler from '../actions/calendar/availability';import { Request, Response, Router } from 'express';
 import { google } from 'googleapis';
 import { impersonatedClient } from '../google';
 import { requireAuth as requireApiKey } from '../middleware/auth';
