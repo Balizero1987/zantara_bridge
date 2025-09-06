@@ -7,11 +7,11 @@ import memory from "./api/memory";
 const app = express();
 app.use(express.json());
 
-// Rotte principali
+// Rotte principali (Codex, Drive, Calendar…)
 app.use(router);
 
 // Health check
-app.get("/health", (_req, res) => res.json({ ok: true }));
+app.get("/health", (_req, res) => res.json({ ok: true, service: "zantara-bridge" }));
 
 // Identity (login/me)
 app.use(identity);
