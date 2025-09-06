@@ -143,7 +143,7 @@ export async function generateReportDocx(ownerRaw: string, dateStr = ymd(), summ
   const notes = await listNotes(owner, dateStr);
   const title = reportTitle(owner, dateStr);
 
-  const paragraphs: Paragraph[] = [
+  const paragraphs = [
     new Paragraph({ text: `Report – ${owner} – ${dateStr}`, heading: HeadingLevel.HEADING_1 }),
   ];
   if (summaryText) {
