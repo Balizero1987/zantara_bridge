@@ -1,9 +1,10 @@
 import { Router, Request, Response } from "express";
+import crypto from "crypto";
 
 const router = Router();
 
-// In memoria: identità corrente
-let currentUser: { name: string; email?: string; role?: string } | null = null;
+// In memoria: identità corrente (in deploy reale useresti Redis/DB o Firestore)
+let currentUser: { name: string; email?: string; role?: string; token?: string } | null = null;
 
 // Parola magica letta da env
 const MAGIC = process.env.AMBARADAM_MAGIC_WORD || "BaliZero2025";
@@ -17,12 +18,17 @@ router.post("/identity/login", (req: Request, res: Response) => {
   if (magicWord !== MAGIC) {
     return res.status(401).json({ ok: false, error: "unauthorized" });
   }
-  currentUser = { name: String(name) };
-  return res.json({ ok: true, userId: currentUser.name });
+  // Genera un token random (in prod potresti usare JWT)
+  const token = crypto.randomBytes(16).toString("hex");
+
+  // Imposta utente corrente con token
+  currentUser = { name: String(name), token };
+  return res.json({ ok: true, userId: currentUser.name, token });
 });
 
 // GET /identity/me
 router.get("/identity/me", (req: Request, res: Response) => {
+  // Prima controlla se autenticato via login
   if (currentUser) {
     return res.json({
       ok: true,
@@ -34,11 +40,15 @@ router.get("/identity/me", (req: Request, res: Response) => {
           folderId: process.env.MEMORY_DRIVE_FOLDER_ID || null,
           calendarId: process.env.BALI_ZERO_CALENDAR_ID || null,
         },
+        token: currentUser.token,
       },
     });
   }
+
+  // Fallback: usa header/query come nella tua versione originale
   const email = (req.header("x-user-email") || req.query.email || "").toString();
   const role = email === "zero@balizero.com" ? "boss" : "user";
+
   return res.json({
     ok: true,
     data: {
@@ -54,7 +64,8 @@ router.get("/identity/me", (req: Request, res: Response) => {
 
 // Middleware: blocca se non loggato
 export function requireIdentity(req: Request, res: Response, next: Function) {
-  if (!currentUser) {
+  const auth = req.header("Authorization")?.replace(/^Bearer\s+/i, "").trim();
+  if (!currentUser || !auth || currentUser.token !== auth) {
     return res.status(401).json({ ok: false, error: "AMBARADAM authentication required" });
   }
   next();
