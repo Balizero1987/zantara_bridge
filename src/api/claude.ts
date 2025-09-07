@@ -1,23 +1,51 @@
+import express, { Request, Response } from "express";
 import Anthropic from "@anthropic-ai/sdk";
 
+const router = express.Router();
+
+// Inizializza il client Claude con la chiave salvata in Secret Manager
 const client = new Anthropic({
-  apiKey: process.env.MY_KEY_CLAUDE as string,
+  apiKey: process.env.CLAUDE_API_KEY!,
 });
 
-export async function askClaude(prompt: string): Promise<string> {
+/**
+ * Endpoint POST /api/claude/ask
+ * Body: { prompt: string, max_tokens?: number }
+ * Ritorna: { reply: string }
+ */
+router.post("/ask", async (req: Request, res: Response) => {
   try {
-    const msg = await client.messages.create({
-      model: "claude-3-5-sonnet-20240620", // puoi cambiare modello se serve
-      max_tokens: 300,
-      messages: [{ role: "user", content: prompt }],
+    const { prompt, max_tokens = 500 } = req.body;
+
+    if (!prompt) {
+      return res.status(400).json({ error: "Missing prompt in body" });
+    }
+
+    const response = await client.messages.create({
+      model: "claude-3-sonnet-20240229", // modello Claude Sonnet
+      max_tokens,
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
     });
 
-    // Claude risponde in blocchi; prendiamo il testo principale
-    return msg.content[0].type === "text"
-      ? msg.content[0].text
-      : JSON.stringify(msg.content);
+    // Estrae la risposta testuale dal payload
+    const text = response.content[0].text;
+
+    return res.json({
+      reply: text,
+      model: response.model,
+      usage: response.usage,
+    });
   } catch (err: any) {
-    console.error("Claude API error:", err);
-    throw err;
+    console.error("Claude error:", err);
+    return res.status(500).json({
+      error: err.message || "Unknown error",
+    });
   }
-}
+});
+
+export default router;
