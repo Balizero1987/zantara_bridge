@@ -1,0 +1,61 @@
+name: deploy-manual
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  PROJECT_ID: involuted-box-469105-r0
+  REGION: asia-southeast2
+  AR_REPO: zantara
+  SERVICE: zantara-chat-v3-1064094238013
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-node@v4
+      with: { node-version: '20' }
+
+    - name: Build (ts → js)
+      run: |
+        npm ci
+        npm run build
+
+    - name: Auth to Google Cloud (WIF - keyless)
+      uses: google-github-actions/auth@v3
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+        workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+        service_account: ${{ secrets.GCP_DEPLOY_SA_EMAIL }}
+
+    - uses: google-github-actions/setup-gcloud@v2
+
+    - name: Build & Push image (Cloud Build)
+      run: |
+        IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/bridge:${{ github.sha }}"
+        echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+        gcloud builds submit --tag "$IMAGE"
+
+    - name: Deploy to Cloud Run
+      run: |
+        gcloud run deploy "${{ env.SERVICE }}" \
+          --image "$IMAGE" \
+          --region "${{ env.REGION }}" \
+          --platform managed \
+          --service-account "zantara@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+
+    - name: Smoke test (/health)
+      shell: bash
+      run: |
+        set -euo pipefail
+        URL="$(gcloud run services describe "${{ env.SERVICE }}" --region "${{ env.REGION }}" --format='value(status.url)')"
+        RESP="$(curl -sS -w '\n%{http_code}' "$URL/health")"
+        CODE="$(printf '%s' "$RESP" | tail -n1)"
+        BODY="$(printf '%s\n' "$RESP" | sed '$d')"
+        echo "HTTP $CODE — $BODY"
+        [[ "$CODE" = "200" ]] || { echo "Health failed ($CODE)"; exit 1; }
+        grep -Eq '"status":"healthy"|"ok":true' <<<"$BODY" || { echo "Body invalid: $BODY"; exit 1; }
