@@ -28,7 +28,7 @@ export async function saveEmailDraftHandler(req: Request, res: Response) {
     if (!toList.length || !subject || !text) {
       return res.status(400).json({ ok: false, error: 'Missing to/subject/text' });
     }
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const from = process.env.GMAIL_SENDER || user || 'me';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/gmail.compose']);
     const gmail = google.gmail({ version: 'v1', auth: ic.auth });

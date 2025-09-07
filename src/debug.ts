@@ -92,7 +92,7 @@ export function debugRoutes(app: Express) {
       const allowed = (process.env.ALLOWED_CLIENT_IDS || '')
         .split(',').map(s => s.trim()).filter(Boolean);
       const allowedMatch = info.client_id ? allowed.includes(info.client_id) : false;
-      const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+      const user = process.env.IMPERSONATE_USER || '';
       let aboutEmail: string | null = null;
       try {
         const ic = await impersonatedClient(user, [
@@ -119,7 +119,7 @@ export function debugRoutes(app: Express) {
   });
   // Summarize effective identities and quick capability probe
   app.get('/debug/whoami', requireApiKey, async (_req: Request, res: Response) => {
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const out: any = {
       impersonatedUser: user || null,
       drive: null,
@@ -172,7 +172,7 @@ export function debugRoutes(app: Express) {
     res.json({ ok: true, whoami: out, ts: new Date().toISOString() });
   });
   app.get('/debug/self-check', async (_req: Request, res: Response) => {
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const env = {
       DRIVE_FOLDER_ID: !!process.env.DRIVE_FOLDER_ID,
       BALI_ZERO_CALENDAR_ID: !!process.env.BALI_ZERO_CALENDAR_ID,

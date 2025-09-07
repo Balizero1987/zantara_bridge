@@ -9,7 +9,7 @@ export async function memorySearchHandler(req: Request, res: Response) {
     const folderId = process.env.MEMORY_DRIVE_FOLDER_ID || process.env.DRIVE_FOLDER_ID || '';
     if (!folderId) return res.status(500).json({ ok: false, error: 'Missing MEMORY_DRIVE_FOLDER_ID' });
 
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/drive.readonly']);
     const drive = google.drive({ version: 'v3', auth: ic.auth });
 

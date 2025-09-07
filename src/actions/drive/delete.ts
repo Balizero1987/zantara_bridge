@@ -6,7 +6,7 @@ export async function deleteDriveFileHandler(req: Request, res: Response) {
   try {
     const { fileId } = req.body || {};
     if (!fileId) return res.status(400).json({ ok: false, error: 'Missing fileId' });
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/drive']);
     const drive = google.drive({ version: 'v3', auth: ic.auth });
     await drive.files.delete({ fileId, supportsAllDrives: true } as any);

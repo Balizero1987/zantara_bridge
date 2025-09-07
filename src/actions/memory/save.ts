@@ -23,7 +23,7 @@ export async function memorySaveHandler(req: Request, res: Response) {
     const tagsLine = (Array.isArray(tags) && tags.length) ? `Tags: ${tags.map(t => `#${String(t).trim().replace(/\s+/g, '-')}`).join(' ')}` : '';
     const md = `# ${title}\n[${timestamp}]\n${tagsLine}\n\n${content}\n`;
 
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/drive']);
     const drive = google.drive({ version: 'v3', auth: ic.auth });
     const stream = Readable.from(Buffer.from(md, 'utf8'));

@@ -42,7 +42,7 @@ export async function createCalendarEventHandler(req: Request, res: Response) {
     const attendees = normalizeAttendees(body.attendees);
     const description = (body.description || '').toString() || undefined;
 
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/calendar']);
     const calendar = google.calendar({ version: 'v3', auth: ic.auth });
 

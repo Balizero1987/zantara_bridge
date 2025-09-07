@@ -5,7 +5,7 @@ import { impersonatedClient } from '../../google';
 export async function emailLabelsHandler(req: Request, res: Response) {
   try {
     const { mode, labelName, color } = req.body || {};
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/gmail.settings.basic']);
     const gmail = google.gmail({ version: 'v1', auth: ic.auth });
     if (mode === 'create') {

@@ -10,7 +10,7 @@ export async function modifyDriveFileHandler(req: Request, res: Response) {
       return res.status(400).json({ ok: false, error: 'Missing fileId/content' });
     }
     const mt = (mimeType || '').toString().trim() || 'text/plain';
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const ic = await impersonatedClient(user, [
       'https://www.googleapis.com/auth/drive.file',
       'https://www.googleapis.com/auth/drive',

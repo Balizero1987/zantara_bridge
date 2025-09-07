@@ -6,7 +6,7 @@ export async function renameDriveFileHandler(req: Request, res: Response) {
   try {
     const { fileId, name } = req.body || {};
     if (!fileId || !name) return res.status(400).json({ ok: false, error: 'Missing fileId/name' });
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/drive']);
     const drive = google.drive({ version: 'v3', auth: ic.auth });
     const { data } = await drive.files.update({ fileId, requestBody: { name }, fields: 'id,name', supportsAllDrives: true } as any);

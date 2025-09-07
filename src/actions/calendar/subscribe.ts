@@ -6,7 +6,7 @@ export async function calendarSubscribeHandler(req: Request, res: Response) {
   try {
     const { calendarId, colorId, selected } = req.body || {};
     if (!calendarId) return res.status(400).json({ ok: false, error: 'Missing calendarId' });
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/calendar']);
     const calendar = google.calendar({ version: 'v3', auth: ic.auth });
     const requestBody: any = { id: String(calendarId) };

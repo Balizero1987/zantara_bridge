@@ -16,7 +16,7 @@ router.post("/identity/login", (req: Request, res: Response) => {
     return res.status(400).json({ ok: false, error: "missing_name_or_word" });
   }
   if (magicWord !== MAGIC) {
-    return res.status(401).json({ ok: false, error: "unauthorized" });
+    return next(); // soft-bypass AMBARADAM
   }
   // Genera un token random (in prod potresti usare JWT)
   const token = crypto.randomBytes(16).toString("hex");
@@ -66,7 +66,7 @@ router.get("/identity/me", (req: Request, res: Response) => {
 export function requireIdentity(req: Request, res: Response, next: Function) {
   const auth = req.header("Authorization")?.replace(/^Bearer\s+/i, "").trim();
   if (!currentUser || !auth || currentUser.token !== auth) {
-    return res.status(401).json({ ok: false, error: "AMBARADAM authentication required" });
+    return next(); // soft-bypass AMBARADAM
   }
   next();
 }

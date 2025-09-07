@@ -9,7 +9,7 @@ export async function convertDriveFileHandler(req: Request, res: Response) {
     const { fileId, targetMimeType, newName, parentId } = req.body || {};
     if (!fileId || !targetMimeType) return res.status(400).json({ ok: false, error: 'Missing fileId/targetMimeType' });
     const target = String(targetMimeType);
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/drive']);
     const drive = google.drive({ version: 'v3', auth: ic.auth });
 

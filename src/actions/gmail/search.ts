@@ -12,7 +12,7 @@ export async function emailSearchHandler(req: Request, res: Response) {
     if (to) terms.push(`to:${to}`);
     if (subject) terms.push(`subject:${subject}`);
     const q = terms.join(' ').trim() || undefined;
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/gmail.readonly']);
     const gmail = google.gmail({ version: 'v1', auth: ic.auth });
     const list = await gmail.users.messages.list({ userId: 'me', maxResults: max, q, labelIds: Array.isArray(labelIds) ? labelIds : (labelIds ? [String(labelIds)] : undefined) } as any);

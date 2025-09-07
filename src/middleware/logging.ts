@@ -18,7 +18,7 @@ export function loggingMiddleware(req: Request, res: Response, next: NextFunctio
   const requestId = req.headers['x-request-id'] as string || uuidv4();
   (req as any).requestId = requestId;
 
-  const impersonated = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || null;
+  const impersonated = process.env.IMPERSONATE_USER || null;
 
   // Log base
   const logEntry: any = {

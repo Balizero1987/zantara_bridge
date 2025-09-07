@@ -4,7 +4,7 @@ import { impersonatedClient } from '../../google';
 
 export async function actionsWhoamiHandler(req: Request, res: Response) {
   try {
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const ic = await impersonatedClient(user, [
       'https://www.googleapis.com/auth/userinfo.email',
       'https://www.googleapis.com/auth/drive.readonly',

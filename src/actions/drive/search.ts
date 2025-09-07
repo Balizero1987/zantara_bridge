@@ -9,7 +9,7 @@ export async function searchDriveHandler(req: Request, res: Response) {
     const pageSize = Math.min(parseInt(String(req.query.pageSize || '25'), 10) || 25, 100);
     const pageToken = (req.query.pageToken as string) || undefined;
     if (!query) return res.status(400).json({ ok: false, error: 'Missing query' });
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/drive.readonly']);
     const drive = google.drive({ version: 'v3', auth: ic.auth });
     const esc = (s: string) => s.replace(/'/g, "\\'");

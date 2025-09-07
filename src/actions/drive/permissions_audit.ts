@@ -6,7 +6,7 @@ export async function permissionsAuditHandler(req: Request, res: Response) {
   try {
     const fileId = (req.query.fileId as string) || (req.body?.fileId as string) || '';
     if (!fileId) return res.status(400).json({ ok: false, error: 'Missing fileId' });
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/drive']);
     const drive = google.drive({ version: 'v3', auth: ic.auth });
     const { data } = await drive.permissions.list({ fileId, fields: 'permissions(id,type,role,domain,expirationTime,emailAddress,displayName)', supportsAllDrives: true } as any);

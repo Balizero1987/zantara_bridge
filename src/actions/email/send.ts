@@ -62,7 +62,7 @@ export async function sendEmailHandler(req: Request, res: Response) {
     if (toList.some(t => !isValidEmail(t)) || ccList.some(c => !isValidEmail(c))) {
       return res.status(400).json({ ok: false, error: 'Invalid email in to/cc' });
     }
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const from = process.env.GMAIL_SENDER || user || 'me';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/gmail.send']);
     const gmail = google.gmail({ version: 'v1', auth: ic.auth });

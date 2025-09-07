@@ -8,7 +8,7 @@ export async function listEmailsHandler(req: Request, res: Response) {
     const q = (req.query.query as string) || (req.query.q as string) || '';
     const from = (req.query.from as string) || '';
     const maxResults = Math.max(1, Math.min(parseInt(String(req.query.limit || req.query.maxResults || '10'), 10) || 10, 50));
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/gmail.readonly']);
     const gmail = google.gmail({ version: 'v1', auth: ic.auth });
     let query = q;

@@ -10,7 +10,7 @@ export async function listCalendarEventsHandler(req: Request, res: Response) {
     const timeMin = (req.query.timeMin as string) || new Date().toISOString();
     const maxResults = Math.max(1, Math.min(parseInt(String(req.query.maxResults || '10'), 10) || 10, 100));
 
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/calendar.readonly', 'https://www.googleapis.com/auth/calendar']);
     const calendar = google.calendar({ version: 'v3', auth: ic.auth });
 

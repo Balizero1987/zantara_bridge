@@ -6,7 +6,7 @@ export async function getEmailHandler(req: Request, res: Response) {
   try {
     const id = (req.query.id as string) || (req.body?.id as string) || '';
     if (!id) return res.status(400).json({ ok: false, error: 'Missing id' });
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/gmail.readonly']);
     const gmail = google.gmail({ version: 'v1', auth: ic.auth });
     const { data } = await gmail.users.messages.get({ userId: 'me', id, format: 'full' });

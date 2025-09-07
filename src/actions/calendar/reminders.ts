@@ -8,7 +8,7 @@ export async function calendarRemindersHandler(req: Request, res: Response) {
     if (!calendarId || !eventId || !minutesBefore) return res.status(400).json({ ok: false, error: 'Missing calendarId/eventId/minutesBefore' });
     const m = String(method || 'popup');
     const minutes = parseInt(String(minutesBefore), 10);
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/calendar']);
     const calendar = google.calendar({ version: 'v3', auth: ic.auth });
     const { data } = await calendar.events.patch({

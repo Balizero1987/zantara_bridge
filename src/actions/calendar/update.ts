@@ -14,7 +14,7 @@ export async function updateCalendarEventHandler(req: Request, res: Response) {
     const { eventId } = req.body || {};
     const calendarId = (req.body?.calendarId as string) || process.env.BALI_ZERO_CALENDAR_ID;
     if (!calendarId || !eventId) return res.status(400).json({ ok: false, error: 'Missing calendarId/eventId' });
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/calendar']);
     const calendar = google.calendar({ version: 'v3', auth: ic.auth });
 

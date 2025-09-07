@@ -34,7 +34,7 @@ export async function memoryEntryMergeHandler(req: Request, res: Response) {
       return res
         .status(500)
         .json({ ok: false, error: "Missing MEMORY_DRIVE_FOLDER_ID" });
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || "";
+    const user = process.env.IMPERSONATE_USER || "";
     const ic = await impersonatedClient(user, [
       "https://www.googleapis.com/auth/drive",
     ]);

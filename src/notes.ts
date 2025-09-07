@@ -54,7 +54,7 @@ export async function addNote(ownerRaw: string, title: string, content: string, 
 }
 
 async function driveClient() {
-  const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+  const user = process.env.IMPERSONATE_USER || '';
   const ic = await impersonatedClient(user, [
     'https://www.googleapis.com/auth/drive',
   ]);

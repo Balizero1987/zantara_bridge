@@ -6,7 +6,7 @@ export async function emailDeleteHandler(req: Request, res: Response) {
   try {
     const { messageId, threadId } = req.body || {};
     if (!messageId && !threadId) return res.status(400).json({ ok: false, error: 'Provide messageId or threadId' });
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/gmail.modify']);
     const gmail = google.gmail({ version: 'v1', auth: ic.auth });
     if (threadId) {

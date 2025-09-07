@@ -20,7 +20,7 @@ export async function uploadDriveFileHandler(req: Request, res: Response) {
     if (!filename || !content) return res.status(400).json({ ok: false, error: 'Missing filename/content' });
     if (!folderId) return res.status(500).json({ ok: false, error: 'Missing folderId and MEMORY_DRIVE_FOLDER_ID' });
 
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/drive']);
     const drive = google.drive({ version: 'v3', auth: ic.auth });
 

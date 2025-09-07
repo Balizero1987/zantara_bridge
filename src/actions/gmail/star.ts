@@ -6,7 +6,7 @@ export async function emailStarHandler(req: Request, res: Response) {
   try {
     const { messageId, action } = req.body || {};
     if (!messageId || !action) return res.status(400).json({ ok: false, error: 'Missing messageId/action' });
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/gmail.modify']);
     const gmail = google.gmail({ version: 'v1', auth: ic.auth });
     const reqBody: any = { addLabelIds: [], removeLabelIds: [] };

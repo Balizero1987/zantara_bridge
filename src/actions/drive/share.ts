@@ -9,7 +9,7 @@ export async function shareDriveFileHandler(req: Request, res: Response) {
     if (!fileId || !emailAddress || !allowed.has(String(role))) {
       return res.status(400).json({ ok: false, error: 'fileId, emailAddress, role(reader|writer|commenter) required' });
     }
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/drive']);
     const drive = google.drive({ version: 'v3', auth: ic.auth });
     try {

@@ -6,7 +6,7 @@ export async function moveDriveFileHandler(req: Request, res: Response) {
   try {
     const { fileId, newParentId } = req.body || {};
     if (!fileId || !newParentId) return res.status(400).json({ ok: false, error: 'Missing fileId/newParentId' });
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
+    const user = process.env.IMPERSONATE_USER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/drive']);
     const drive = google.drive({ version: 'v3', auth: ic.auth });
     const meta = await drive.files.get({ fileId, fields: 'id,parents', supportsAllDrives: true } as any);
