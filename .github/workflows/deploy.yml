@@ -42,12 +42,17 @@ jobs:
 
     - name: Build & Push image (Cloud Build)
       run: |
+<<<<<<< HEAD
+        IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/bridge:${{ github.sha }}"
+        echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+=======
         chore/ci-image-digest-guard
         IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/bridge:${{ github.sha }}"
         echo "IMAGE=$IMAGE" >> $GITHUB_ENV
 
 --update-secrets BACKEND_API_KEY=projects/${{ secrets.GCP_PROJECT_ID }}/secrets/BACKEND_API_KEY:versions/2,OPENAI_API_KEY=projects/${{ secrets.GCP_PROJECT_ID }}/secrets/OPENAI_API_KEY:versions/2,CLAUDE_API_KEY=projects/${{ secrets.GCP_PROJECT_ID }}/secrets/CLAUDE_API_KEY:versions/1,IMPERSONATE_USER=projects/${{ secrets.GCP_PROJECT_ID }}/secrets/IMPERSONATE_USER:versions/1,GMAIL_SENDER=projects/${{ secrets.GCP_PROJECT_ID }}/secrets/GMAIL_SENDER:versions/1,MEMORY_DRIVE_FOLDER_ID=projects/${{ secrets.GCP_PROJECT_ID }}/secrets/MEMORY_DRIVE_FOLDER_ID:versions/1,DRIVE_ROOT_FOLDER_ID=projects/${{ secrets.GCP_PROJECT_ID }}/secrets/DRIVE_ROOT_FOLDER_ID:versions/1,BALI_ZERO_CALENDAR_ID=projects/${{ secrets.GCP_PROJECT_ID }}/secrets/BALI_ZERO_CALENDAR_ID:versions/1        echo "IMAGE=$IMAGE" >> $GITHUB_ENV
         main
+>>>>>>> origin/main
         gcloud builds submit --tag "$IMAGE"
 
     - name: Deploy to Cloud Run (version pin secrets)
