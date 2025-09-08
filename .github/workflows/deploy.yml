@@ -42,10 +42,10 @@ jobs:
 
     - name: Build & Push image (Cloud Build)
       run: |
-<<<<<<< HEAD
+        HEAD
         IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/bridge:${{ github.sha }}"
         echo "IMAGE=$IMAGE" >> $GITHUB_ENV
-=======
+
         chore/ci-image-digest-guard
         IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/bridge:${{ github.sha }}"
         echo "IMAGE=$IMAGE" >> $GITHUB_ENV
@@ -56,7 +56,7 @@ jobs:
           --update-secrets "PLUGIN_API_KEY=projects/${{ secrets.GCP_PROJECT_ID }}/secrets/ZANTARA_PLUGIN_API_KEY:latest"
           --update-secrets "PLUGIN_API_KEY=projects/${{ secrets.GCP_PROJECT_ID }}/secrets/PLUGIN_API_KEY:versions/${{ secrets.PIN_PLUGIN_KEY_VERSION || \'1\' }}"
         main
->>>>>>> origin/main
+        origin/main
         gcloud builds submit --tag "$IMAGE"
 
     - name: Deploy to Cloud Run (version pin secrets)
