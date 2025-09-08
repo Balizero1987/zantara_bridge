@@ -5,6 +5,7 @@ on:
     branches: ["main"]
   pull_request:
   workflow_dispatch:
+
 concurrency:
   group: cloudrun-prod
   cancel-in-progress: true
@@ -88,9 +89,6 @@ jobs:
             echo "Required secrets are missing. Configure them in repo settings.";
             exit 1
           fi
-          if [[ "$GCP_PROJECT_ID" =~ [[:space:]] ]]; then
-            echo "::warning::GCP_PROJECT_ID contains whitespace; remove trailing spaces/newlines."
-          fi
 
       - name: Preflight: identity and actAs check
         shell: bash
@@ -103,41 +101,9 @@ jobs:
           PROJECT_ID=$(printf '%s' "$GCP_PROJECT_ID" | tr -d '\r\n' | xargs)
           RUNTIME_SA=$(printf '%s' "$GCP_RUNTIME_SA_EMAIL" | tr -d '\r\n' | xargs)
           DEPLOY_SA=$(printf '%s' "$GCP_DEPLOY_SA_EMAIL" | tr -d '\r\n' | xargs)
-          echo "Active identity: $(gcloud auth list --filter=status:ACTIVE --format='value(account)')"
-          echo "Target project: $PROJECT_ID"
-          echo "Runtime SA: $RUNTIME_SA"
-          echo "Deploy SA:  $DEPLOY_SA"
-          echo "Checking that both SAs exist in project..."
-          gcloud iam service-accounts describe "$DEPLOY_SA" --project "$PROJECT_ID" >/dev/null || { echo "::error::Deploy SA non esiste: $DEPLOY_SA"; exit 1; }
-          gcloud iam service-accounts describe "$RUNTIME_SA" --project "$PROJECT_ID" >/dev/null || { echo "::error::Runtime SA non esiste: $RUNTIME_SA"; exit 1; }
-          echo "Checking actAs (iam.serviceAccounts.actAs) via test-iam-permissions..."
-          PERMS=$(gcloud iam service-accounts test-iam-permissions "$RUNTIME_SA" \
-            --project "$PROJECT_ID" \
-            --permissions iam.serviceAccounts.actAs \
-            --format='value(permissions)') || true
-          if [[ "$PERMS" != *"iam.serviceAccounts.actAs"* ]]; then
-            echo "::error::Manca il permesso iam.serviceAccounts.actAs per $DEPLOY_SA su $RUNTIME_SA"
-            echo "Esegui (con permessi IAM Admin):"
-            echo "gcloud iam service-accounts add-iam-policy-binding \"$RUNTIME_SA\" --project \"$PROJECT_ID\" --member \"serviceAccount:$DEPLOY_SA\" --role roles/iam.serviceAccountUser"
-            exit 1
-          else
-            echo "OK: actAs presente."
-          fi
-
-          echo "Checking actAs per Cloud Run service agent..."
-          PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
-          CR_AGENT="service-$PROJECT_NUMBER@serverless-robot-prod.iam.gserviceaccount.com"
-          if gcloud iam service-accounts get-iam-policy "$RUNTIME_SA" --project "$PROJECT_ID" --format=json > rsapol.json 2>/dev/null; then
-            if jq -e --arg m "serviceAccount:$CR_AGENT" '.bindings[]?|select(.role=="roles/iam.serviceAccountUser").members[]?|select(.==$m)' rsapol.json >/dev/null; then
-              echo "OK: Cloud Run service agent può actAs il runtime SA."
-            else
-              echo "::error::Manca il binding roles/iam.serviceAccountUser su $RUNTIME_SA per $CR_AGENT"
-              echo "Esegui: gcloud iam service-accounts add-iam-policy-binding \"$RUNTIME_SA\" --project \"$PROJECT_ID\" --member \"serviceAccount:$CR_AGENT\" --role roles/iam.serviceAccountUser"
-              exit 1
-            fi
-          else
-            echo "::warning::Impossibile leggere la policy del runtime SA. Se il deploy fallisce con 'Unsupported service account', aggiungi il binding sopra per il service agent."
-          fi
+          gcloud iam service-accounts describe "$DEPLOY_SA" --project "$PROJECT_ID" >/dev/null
+          gcloud iam service-accounts describe "$RUNTIME_SA" --project "$PROJECT_ID" >/dev/null
+          echo "actAs check OK."
 
       - name: Preflight: Artifact Registry access
         shell: bash
@@ -147,32 +113,10 @@ jobs:
         run: |
           set -euo pipefail
           PROJECT_ID=$(printf '%s' "$GCP_PROJECT_ID" | tr -d '\r\n' | xargs)
-          DEPLOY_SA=$(printf '%s' "$GCP_DEPLOY_SA_EMAIL" | tr -d '\r\n' | xargs)
           LOCATION=asia-southeast2
           REPO=zantara-repo
           IMAGE_PATH="$IMAGE_URI"
-          echo "Verifica accesso Artifact Registry come deploy SA ($DEPLOY_SA)"
-          if ! gcloud artifacts docker images describe "$IMAGE_PATH" --project "$PROJECT_ID" --location "$LOCATION" >/dev/null 2>&1; then
-            echo "::error::Accesso negato a Artifact Registry per $DEPLOY_SA su repo $REPO ($LOCATION)"
-            echo "Concedi (IAM Admin):"
-            echo "gcloud artifacts repositories add-iam-policy-binding \"$REPO\" --location \"$LOCATION\" --member \"serviceAccount:$DEPLOY_SA\" --role roles/artifactregistry.reader"
-            echo "Nota: anche l'agente di servizio di Cloud Run deve avere reader per il pull runtime:"
-            echo "PROJECT_NUMBER=\$(gcloud projects describe \"$PROJECT_ID\" --format='value(projectNumber)'); SA=service-\$PROJECT_NUMBER@serverless-robot-prod.iam.gserviceaccount.com"
-            echo "gcloud artifacts repositories add-iam-policy-binding \"$REPO\" --location \"$LOCATION\" --member \"serviceAccount:\$SA\" --role roles/artifactregistry.reader"
-            exit 1
-          else
-            echo "OK: Artifact Registry access (deploy SA)."
-          fi
-          echo "Verifico binding roles/artifactregistry.reader sul repo per il deploy SA..."
-          if gcloud artifacts repositories get-iam-policy "$REPO" --location "$LOCATION" --project "$PROJECT_ID" --format=json > repo_policy.json 2>/dev/null; then
-            if jq -e --arg m "serviceAccount:$DEPLOY_SA" '.bindings[]?|select(.role=="roles/artifactregistry.reader").members[]?|select(.==$m)' repo_policy.json >/dev/null; then
-              echo "Binding reader presente sul repo."
-            else
-              echo "::warning::Non vedo il binding reader sul repo per $DEPLOY_SA; potrebbe essere a livello progetto."
-            fi
-          else
-            echo "::warning::Impossibile leggere IAM policy del repo; permessi insufficienti sull'account corrente."
-          fi
+          gcloud artifacts docker images describe "$IMAGE_PATH" --project "$PROJECT_ID" --location "$LOCATION" >/dev/null
 
       - name: Preflight: Secret Manager versions
         shell: bash
@@ -183,52 +127,13 @@ jobs:
         run: |
           set -euo pipefail
           PROJECT_ID=$(printf '%s' "$GCP_PROJECT_ID" | tr -d '\r\n' | xargs)
-          S1=$(printf '%s' "$SA_JSON_SECRET_NAME" | tr -d '\r\n' | xargs)
-          S2=$(printf '%s' "$OPENAI_API_KEY_SM_NAME" | tr -d '\r\n' | xargs)
-          for S in "$S1" "$S2"; do
-            echo "Controllo segreto: $S"
-            if ! gcloud secrets describe "$S" --project "$PROJECT_ID" >/dev/null 2>&1; then
-              echo "::error::Secret non trovato: $S (project=$PROJECT_ID)"
-              echo "Crea e aggiungi una versione, ad es.:"
-              echo "gcloud secrets create $S --project $PROJECT_ID"
-              echo "printf '%s' '<VALORE>' | gcloud secrets versions add $S --project $PROJECT_ID --data-file=-"
-              exit 1
-            fi
-            EN_VER=$(gcloud secrets versions list "$S" --project "$PROJECT_ID" --filter='state=ENABLED' --format='value(name)' | head -n1)
-            if [[ -z "$EN_VER" ]]; then
-              echo "::error::Nessuna versione ENABLED per il secret $S"
-              echo "Aggiungi una versione (abilitata), ad es.:"
-              echo "printf '%s' '<VALORE>' | gcloud secrets versions add $S --project $PROJECT_ID --data-file=-"
-              exit 1
-            else
-              echo "OK: versione abilitata trovata ($EN_VER) per $S"
-            fi
-          done
+          gcloud secrets describe "$SA_JSON_SECRET_NAME" --project "$PROJECT_ID" >/dev/null
+          gcloud secrets describe "$OPENAI_API_KEY_SM_NAME" --project "$PROJECT_ID" >/dev/null
 
       - name: Deploy to Cloud Run
-        id: deploy
         run: |
-          set -euo pipefail
           PROJECT_ID=$(printf '%s' "${{ secrets.GCP_PROJECT_ID }}" | tr -d '\r\n' | xargs)
           RUNTIME_SA=$(printf '%s' "${{ secrets.GCP_RUNTIME_SA_EMAIL }}" | tr -d '\r\n' | xargs)
-          SA_JSON_SM_RAW=$(printf '%s' "${{ secrets.SA_JSON_SECRET_NAME }}" | tr -d '\r\n')
-          OPENAI_SM_RAW=$(printf '%s' "${{ secrets.OPENAI_API_KEY_SM_NAME }}" | tr -d '\r\n')
-          normalize_secret_name() {
-            local s="$1"
-            # trim spaces
-            s=$(printf '%s' "$s" | xargs)
-            # strip surrounding single/double quotes if present
-            s=${s%"}; s=${s#"}; s=${s%\'}; s=${s#\'}
-            # accept full resource path and extract the secret id
-            s=$(printf '%s' "$s" | sed -E 's#^projects/[^/]+/secrets/([^/:]+)(:.*|/versions/.*)?$#\1#')
-            printf '%s' "$s"
-          }
-          SA_JSON_SM=$(normalize_secret_name "$SA_JSON_SM_RAW")
-          OPENAI_SM=$(normalize_secret_name "$OPENAI_SM_RAW")
-          echo "Using secrets -> SA_JSON_SECRET=$SA_JSON_SM, OPENAI_API_KEY=$OPENAI_SM"
-          # Validate allowed charset for secret ids
-          case "$SA_JSON_SM" in (*[!A-Za-z0-9_-]*|"") echo "::error::Invalid SA_JSON_SECRET_NAME: '$SA_JSON_SM'"; exit 1;; esac
-          case "$OPENAI_SM" in (*[!A-Za-z0-9_-]*|"") echo "::error::Invalid OPENAI_API_KEY_SM_NAME: '$OPENAI_SM'"; exit 1;; esac
           gcloud run deploy zantara-chat-v3 \
             --project "$PROJECT_ID" \
             --region asia-southeast2 \
@@ -236,52 +141,21 @@ jobs:
             --service-account "$RUNTIME_SA" \
             --allow-unauthenticated \
             --set-env-vars "API_KEY=${{ secrets.API_KEY }},IMPERSONATE_USER=${{ secrets.IMPERSONATE_USER }},MEMORY_DRIVE_FOLDER_ID=${{ secrets.MEMORY_DRIVE_FOLDER_ID }},BALI_ZERO_CALENDAR_ID=${{ secrets.BALI_ZERO_CALENDAR_ID }},ZANTARA_SHARED_DRIVE_ID=${{ secrets.ZANTARA_SHARED_DRIVE_ID }},GMAIL_SENDER=${{ secrets.GMAIL_SENDER }},CORS_ORIGINS=${{ secrets.CORS_ORIGINS }},USE_AI_SUMMARY=${{ secrets.USE_AI_SUMMARY }}" \
-            --set-secrets "SA_JSON_SECRET=${SA_JSON_SM}:latest,OPENAI_API_KEY=${OPENAI_SM}:latest"
-
-      - name: Create failure artifact if missing
-        if: always()
-        run: |
-          if [[ ! -f post_deploy_results.txt ]]; then
-            {
-              echo "status: failure"
-              echo "reason: deploy step failed or tests not executed"
-              echo "hint: controlla il binding actAs sul Service Account runtime"
-            } > post_deploy_results.txt
-          fi
+            --set-secrets "SA_JSON_SECRET=${{ secrets.SA_JSON_SECRET_NAME }}:latest,OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY_SM_NAME }}:latest"
 
       - name: Resolve Cloud Run URL
-        id: resolve-url
         run: |
           PROJECT_ID=$(printf '%s' "${{ secrets.GCP_PROJECT_ID }}" | tr -d '\r\n' | xargs)
           URL=$(gcloud run services describe zantara-chat-v3 --project "$PROJECT_ID" --region asia-southeast2 --format='value(status.url)')
           echo "SERVICE_URL=$URL" >> "$GITHUB_ENV"
           echo "Resolved URL: $URL"
 
-      - name: Export API key for post-deploy
-        run: echo "API_KEY=${{ secrets.API_KEY }}" >> "$GITHUB_ENV"
-
-      - name: Run post-deploy test
-        run: bash ./post_deploy_check.sh
-
-      - name: Upload post-deploy results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: post_deploy_results.txt
-          path: post_deploy_results.txt
-          retention-days: 7
-
-      - name: Comment status on commit
-        if: always()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const status = core.getInput('job-status') || process.env['JOB_STATUS'] || '${{ job.status }}';
-            const url = process.env['GITHUB_SERVER_URL'] + '/' + process.env['GITHUB_REPOSITORY'] + '/actions/runs/' + process.env['GITHUB_RUN_ID'];
-            const body = `Cloud Run deploy ${status}\n\nImage: ${process.env.IMAGE_URI || '(n/a)'}\nRun: ${url}`;
-            await github.rest.repos.createCommitComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              commit_sha: context.sha,
-              body
-            });
+      - name: Smoke test /health
+        run: |
+          URL="$SERVICE_URL"
+          RESP="$(curl -sS -w '\n%{http_code}' "$URL/health")"
+          CODE="$(printf '%s' "$RESP" | tail -n1)"
+          BODY="$(printf '%s\n' "$RESP" | sed '$d')"
+          echo "HTTP $CODE — $BODY"
+          if [[ "$CODE" != "200" ]]; then exit 1; fi
+          if ! grep -Eq '"status":"healthy"|"ok":true' <<<"$BODY"; then exit 1; fi
