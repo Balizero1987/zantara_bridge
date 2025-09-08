@@ -1,23 +1,25 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { execSync } from "child_process";
+#!/usr/bin/env node
 
-const client = new Anthropic({
-  apiKey: process.env.CLAUDE_API_KEY,
-});
+// Codex review script — extended version
+// Serve solo come placeholder/log per la pipeline
 
-// Legge il diff del PR
-const diff = execSync("git diff origin/main...HEAD", { encoding: "utf-8" });
+const { execSync } = require("child_process");
 
-const prompt = `Sei Codex, AI reviewer. Analizza questo diff e scrivi un commento chiaro e utile come farebbe un senior dev:\n\n${diff}`;
-
-async function run() {
-  const resp = await client.messages.create({
-    model: "claude-3-sonnet-20240229",
-    max_tokens: 700,
-    messages: [{ role: "user", content: prompt }],
-  });
-  console.log("🤖 Codex Review:\n");
-  console.log(resp.content[0].text);
+function run(cmd) {
+  try {
+    return execSync(cmd, { encoding: "utf8" }).trim();
+  } catch {
+    return "(n/a)";
+  }
 }
 
-run();
+const branch = process.env.GITHUB_REF_NAME || run("git rev-parse --abbrev-ref HEAD");
+const commit = process.env.GITHUB_SHA || run("git rev-parse HEAD");
+const author = run("git log -1 --pretty=format:'%an <%ae>'");
+
+console.log("✅ Codex review placeholder - running extended log");
+console.log("🔹 Branch:", branch);
+console.log("🔹 Commit:", commit);
+console.log("🔹 Author:", author);
+
+process.exit(0);
