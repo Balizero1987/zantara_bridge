@@ -52,28 +52,23 @@ jobs:
           node-version: '20'
 
       - name: Configure Artifact Registry and image tag
-        shell: bash
-        env:
-          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
           set -euo pipefail
-          PROJECT_ID=$(printf '%s' "$GCP_PROJECT_ID" | tr -d '\r\n' | xargs)
+          PROJECT_ID=$(printf '%s' "${{ secrets.GCP_PROJECT_ID }}" | tr -d '\r\n' | xargs)
           REGION=asia-southeast2
           SHORT_SHA="${GITHUB_SHA::7}"
           IMAGE_URI="$REGION-docker.pkg.dev/$PROJECT_ID/zantara-repo/zantara-chat:$SHORT_SHA"
           echo "IMAGE_URI=$IMAGE_URI" >> "$GITHUB_ENV"
           gcloud auth configure-docker "$REGION-docker.pkg.dev" -q
+        shell: bash
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
 
       - name: Build and push image
         run: |
           docker buildx build --platform linux/amd64 -t "$IMAGE_URI" --push .
 
       - name: Validate required secrets
-        shell: bash
-        env:
-          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-          GCP_RUNTIME_SA_EMAIL: ${{ secrets.GCP_RUNTIME_SA_EMAIL }}
-          API_KEY: ${{ secrets.API_KEY }}
         run: |
           set -euo pipefail
           missing=0
@@ -84,13 +79,13 @@ jobs:
             fi
           done
           if [[ $missing -ne 0 ]]; then exit 1; fi
-
-      - name: Preflight: identity and actAs check
         shell: bash
         env:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           GCP_RUNTIME_SA_EMAIL: ${{ secrets.GCP_RUNTIME_SA_EMAIL }}
-          GCP_DEPLOY_SA_EMAIL: ${{ secrets.GCP_DEPLOY_SA_EMAIL }}
+          API_KEY: ${{ secrets.API_KEY }}
+
+      - name: Preflight: identity and actAs check
         run: |
           set -euo pipefail
           PROJECT_ID=$(printf '%s' "$GCP_PROJECT_ID" | tr -d '\r\n' | xargs)
@@ -99,17 +94,22 @@ jobs:
           gcloud iam service-accounts describe "$DEPLOY_SA" --project "$PROJECT_ID" >/dev/null
           gcloud iam service-accounts describe "$RUNTIME_SA" --project "$PROJECT_ID" >/dev/null
           echo "actAs check OK."
-
-      - name: Preflight: Artifact Registry access
         shell: bash
         env:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_RUNTIME_SA_EMAIL: ${{ secrets.GCP_RUNTIME_SA_EMAIL }}
+          GCP_DEPLOY_SA_EMAIL: ${{ secrets.GCP_DEPLOY_SA_EMAIL }}
+
+      - name: Preflight: Artifact Registry access
         run: |
           set -euo pipefail
           PROJECT_ID=$(printf '%s' "$GCP_PROJECT_ID" | tr -d '\r\n' | xargs)
           LOCATION=asia-southeast2
           REPO=zantara-repo
           gcloud artifacts repositories describe "$REPO" --location "$LOCATION" --project "$PROJECT_ID"
+        shell: bash
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
 
       - name: Deploy to Cloud Run
         run: |
