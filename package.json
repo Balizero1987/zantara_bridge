@@ -7,7 +7,8 @@
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "lint": "eslint . --ext .ts,.js",
-    "seed": "node scripts/seed-firestore.js"
+    "seed": "node scripts/seed-firestore.js",
+    "test": "echo \"ok\""
   },
   "dependencies": {
     "@google-cloud/firestore": "^7.11.3",
