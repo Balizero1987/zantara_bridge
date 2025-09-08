@@ -40,7 +40,7 @@ jobs:
           BRANCH:   ${{ steps.params.outputs.branch }}
           TITLE:    ${{ steps.params.outputs.title }}
           BODY:     ${{ steps.params.outputs.body }}
-          PATCH_B64:${{ steps.params.outputs.patch_b64 }}
+          PATCH_B64: ${{ steps.params.outputs.patch_b64 }}
         run: |
           set -euo pipefail
           echo "::group::Prepare branch"

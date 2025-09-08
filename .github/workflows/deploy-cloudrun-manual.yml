@@ -46,11 +46,11 @@ jobs:
           GCP_RUNTIME_SA_EMAIL: ${{ secrets.GCP_RUNTIME_SA_EMAIL }}
           SA_JSON_SECRET_NAME: ${{ secrets.SA_JSON_SECRET_NAME }}
           OPENAI_API_KEY_SM_NAME: ${{ secrets.OPENAI_API_KEY_SM_NAME }}
-          API_KEY: ${{ secrets.API_KEY }}
+          ZANTARA_BACKEND_API_KEY: ${{ secrets.ZANTARA_BACKEND_API_KEY }}
         run: |
           set -euo pipefail
           missing=0
-          for v in GCP_PROJECT_ID GCP_RUNTIME_SA_EMAIL SA_JSON_SECRET_NAME OPENAI_API_KEY_SM_NAME API_KEY; do
+          for v in GCP_PROJECT_ID GCP_RUNTIME_SA_EMAIL SA_JSON_SECRET_NAME OPENAI_API_KEY_SM_NAME ZANTARA_BACKEND_API_KEY; do
             if [[ -z "${!v}" ]]; then
               echo "::error::Missing secret: $v";
               missing=1
@@ -64,7 +64,7 @@ jobs:
             echo "::warning::GCP_PROJECT_ID contains whitespace; remove trailing spaces/newlines."
           fi
 
-      - name: Preflight: identity and actAs check
+      - name: "Preflight: identity and actAs check"
         shell: bash
         env:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
@@ -96,7 +96,7 @@ jobs:
             echo "OK: actAs presente."
           fi
 
-      - name: Preflight: Artifact Registry access
+      - name: "Preflight: Artifact Registry access"
         shell: bash
         env:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
@@ -131,7 +131,7 @@ jobs:
             echo "::warning::Impossibile leggere IAM policy del repo; permessi insufficienti sull'account corrente."
           fi
 
-      - name: Preflight: Secret Manager versions
+      - name: "Preflight: Secret Manager versions"
         shell: bash
         env:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
@@ -188,7 +188,7 @@ jobs:
             --image "asia-southeast2-docker.pkg.dev/$PROJECT_ID/zantara-repo/zantara-chat:manual" \
             --service-account "$RUNTIME_SA" \
             --allow-unauthenticated \
-            --set-env-vars "API_KEY=${{ secrets.API_KEY }},IMPERSONATE_USER=${{ secrets.IMPERSONATE_USER }},MEMORY_DRIVE_FOLDER_ID=${{ secrets.MEMORY_DRIVE_FOLDER_ID }},BALI_ZERO_CALENDAR_ID=${{ secrets.BALI_ZERO_CALENDAR_ID }},ZANTARA_SHARED_DRIVE_ID=${{ secrets.ZANTARA_SHARED_DRIVE_ID }},GMAIL_SENDER=${{ secrets.GMAIL_SENDER }},CORS_ORIGINS=${{ secrets.CORS_ORIGINS }},USE_AI_SUMMARY=${{ secrets.USE_AI_SUMMARY }}" \
+            --set-env-vars "API_KEY=${{ secrets.ZANTARA_BACKEND_API_KEY }},IMPERSONATE_USER=${{ secrets.IMPERSONATE_USER }},MEMORY_DRIVE_FOLDER_ID=${{ secrets.MEMORY_DRIVE_FOLDER_ID }},BALI_ZERO_CALENDAR_ID=${{ secrets.BALI_ZERO_CALENDAR_ID }},ZANTARA_SHARED_DRIVE_ID=${{ secrets.ZANTARA_SHARED_DRIVE_ID }},GMAIL_SENDER=${{ secrets.GMAIL_SENDER }},CORS_ORIGINS=${{ secrets.CORS_ORIGINS }},USE_AI_SUMMARY=${{ secrets.USE_AI_SUMMARY }}" \
             --set-secrets "SA_JSON_SECRET=${SA_JSON_SM}:latest,OPENAI_API_KEY=${OPENAI_SM}:latest"
 
       - name: Resolve Cloud Run URL
@@ -200,7 +200,7 @@ jobs:
           echo "Resolved URL: $URL"
 
       - name: Export API key for post-deploy
-        run: echo "API_KEY=${{ secrets.API_KEY }}" >> "$GITHUB_ENV"
+        run: echo "API_KEY=${{ secrets.ZANTARA_BACKEND_API_KEY }}" >> "$GITHUB_ENV"
 
       - name: Run post-deploy test
         run: bash ./post_deploy_check.sh
