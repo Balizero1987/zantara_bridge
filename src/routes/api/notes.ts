@@ -1,5 +1,5 @@
 import type { Router, Request, Response } from 'express';
-import { db, NoteEntry } from '../../core/firestore.js';
+import { db, NoteEntry } from '../../core/firestore';
 export default function registerNotes(r:Router){
   r.post('/api/notes', async (req:Request,res:Response)=>{
     const owner=(req as any).canonicalOwner||'UNKNOWN';
