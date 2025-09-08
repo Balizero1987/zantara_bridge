@@ -1,10 +1,10 @@
 name: Deploy Cloud Run
 
 on:
+  workflow_dispatch:
   push:
     branches: ["main"]
   pull_request:
-  workflow_dispatch:
 
 concurrency:
   group: cloudrun-prod
