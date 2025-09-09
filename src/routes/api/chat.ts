@@ -1,6 +1,6 @@
 import type { Router, Request, Response } from 'express';
-import { openai, DEFAULT_MODEL } from '../../core/openai.js';
-import { buildMessages } from '../../core/promptBuilder.js';
+import { openai, DEFAULT_MODEL } from '../../core/openai';
+import { buildMessages } from '../../core/promptBuilder';
 export default function registerChat(r:Router){
   r.post('/api/chat', async (req:Request,res:Response)=>{
     try{

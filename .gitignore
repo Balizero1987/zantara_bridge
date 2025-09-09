@@ -1,45 +1,30 @@
-# Node / TypeScript
+# Node & build
 node_modules/
-**/node_modules/
 dist/
-build/
-coverage/
-*.log
-*.tsbuildinfo
 
-# Local OS/editor
-.DS_Store
-Thumbs.db
-.idea/
-.vscode/*
-!.vscode/extensions.json
-
-# Env/keys
+# Env & secrets
 .env
-.env.*
-openai.key
-service-account.json
-zantara-key.json
+*.env
+sa-key.json
+zantara_bridge-main/service-account.json
 
-# Artifacts / bundles / exports
-*.tgz
-*.bundle
+# Logs
+*.log
 post_deploy_results.txt
 
-# Accidental folders
-zantara-chat 2/
-zantara-chat 2/node_modules/
+# Archives
+*.tgz
+*.bundle
 
-# GitHub / workflows scratch copies
-.github/workflows/* 2.yml
-.github/workflows/deploy-cloudrun
-.github/workflows/deploy-cloudrun-manual 2.yml
-
-# codex tmp
+# Codex / tmp files
 CODEX_TEST
 codex.patch
 payload.json
 t.patchwc
 *.save
-setup_codex_dispatch.sh^*
+setup_codex_dispatch.sh*
 
+# Editor / swap
+*.swp
+*~
+.DS_Store

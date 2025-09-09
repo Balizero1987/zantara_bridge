@@ -1,3 +1,8 @@
+        hotfix/fix-node-modules
+export function canonicalOwner(raw?: string | null): string {
+  if (!raw) return "UNKNOWN";
+  return raw.trim().toUpperCase().replace(/\s+/g, "_");
+
 export function canonicalOwner(input?: string | null): string | null {
   if (!input) return null;
   const s = String(input).trim();
@@ -11,4 +16,5 @@ export function canonicalOwner(input?: string | null): string | null {
     ari: 'ARI', surya: 'SURYA', amanda: 'AMANDA'
   };
   return MAP[key] || nameOnly.toUpperCase();
+        main
 }
