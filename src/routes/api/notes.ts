@@ -4,48 +4,38 @@ import { db, NoteEntry } from '../../core/firestore';
 export default function registerNotes(r: Router) {
   // 📌 POST: crea una nuova nota
   r.post('/api/notes', async (req: Request, res: Response) => {
-    try {
-      const owner = (req as any).canonicalOwner || 'UNKNOWN';
-      const title = String(req.body?.title || '').trim();
-      const content = String(req.body?.content || '').trim();
+    const owner = (req as any).canonicalOwner || 'UNKNOWN';
+    const title = String(req.body?.title || '').trim();
+    const content = String(req.body?.content || '').trim();
 
-      if (!title || !content) {
-        return res.status(400).json({ error: 'title/content required' });
-      }
-
-      const ts = Date.now();
-      const dateKey =
-        req.body?.dateKey || new Date(ts).toISOString().slice(0, 10);
-
-      const note: NoteEntry = {
-        canonicalOwner: owner,
-        title,
-        content,
-        ts,
-        dateKey,
-        tags: []
-      };
-
-      const doc = await db.collection('notes').add(note);
-
-      res.type('application/json');
-      return res.json({ id: doc.id, ...note });
-    } catch (e: any) {
-      return res.status(500).json({
-        ok: false,
-        error: e.message || 'create_failed'
-      });
+    if (!title || !content) {
+      return res.status(400).json({ error: 'title/content required' });
     }
+
+    const ts = Date.now();
+    const dateKey =
+      req.body?.dateKey || new Date(ts).toISOString().slice(0, 10);
+
+    const note: NoteEntry = {
+      canonicalOwner: owner,
+      title,
+      content,
+      ts,
+      dateKey,
+      tags: []
+    };
+
+    const doc = await db.collection('notes').add(note);
+    res.json({ id: doc.id, ...note });
   });
 
-  // 📌 GET: recupera le note di un owner (con opzionale filtro dateKey)
+  // 📌 GET: recupera note esistenti
   r.get('/api/notes', async (req: Request, res: Response) => {
     try {
       const owner = (req as any).canonicalOwner || 'UNKNOWN';
       const dateKey = String(req.query.dateKey || '');
 
-      let q = db
-        .collection('notes')
+      let q = db.collection('notes')
         .where('canonicalOwner', '==', owner)
         .orderBy('ts', 'desc');
 
@@ -55,7 +45,7 @@ export default function registerNotes(r: Router) {
 
       const snap = await q.limit(200).get();
 
-      const items = snap.docs.map((d) => {
+      const items = snap.docs.map(d => {
         const data = d.data();
         return {
           id: d.id,
@@ -68,7 +58,6 @@ export default function registerNotes(r: Router) {
         };
       });
 
-      res.type('application/json');
       return res.json({ ok: true, count: items.length, items });
     } catch (e: any) {
       return res.status(500).json({

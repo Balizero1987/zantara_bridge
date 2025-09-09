@@ -2,18 +2,18 @@ import express from 'express';
 import pino from 'pino';
 
 // Middleware
-import { pluginCors } from './middleware/corsPlugin.js';
-import { pluginLimiter } from './middleware/rateLimit.js';
-import { apiKeyGuard } from './middleware/authPlugin.js';
+import { pluginCors } from './middleware/corsPlugin';
+import { pluginLimiter } from './middleware/rateLimit';
+import { apiKeyGuard } from './middleware/authPlugin';
 
 // Routes API
-import registerNotes from './routes/api/notes.js';
-import registerChat from './routes/api/chat.js';
-import registerDocgen from './routes/api/docgen.js';
-import registerDriveBrief from './routes/api/driveBrief.js';
+import registerNotes from './routes/api/notes';
+import registerChat from './routes/api/chat';
+import registerDocgen from './routes/api/docgen';
+import registerDriveBrief from './routes/api/driveBrief';
 
 // Public/plugin manifest
-import registerPlugin from './routes/plugin.js';
+import registerPlugin from './routes/plugin';
 
 const app = express();
 app.disable('x-powered-by');

@@ -26,6 +26,11 @@ jobs:
       contents: read
       id-token: write
 
+    env:
+      REGION: asia-southeast2
+      SERVICE: zantara-chat-v3-1064094238013
+      AR_REPO: zantara-repo
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -46,62 +51,56 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Build and push image
+      - name: Build project
         run: |
-          REGION=asia-southeast2
-          PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
-          IMAGE_URI="$REGION-docker.pkg.dev/$PROJECT_ID/zantara-repo/zantara-chat:${GITHUB_SHA}"
-          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
-          docker buildx build --platform linux/amd64 -t "$IMAGE_URI" --push .
+          npm ci
+          npm run build
+
+      - name: Build & Push Docker image
+        run: |
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/zantara-chat:${{ github.sha }}"
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+          docker buildx build --platform linux/amd64 -t "$IMAGE" --push .
 
       - name: Deploy to Cloud Run
         run: |
-          PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
-          RUNTIME_SA=${{ secrets.GCP_RUNTIME_SA_EMAIL }}
-          gcloud run deploy zantara-chat-v3-1064094238013 \
-            --project "$PROJECT_ID" \
-            --region asia-southeast2 \
-            --image "$IMAGE_URI" \
-            --service-account "$RUNTIME_SA" \
+          gcloud run deploy "${{ env.SERVICE }}" \
+            --image "$IMAGE" \
+            --region "${{ env.REGION }}" \
+            --platform managed \
+            --service-account "${{ secrets.GCP_RUNTIME_SA_EMAIL }}" \
             --allow-unauthenticated \
-            --update-secrets BACKEND_API_KEY=ZANTARA_BACKEND_API_KEY:latest,PLUGIN_API_KEY=ZANTARA_PLUGIN_API_KEY:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest \
-            --set-env-vars "CORS_ORIGINS=*.balizero.com,USE_AI_SUMMARY=false"
-
-      - name: Resolve Cloud Run URL
-        id: resolve-url
-        run: |
-          PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
-          URL=$(gcloud run services describe zantara-chat-v3-1064094238013 --project "$PROJECT_ID" --region asia-southeast2 --format='value(status.url)')
-          echo "SERVICE_URL=$URL" >> $GITHUB_ENV
-          echo "Resolved URL: $URL"
+            --set-env-vars "CORS_ORIGINS=*.balizero.com,USE_AI_SUMMARY=false" \
+            --set-secrets "BACKEND_API_KEY=ZANTARA_BACKEND_API_KEY:latest,PLUGIN_API_KEY=ZANTARA_PLUGIN_API_KEY:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest"
 
       - name: Post-deploy smoke tests
         run: |
-          URL="${{ env.SERVICE_URL }}"
-          KEY=$(gcloud secrets versions access latest --secret=ZANTARA_PLUGIN_API_KEY --project ${{ secrets.GCP_PROJECT_ID }} | tr -d '\n\r')
+          URL="$(gcloud run services describe ${{ env.SERVICE }} \
+            --region "${{ env.REGION }}" --format='value(status.url)')"
 
-          echo "🔎 Testing /health..."
-          curl -s "$URL/health" | jq .
+          KEY="$(gcloud secrets versions access latest \
+            --secret=ZANTARA_PLUGIN_API_KEY --project ${{ secrets.GCP_PROJECT_ID }} | tr -d '\n\r')"
 
-          echo "🔎 Testing /api/notes (POST)..."
-          curl -s -X POST "$URL/api/notes" \
+          echo "Service URL: $URL"
+
+          # Health
+          curl -sS "$URL/health" | jq .
+
+          # Notes
+          curl -sS -X POST "$URL/api/notes" \
             -H "Content-Type: application/json" \
             -H "X-API-KEY: $KEY" -H "X-BZ-USER: riri" \
-            -d '{"title":"CI Test","content":"Smoke test"}' | jq .
+            -d '{"title":"CI test","content":"smoke"}' | jq .
 
-          echo "🔎 Testing /api/notes (GET)..."
-          curl -s "$URL/api/notes" \
-            -H "X-API-KEY: $KEY" -H "X-BZ-USER: riri" | jq .
-
-          echo "🔎 Testing /api/chat..."
-          curl -s -X POST "$URL/api/chat" \
+          # Chat
+          curl -sS -X POST "$URL/api/chat" \
             -H "Content-Type: application/json" \
             -H "X-API-KEY: $KEY" -H "X-BZ-USER: riri" \
-            -d '{"message":"Test automatico CI","ririMode":true}' | jq .
+            -d '{"message":"ping","ririMode":true}' | jq .
 
-          echo "🔎 Testing /api/drive/brief..."
+          # Drive brief
           TODAY=$(date -u +"%Y-%m-%d")
-          curl -s -X POST "$URL/api/drive/brief" \
+          curl -sS -X POST "$URL/api/drive/brief" \
             -H "Content-Type: application/json" \
             -H "X-API-KEY: $KEY" -H "X-BZ-USER: riri" \
             -d "{\"dateKey\":\"$TODAY\"}" | jq .
