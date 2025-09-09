@@ -47,7 +47,7 @@ export default function registerDriveBrief(r: Router) {
       const doc = new Document({ sections: [{ children }] });
       const buf = await Packer.toBuffer(doc);
 
-      // 2. Auth con impersonation (runtime SA + subject user se impostato)
+      // 2. Auth con ADC (Cloud Run → Workload Identity Federation)
       const auth = new google.auth.GoogleAuth({
         scopes: ['https://www.googleapis.com/auth/drive'],
       });
@@ -56,12 +56,13 @@ export default function registerDriveBrief(r: Router) {
       const folderId =
         process.env.BRIEF_DRIVE_FOLDER_ID ||
         process.env.ZANTARA_SHARED_DRIVE_ID;
-      if (!folderId)
+      if (!folderId) {
         return res
           .status(500)
           .json({ ok: false, error: 'Missing DRIVE folder ID' });
+      }
 
-      // 3. Upload file
+      // 3. Upload file su Shared Drive
       const name = `Brief-${owner}-${dateKey}.docx`;
       const stream = Readable.from(buf);
       const { data } = await drive.files.create({
