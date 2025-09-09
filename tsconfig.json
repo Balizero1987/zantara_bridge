@@ -11,7 +11,19 @@
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
+        codex/update-ci/cd-workflow-for-cloud-run-deployment
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "src/test*", "**/*.test.ts", "scripts/**/*"]
 }
 
+
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "src/test*",
+    "**/*.test.ts",
+    "scripts/**/*"
+  ]
+}
+        main
