@@ -1,0 +1,89 @@
+name: ZANTARA_BOUNCE
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Business intent (es: refactor auth, fix tests, add endpoint)"
+        required: true
+      base_branch:
+        description: "Base branch"
+        required: false
+        default: "main"
+
+jobs:
+  bounce:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      OPENAI_API_KEY:   ${{ secrets.OPENAI_API_KEY }}
+      ZANTARA_WEBHOOK_URL: ${{ secrets.ZANTARA_WEBHOOK_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with: { node-version: "20" }
+
+      - name: Install CLIs (Claude + Codex)
+        run: |
+          npm i -g @anthropic-ai/claude-code @openai/codex
+
+      - name: Create work branch
+        run: |
+          BR="auto/${{ github.run_id }}"
+          git checkout -b "$BR"
+          echo "BRANCH=$BR" >> $GITHUB_ENV
+
+      # Step 1 — CLAUDE (headless plan+edits)
+      - name: Claude — plan & edits
+        id: claude1
+        run: |
+          claude -p "Task: ${{ github.event.inputs.task }}.
+          Act on this repo ONLY. Plan changes, then APPLY edits needed.
+          Run unit tests if present. Summarize decisions for PR body."
+          --permission-mode acceptEdits \
+          --allowedTools "Read,Edit,Bash(npm *),Git" \
+          --output-format json | tee claude_plan.json
+
+      - name: Commit Claude changes (if any)
+        run: |
+          git config user.name "zan-bot"
+          git config user.email "ops@balizero.com"
+          git add -A
+          git commit -m "chore: Claude edits for '${{ github.event.inputs.task }}'" || echo "No changes"
+
+      # Step 2 — CODEX (Quality Gates da AGENTS.md)
+      - name: Codex — run Quality Gates
+        run: |
+          codex exec "Run lint, typecheck, unit tests, e2e as defined in AGENTS.md.
+          If failures occur, propose minimal fixes and retry once."
+
+      - name: Commit Codex changes (if any)
+        run: |
+          git add -A
+          git commit -m "chore: Codex fixes (quality gates)" || echo "No changes"
+
+      # Step 3 — CLAUDE (PR body / release notes)
+      - name: Claude — PR summary
+        run: |
+          claude -p "Generate a crisp PR body for the changes on branch $BRANCH.
+          Include rationale, risk, test evidence, and rollout plan."
+          --output-format json > pr_body.json
+          jq -r '.result' pr_body.json > PR_BODY.md
+
+      - name: Push & open PR
+        run: |
+          git push --set-upstream origin "$BRANCH"
+          gh pr create -B "${{ github.event.inputs.base_branch }}" -H "$BRANCH" \
+            -t "Auto: ${ { github.event.inputs.task } }" -F PR_BODY.md
+
+      - name: Notify Zantara
+        run: |
+          curl -X POST "$ZANTARA_WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d @claude_plan.json || true
