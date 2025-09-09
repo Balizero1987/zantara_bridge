@@ -2,26 +2,29 @@
 node_modules/
 dist/
 
+# Env & secrets
+.env
+*.env
+sa-key.json
+zantara_bridge-main/service-account.json
+
+# Logs
+*.log
+post_deploy_results.txt
+
 # Archives
 *.tgz
 *.bundle
 
-# Output
-post_deploy_results.txt
-
-# Accidental folders
-zantara-chat 2/
-zantara-chat 2/node_modules/
-
-# GitHub / workflows scratch copies
-.github/workflows/* 2.yml
-.github/workflows/deploy-cloudrun
-.github/workflows/deploy-cloudrun-manual 2.yml
-
-# Codex tmp
+# Codex / tmp files
 CODEX_TEST
 codex.patch
 payload.json
 t.patchwc
 *.save
-setup_codex_dispatch.sh^*
+setup_codex_dispatch.sh*
+
+# Editor / swap
+*.swp
+*~
+.DS_Store
