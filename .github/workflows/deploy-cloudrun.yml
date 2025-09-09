@@ -1,27 +1,17 @@
 name: Deploy Cloud Run
 
 on:
-  workflow_dispatch:
   push:
     branches: ["main"]
-  pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: cloudrun-prod
   cancel-in-progress: true
 
 jobs:
-  pr-check:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - name: PR validation
-        run: echo "PR check only. Skipping deploy."
-
   build-and-deploy:
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    environment: prod
     permissions:
       contents: read
       id-token: write
@@ -35,13 +25,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Authenticate with Google Cloud
+      - name: Auth to Google Cloud (WIF)
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
           service_account: ${{ secrets.GCP_DEPLOY_SA_EMAIL }}
 
-      - name: Set up gcloud CLI
+      - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
@@ -51,56 +41,56 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Build project
+      - name: Install & Build
         run: |
+          set -euo pipefail
           npm ci
           npm run build
+          # guardie: deve esistere dist/index.js e le rotte compilate
+          test -f dist/index.js
+          test -f dist/routes/api/notes.js
+          test -f dist/routes/api/chat.js
+          test -f dist/routes/api/driveBrief.js
 
-      - name: Build & Push Docker image
+      - name: Build & Push image
         run: |
+          set -euo pipefail
           IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/zantara-chat:${{ github.sha }}"
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
           docker buildx build --platform linux/amd64 -t "$IMAGE" --push .
 
       - name: Deploy to Cloud Run
         run: |
+          set -euo pipefail
           gcloud run deploy "${{ env.SERVICE }}" \
-            --image "$IMAGE" \
             --region "${{ env.REGION }}" \
+            --image "$IMAGE" \
             --platform managed \
             --service-account "${{ secrets.GCP_RUNTIME_SA_EMAIL }}" \
             --allow-unauthenticated \
-            --set-env-vars "CORS_ORIGINS=*.balizero.com,USE_AI_SUMMARY=false" \
-            --set-secrets "BACKEND_API_KEY=ZANTARA_BACKEND_API_KEY:latest,PLUGIN_API_KEY=ZANTARA_PLUGIN_API_KEY:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest"
+            --set-env-vars "CORS_ORIGINS=*.balizero.com,USE_AI_SUMMARY=false,DRIVE_ID_AMBARADAM=${{ vars.DRIVE_ID_AMBARADAM }}" \
+            --set-secrets "BACKEND_API_KEY=ZANTARA_BACKEND_API_KEY:latest,PLUGIN_API_KEY=ZANTARA_PLUGIN_API_KEY:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest,GOOGLE_SERVICE_ACCOUNT_KEY=GOOGLE_SERVICE_ACCOUNT_KEY:latest,DRIVE_SUBJECT=DRIVE_SUBJECT:latest"
 
-      - name: Post-deploy smoke tests
+      - name: Smoke tests
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: |
-          URL="$(gcloud run services describe ${{ env.SERVICE }} \
-            --region "${{ env.REGION }}" --format='value(status.url)')"
-
-          KEY="$(gcloud secrets versions access latest \
-            --secret=ZANTARA_PLUGIN_API_KEY --project ${{ secrets.GCP_PROJECT_ID }} | tr -d '\n\r')"
-
+          set -euo pipefail
+          URL="$(gcloud run services describe ${{ env.SERVICE }} --region "${{ env.REGION }}" --project "$GCP_PROJECT_ID" --format='value(status.url)')"
+          KEY="$(gcloud secrets versions access latest --secret=ZANTARA_PLUGIN_API_KEY --project "$GCP_PROJECT_ID" | tr -d '\n\r')"
           echo "Service URL: $URL"
 
-          # Health
-          curl -sS "$URL/health" | jq .
+          # health
+          curl -fsS "$URL/health" | jq .
 
-          # Notes
-          curl -sS -X POST "$URL/api/notes" \
+          # notes
+          curl -fsS -X POST "$URL/api/notes" \
             -H "Content-Type: application/json" \
-            -H "X-API-KEY: $KEY" -H "X-BZ-USER: riri" \
+            -H "X-API-KEY: $KEY" -H "X-BZ-USER: BOSS" \
             -d '{"title":"CI test","content":"smoke"}' | jq .
 
-          # Chat
-          curl -sS -X POST "$URL/api/chat" \
+          # chat
+          curl -fsS -X POST "$URL/api/chat" \
             -H "Content-Type: application/json" \
-            -H "X-API-KEY: $KEY" -H "X-BZ-USER: riri" \
-            -d '{"message":"ping","ririMode":true}' | jq .
-
-          # Drive brief
-          TODAY=$(date -u +"%Y-%m-%d")
-          curl -sS -X POST "$URL/api/drive/brief" \
-            -H "Content-Type: application/json" \
-            -H "X-API-KEY: $KEY" -H "X-BZ-USER: riri" \
-            -d "{\"dateKey\":\"$TODAY\"}" | jq .
+            -H "X-API-KEY: $KEY" -H "X-BZ-USER: BOSS" \
+            -d '{"message":"ping","ririMode":false}' | jq .
