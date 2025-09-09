@@ -26,6 +26,11 @@ jobs:
       contents: read
       id-token: write
 
+    env:
+      REGION: asia-southeast2
+      SERVICE: zantara-chat-v3-1064094238013
+      AR_REPO: zantara-repo
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -41,15 +46,16 @@ jobs:
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      - name: Install tools (jq)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+        hotfix/fix-node-modules
+      - name: Build project
+        run: |
+          npm ci
+          npm run build
 
       - name: Configure Artifact Registry and image tag
         run: |
@@ -63,9 +69,58 @@ jobs:
         shell: bash
         env:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        main
 
-      - name: Build and push image
+      - name: Build & Push Docker image
         run: |
+        hotfix/fix-node-modules
+          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/zantara-chat:${{ github.sha }}"
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+          docker buildx build --platform linux/amd64 -t "$IMAGE" --push .
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy "${{ env.SERVICE }}" \
+            --image "$IMAGE" \
+            --region "${{ env.REGION }}" \
+            --platform managed \
+            --service-account "${{ secrets.GCP_RUNTIME_SA_EMAIL }}" \
+            --allow-unauthenticated \
+            --set-env-vars "CORS_ORIGINS=*.balizero.com,USE_AI_SUMMARY=false" \
+            --set-secrets "BACKEND_API_KEY=ZANTARA_BACKEND_API_KEY:latest,PLUGIN_API_KEY=ZANTARA_PLUGIN_API_KEY:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest"
+
+      - name: Post-deploy smoke tests
+        run: |
+          URL="$(gcloud run services describe ${{ env.SERVICE }} \
+            --region "${{ env.REGION }}" --format='value(status.url)')"
+
+          KEY="$(gcloud secrets versions access latest \
+            --secret=ZANTARA_PLUGIN_API_KEY --project ${{ secrets.GCP_PROJECT_ID }} | tr -d '\n\r')"
+
+          echo "Service URL: $URL"
+
+          # Health
+          curl -sS "$URL/health" | jq .
+
+          # Notes
+          curl -sS -X POST "$URL/api/notes" \
+            -H "Content-Type: application/json" \
+            -H "X-API-KEY: $KEY" -H "X-BZ-USER: riri" \
+            -d '{"title":"CI test","content":"smoke"}' | jq .
+
+          # Chat
+          curl -sS -X POST "$URL/api/chat" \
+            -H "Content-Type: application/json" \
+            -H "X-API-KEY: $KEY" -H "X-BZ-USER: riri" \
+            -d '{"message":"ping","ririMode":true}' | jq .
+
+          # Drive brief
+          TODAY=$(date -u +"%Y-%m-%d")
+          curl -sS -X POST "$URL/api/drive/brief" \
+            -H "Content-Type: application/json" \
+            -H "X-API-KEY: $KEY" -H "X-BZ-USER: riri" \
+            -d "{\"dateKey\":\"$TODAY\"}" | jq .
+
           docker buildx build --platform linux/amd64 -t "$IMAGE_URI" --push .
 
       - name: Validate required secrets
@@ -141,3 +196,4 @@ jobs:
           echo "HTTP $CODE — $BODY"
           if [[ "$CODE" != "200" ]]; then exit 1; fi
           if ! grep -Eq '"status":"healthy"|"ok":true' <<<"$BODY"; then exit 1; fi
+        main
