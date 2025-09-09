@@ -23,7 +23,9 @@ jobs:
         run: npm ci
 
       - name: Build project
-        run: npm run build
+        run: |
+          npm run build
+          test -f dist/routes/api/driveBrief.js
 
       # 🔑 Autenticazione con GCP usando il secret che hai creato
       - name: Auth to GCP
@@ -35,10 +37,17 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
-      # 🔧 Deploy su Cloud Run
+      # 🔧 Deploy su Cloud Run (immagine già pushata; nessuna build inline)
       - name: Deploy to Cloud Run
         run: |
+          PROJECT_ID=$(printf '%s' "${{ secrets.GCP_PROJECT_ID }}" | tr -d '\r\n' | xargs)
+          RUNTIME_SA=$(printf '%s' "${{ secrets.GCP_RUNTIME_SA_EMAIL }}" | tr -d '\r\n' | xargs)
           gcloud run deploy zantara-chat-v3-1064094238013 \
-            --region=asia-southeast2 \
-            --source=. \
-            --allow-unauthenticated
+            --project "$PROJECT_ID" \
+            --region asia-southeast2 \
+            --image "$IMAGE_URI" \
+            --service-account "$RUNTIME_SA" \
+            --allow-unauthenticated \
+            --no-build \
+            --set-env-vars "CORS_ORIGINS=*.balizero.com,USE_AI_SUMMARY=false" \
+            --set-secrets "BACKEND_API_KEY=ZANTARA_BACKEND_API_KEY:latest,PLUGIN_API_KEY=ZANTARA_PLUGIN_API_KEY:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest"
