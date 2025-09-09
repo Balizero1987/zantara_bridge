@@ -51,13 +51,29 @@ jobs:
         with:
           node-version: '20'
 
+        hotfix/fix-node-modules
       - name: Build project
         run: |
           npm ci
           npm run build
 
+      - name: Configure Artifact Registry and image tag
+        run: |
+          set -euo pipefail
+          PROJECT_ID=$(printf '%s' "${{ secrets.GCP_PROJECT_ID }}" | tr -d '\r\n' | xargs)
+          REGION=asia-southeast2
+          SHORT_SHA="${GITHUB_SHA::7}"
+          IMAGE_URI="$REGION-docker.pkg.dev/$PROJECT_ID/zantara-repo/zantara-chat:$SHORT_SHA"
+          echo "IMAGE_URI=$IMAGE_URI" >> "$GITHUB_ENV"
+          gcloud auth configure-docker "$REGION-docker.pkg.dev" -q
+        shell: bash
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        main
+
       - name: Build & Push Docker image
         run: |
+        hotfix/fix-node-modules
           IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/zantara-chat:${{ github.sha }}"
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
           docker buildx build --platform linux/amd64 -t "$IMAGE" --push .
@@ -104,3 +120,80 @@ jobs:
             -H "Content-Type: application/json" \
             -H "X-API-KEY: $KEY" -H "X-BZ-USER: riri" \
             -d "{\"dateKey\":\"$TODAY\"}" | jq .
+
+          docker buildx build --platform linux/amd64 -t "$IMAGE_URI" --push .
+
+      - name: Validate required secrets
+        run: |
+          set -euo pipefail
+          missing=0
+          for v in GCP_PROJECT_ID GCP_RUNTIME_SA_EMAIL API_KEY; do
+            if [[ -z "${!v}" ]]; then
+              echo "::error::Missing secret: $v"
+              missing=1
+            fi
+          done
+          if [[ $missing -ne 0 ]]; then exit 1; fi
+        shell: bash
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_RUNTIME_SA_EMAIL: ${{ secrets.GCP_RUNTIME_SA_EMAIL }}
+          API_KEY: ${{ secrets.API_KEY }}
+
+      - name: "Preflight: identity and actAs check"
+        run: |
+          set -euo pipefail
+          PROJECT_ID=$(printf '%s' "$GCP_PROJECT_ID" | tr -d '\r\n' | xargs)
+          RUNTIME_SA=$(printf '%s' "$GCP_RUNTIME_SA_EMAIL" | tr -d '\r\n' | xargs)
+          DEPLOY_SA=$(printf '%s' "$GCP_DEPLOY_SA_EMAIL" | tr -d '\r\n' | xargs)
+          gcloud iam service-accounts describe "$DEPLOY_SA" --project "$PROJECT_ID" >/dev/null
+          gcloud iam service-accounts describe "$RUNTIME_SA" --project "$PROJECT_ID" >/dev/null
+          echo "actAs check OK."
+        shell: bash
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_RUNTIME_SA_EMAIL: ${{ secrets.GCP_RUNTIME_SA_EMAIL }}
+          GCP_DEPLOY_SA_EMAIL: ${{ secrets.GCP_DEPLOY_SA_EMAIL }}
+
+      - name: "Preflight: Artifact Registry access"
+        run: |
+          set -euo pipefail
+          PROJECT_ID=$(printf '%s' "$GCP_PROJECT_ID" | tr -d '\r\n' | xargs)
+          LOCATION=asia-southeast2
+          REPO=zantara-repo
+          gcloud artifacts repositories describe "$REPO" --location "$LOCATION" --project "$PROJECT_ID"
+        shell: bash
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+
+      - name: Deploy to Cloud Run
+        run: |
+          PROJECT_ID=$(printf '%s' "${{ secrets.GCP_PROJECT_ID }}" | tr -d '\r\n' | xargs)
+          RUNTIME_SA=$(printf '%s' "${{ secrets.GCP_RUNTIME_SA_EMAIL }}" | tr -d '\r\n' | xargs)
+          gcloud run deploy zantara-chat-v3-1064094238013 \
+            --project "$PROJECT_ID" \
+            --region asia-southeast2 \
+            --image "$IMAGE_URI" \
+            --service-account "$RUNTIME_SA" \
+            --allow-unauthenticated \
+            --no-build \
+            --set-env-vars "CORS_ORIGINS=*.balizero.com,USE_AI_SUMMARY=false" \
+            --set-secrets "BACKEND_API_KEY=ZANTARA_BACKEND_API_KEY:2,PLUGIN_API_KEY=ZANTARA_PLUGIN_API_KEY:1,OPENAI_API_KEY=OPENAI_API_KEY:2"
+
+      - name: Resolve Cloud Run URL
+        run: |
+          PROJECT_ID=$(printf '%s' "${{ secrets.GCP_PROJECT_ID }}" | tr -d '\r\n' | xargs)
+          URL=$(gcloud run services describe zantara-chat-v3-1064094238013 --project "$PROJECT_ID" --region asia-southeast2 --format='value(status.url)')
+          echo "SERVICE_URL=$URL" >> "$GITHUB_ENV"
+          echo "Resolved URL: $URL"
+
+      - name: Smoke test /health
+        run: |
+          URL="$SERVICE_URL"
+          RESP="$(curl -sS -w '\n%{http_code}' "$URL/health")"
+          CODE="$(printf '%s' "$RESP" | tail -n1)"
+          BODY="$(printf '%s\n' "$RESP" | sed '$d')"
+          echo "HTTP $CODE — $BODY"
+          if [[ "$CODE" != "200" ]]; then exit 1; fi
+          if ! grep -Eq '"status":"healthy"|"ok":true' <<<"$BODY"; then exit 1; fi
+        main
