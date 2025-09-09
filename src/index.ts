@@ -12,7 +12,7 @@ import registerChat from './routes/api/chat.js';
 import registerDocgen from './routes/api/docgen.js';
 import registerDriveBrief from './routes/api/driveBrief.js';
 
-// Routes pubbliche
+// Public/plugin manifest
 import registerPlugin from './routes/plugin.js';
 
 const app = express();
@@ -30,7 +30,7 @@ app.get('/version', (_req, res) => res.json({ version: process.env.ZANTARA_VERSI
 // Manifest e OpenAPI
 registerPlugin(app);
 
-// Middleware protetti (tutte le API sotto richiedono API key e user)
+// Middleware protetti (API Key obbligatoria)
 app.use(apiKeyGuard);
 
 // API protette
