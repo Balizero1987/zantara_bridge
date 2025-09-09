@@ -121,6 +121,7 @@ jobs:
             --image "$IMAGE_URI" \
             --service-account "$RUNTIME_SA" \
             --allow-unauthenticated \
+            --no-build \
             --set-env-vars "CORS_ORIGINS=*.balizero.com,USE_AI_SUMMARY=false" \
             --set-secrets "BACKEND_API_KEY=ZANTARA_BACKEND_API_KEY:2,PLUGIN_API_KEY=ZANTARA_PLUGIN_API_KEY:1,OPENAI_API_KEY=OPENAI_API_KEY:2"
 
