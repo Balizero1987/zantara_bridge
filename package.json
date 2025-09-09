@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/server.js",
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "start": "node dist/index.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "lint": "eslint . --ext .ts,.js",
-    "seed": "node scripts/seed-firestore.js",
+    "seed": "node dist/scripts/seed-firestore.js",
     "test": "echo \"ok\""
   },
   "dependencies": {
