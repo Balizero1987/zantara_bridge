@@ -1,0 +1,23 @@
+chore: ignore node_modules and dist
+
+# Please enter the commit message for your changes. Lines starting
+# with '#' will be ignored, and an empty message aborts the commit.
+#
+# interactive rebase in progress; onto f4f6b43
+# Last commands done (4 commands done):
+#    pick 74e0b1b Plugin build & key: Docker multi-stage + PLUGIN_API_KEY (#116)
+#    pick 82138e6 chore: ignore node_modules and dist
+# Next commands to do (2 remaining commands):
+#    pick 91da9a8 fix: cleanup deps and rebase with origin/main
+#    pick 4e1b534 chore: remove submodule tracking for zantara_bridge
+# You are currently rebasing branch 'hotfix/deploy-secrets-latest' on 'f4f6b43'.
+#
+# Changes to be committed:
+#	modified:   .gitignore
+#
+# Changes not staged for commit:
+#	modified:   zantara_bridge (modified content, untracked content)
+#
+# Untracked files:
+#	zantara_bridge-main/
+#

@@ -1,4 +1,4 @@
-import { db } from './firestore.js';
+import { db } from './firestore';
 export async function buildMessages(owner:string,message:string,riri:boolean){
   const man=await db.collection('memory.global').doc('manifesto').get();
   const preset=await db.collection('memory.byOwner').doc('RIRI').collection('entries').doc('seed-preset').get();
