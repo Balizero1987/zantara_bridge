@@ -1,0 +1,39 @@
+name: 00 - Orchestrate (start here)
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch name for Codex PR'
+        required: true
+        default: 'hotfix/automation-bounce'
+      title:
+        description: 'PR title'
+        required: true
+        default: 'Codex patch: automated bounce'
+      body:
+        description: 'PR body/notes'
+        required: false
+        default: 'Auto-orchestration kick-off'
+      patch_b64:
+        description: 'Base64 patch to apply (Codex input)'
+        required: true
+
+jobs:
+  start-codex:
+    permissions:
+      contents: read
+      actions: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch to Codex (8008)
+        run: |
+          jq -n \
+            --arg et "8008" \
+            --arg b "${{ inputs.branch }}" \
+            --arg t "${{ inputs.title }}" \
+            --arg bo "${{ inputs.body }}" \
+            --arg p "${{ inputs.patch_b64 }}" \
+            '{event_type:$et, client_payload:{branch:$b,title:$t,body:$bo,patch_b64:$p}}' \
+          | gh api repos/${{ github.repository }}/dispatches \
+              -X POST -H "Accept: application/vnd.github+json" --input -
