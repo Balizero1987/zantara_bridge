@@ -8,6 +8,8 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "lint": "eslint . --ext .ts,.js",
     "seed": "node dist/scripts/seed-firestore.js",
+    "smoke": "node scripts/smoke-test.js",
+    "fuzz": "bash scripts/curl-fuzz.sh",
     "test": "echo \"ok\""
   },
   "dependencies": {
