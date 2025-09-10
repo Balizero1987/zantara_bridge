@@ -1,0 +1,98 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "Zantara Bridge API",
+    "version": "1.0.0",
+    "description": "Gestisci note, chat AI e genera brief in Google Drive con autenticazione sicura."
+  },
+  "servers": [
+    {
+      "url": "https://zantara-chat-v3-1064094238013.asia-southeast2.run.app"
+    }
+  ],
+  "paths": {
+    "/api/notes": {
+      "post": {
+        "summary": "Crea una nuova nota",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string" },
+                  "content": { "type": "string" }
+                },
+                "required": ["title", "content"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Nota creata con successo" }
+        }
+      },
+      "get": {
+        "summary": "Lista note esistenti",
+        "parameters": [
+          {
+            "name": "dateKey",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Lista note restituita con successo" }
+        }
+      }
+    },
+    "/api/chat": {
+      "post": {
+        "summary": "Interagisci con ZANTARA",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "message": { "type": "string" },
+                  "ririMode": { "type": "boolean" }
+                },
+                "required": ["message"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Risposta AI generata" }
+        }
+      }
+    },
+    "/api/drive/brief": {
+      "post": {
+        "summary": "Genera e carica un brief DOCX su Google Drive",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dateKey": { "type": "string" }
+                },
+                "required": ["dateKey"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Brief generato e caricato con successo" }
+        }
+      }
+    }
+  },
+  "components": {}
+}
