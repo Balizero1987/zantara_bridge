@@ -1,80 +1,111 @@
-import { google, drive_v3 } from 'googleapis';
-import { GoogleAuth } from 'google-auth-library';
-
-let _drive: drive_v3.Drive | null = null;
+import { google } from "googleapis";
 
 /**
- * Restituisce un client Google Drive memoizzato
- * usando impersonation (Domain-Wide Delegation).
+ * Helpers per gestire sia My Drive che Shared Drive.
+ * Se presenti, usiamo TEST_SUBJECT / TEST_DRIVE_ID (deploy diagnostici).
+ * In fallback, usiamo DRIVE_SUBJECT / DRIVE_ID_AMBARADAM (config classica).
  */
-export function getDrive(): drive_v3.Drive {
-  if (_drive) return _drive;
 
-  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
-  const subject = (process.env.DRIVE_SUBJECT || '').trim();
+// ===== Utility env =====
+export function getSharedDriveId(): string | null {
+  const id =
+    (process.env.TEST_DRIVE_ID ||
+      process.env.DRIVE_ID_AMBARADAM ||
+      "").trim();
+  return id || null;
+}
 
-  if (!raw) {
-    throw new Error('Missing GOOGLE_SERVICE_ACCOUNT_KEY');
-  }
-  if (!subject) {
-    throw new Error('Missing DRIVE_SUBJECT');
-  }
+export function getDriveSubject(): string | null {
+  return (
+    (process.env.TEST_SUBJECT || process.env.DRIVE_SUBJECT || "").trim() || null
+  );
+}
 
-  const credentials = JSON.parse(raw);
-  const auth = new GoogleAuth({
-    credentials,
-    scopes: ['https://www.googleapis.com/auth/drive'],
-    clientOptions: { subject },
+// ===== Helpers Shared Drive =====
+export function listInSharedDriveParams(overrides: any = {}): any {
+  const driveId = getSharedDriveId();
+  return {
+    corpora: driveId ? "drive" : "allDrives",
+    driveId: driveId || undefined,
+    includeItemsFromAllDrives: true,
+    supportsAllDrives: true,
+    ...overrides,
+  };
+}
+
+export function withAllDrives<T extends Record<string, any>>(
+  overrides: T
+): T & { supportsAllDrives: true } {
+  return { supportsAllDrives: true, ...overrides } as any;
+}
+
+export function ensureParentsInSharedDrive(
+  parents?: string[] | null
+): string[] | undefined {
+  const driveId = getSharedDriveId();
+  const list = Array.isArray(parents) ? parents.slice() : [];
+  if (driveId && !list.includes(driveId)) list.unshift(driveId);
+  return list.length ? list : undefined;
+}
+
+// ===== Diagnostica / whoami =====
+export async function whoami() {
+  const auth = await google.auth.getClient({
+    scopes: ["https://www.googleapis.com/auth/drive"],
+    subject: getDriveSubject() || undefined,
   });
+  const drive = google.drive({ version: "v3", auth });
 
-  _drive = google.drive({ version: 'v3', auth: auth as any });
-  return _drive;
-}
-
-/**
- * Compatibilità con vecchi import.
- */
-export async function getDriveClient(): Promise<drive_v3.Drive> {
-  return getDrive();
-}
-
-/**
- * Recupera info sull’utente impersonato.
- */
-export async function getDriveWhoAmI(): Promise<drive_v3.Schema$User | undefined> {
-  const drive = getDrive();
   const about = await drive.about.get({
-    fields: 'user(emailAddress,displayName,permissionId)',
-    supportsAllDrives: true,
+    fields: "user, storageQuota",
   } as any);
-  return about.data.user as any;
-}
 
-/**
- * whoami(): test di accesso. BYPASS SHARED DRIVE per evitare DWD issues.
- */
-export async function whoami(): Promise<{ ok: true; about?: any; sample?: any; drive?: any; user?: any; impersonating?: any }> {
-  const drive = getDrive();
-  
-  // BYPASS: usa solo about.get invece della Shared Drive
-  // per evitare problemi di Domain-Wide Delegation
-  const about = await drive.about.get({
-    fields: 'user(emailAddress,displayName),storageQuota',
-    supportsAllDrives: true,
-  } as any);
-  
-  // Test basic drive access con "My Drive"
-  const myFiles = await drive.files.list({
-    pageSize: 1,
-    fields: 'files(id,name)',
-    q: 'trashed=false'
-  } as any);
-  
-  return { 
-    ok: true, 
+  const sharedId = getSharedDriveId();
+  let sample: any[] | undefined;
+  let driveMeta: any | undefined;
+
+  if (sharedId) {
+    try {
+      // Metadata dello Shared Drive
+      const d = await (drive as any).drives.get({ driveId: sharedId });
+      driveMeta = d.data;
+      // Prova a listare un file
+      const lst = await drive.files.list({
+        pageSize: 1,
+        fields: "files(id,name)",
+        includeItemsFromAllDrives: true,
+        supportsAllDrives: true,
+        corpora: "drive",
+        driveId: sharedId,
+        q: "trashed=false",
+      } as any);
+      sample = lst.data.files || [];
+    } catch (e: any) {
+      // Fallback: My Drive
+      const lst = await drive.files.list({
+        pageSize: 1,
+        fields: "files(id,name)",
+        q: "trashed=false",
+      } as any);
+      sample = lst.data.files || [];
+      driveMeta = { id: sharedId, error: e?.message || "forbidden" };
+    }
+  } else {
+    // Nessun Shared Drive configurato → My Drive
+    const lst = await drive.files.list({
+      pageSize: 1,
+      fields: "files(id,name)",
+      q: "trashed=false",
+    } as any);
+    sample = lst.data.files || [];
+  }
+
+  return {
+    ok: true,
     about: about.data,
-    sample: myFiles.data.files ?? [],
+    sample,
+    drive: driveMeta,
     user: about.data.user,
-    impersonating: process.env.DRIVE_SUBJECT
+    impersonating: getDriveSubject(),
   };
 }
