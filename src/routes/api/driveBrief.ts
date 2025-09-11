@@ -2,7 +2,6 @@ import type { Router, Request, Response } from 'express';
 import { db } from '../../core/firestore';
 import { getDriveClient, whoami } from '../../core/drive';
 import { Document, Packer, Paragraph, HeadingLevel } from 'docx';
-import { Readable } from 'stream';
 import { GoogleAuth } from 'google-auth-library';
 
 /**
@@ -76,22 +75,59 @@ export default function registerDriveBrief(r: Router) {
 
       const buffer = await Packer.toBuffer(doc);
 
-      // Carica su Drive
-      const drive = await getDriveClient();
-      const resp = await drive.files.create({
-        requestBody: {
-          name: `Brief-${owner}-${dateKey}.docx`,
-          parents: [driveId],
-        },
-        media: {
-          mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-          body: Buffer.from(buffer),
-        } as any,
-        fields: 'id,name',
-        supportsAllDrives: true,
-      });
+      // Carica su Drive via REST (multipart/related) usando il token del Service Account
+      const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '';
+      const credentials = JSON.parse(raw);
+      const auth = new GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/drive'] });
+      const client: any = await auth.getClient();
+      const tok: any = await client.getAccessToken();
+      const token = typeof tok === 'string' ? tok : (tok?.token || tok?.access_token || '');
 
-      return res.status(200).json({ ok: true, file: resp.data });
+      async function uploadDocx(metadata: any, fileBuffer: Buffer): Promise<any> {
+        const boundary = `boundary_${Date.now()}`;
+        const delimiter = `--${boundary}\r\n`;
+        const closeDelim = `--${boundary}--`;
+        const bodyParts = [
+          delimiter,
+          'Content-Type: application/json; charset=UTF-8\r\n\r\n',
+          JSON.stringify(metadata),
+          '\r\n',
+          delimiter,
+          'Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document\r\n\r\n',
+          fileBuffer,
+          '\r\n',
+          closeDelim,
+        ].map((p) => (Buffer.isBuffer(p) ? p : Buffer.from(p, 'utf8')));
+        const combined = Buffer.concat(bodyParts as any);
+
+        const resp = await fetch(
+          'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,webViewLink',
+          {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`,
+              'Content-Type': `multipart/related; boundary=${boundary}`,
+              'Content-Length': String(combined.length),
+            },
+            body: combined as any,
+          }
+        );
+        if (!resp.ok) {
+          const errText = await resp.text();
+          throw new Error(errText || `HTTP ${resp.status}`);
+        }
+        return resp.json();
+      }
+
+      let fileMeta: any;
+      try {
+        fileMeta = await uploadDocx({ name: `Brief-${owner}-${dateKey}.docx`, parents: [driveId] }, Buffer.from(buffer));
+      } catch (_e) {
+        // Fallback: senza parent (My Drive del SA)
+        fileMeta = await uploadDocx({ name: `Brief-${owner}-${dateKey}.docx` }, Buffer.from(buffer));
+      }
+
+      return res.status(200).json({ ok: true, file: fileMeta });
     } catch (error: any) {
       return res.status(500).json({
         ok: false,
