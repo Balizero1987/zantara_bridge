@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { google } from 'googleapis';
 import { Readable } from 'stream';
 import { impersonatedClient } from '../../google';
+import { withAllDrives } from '../../core/drive';
 
 type UploadBody = {
   filename: string;
@@ -25,12 +26,11 @@ export async function uploadDriveFileHandler(req: Request, res: Response) {
     const drive = google.drive({ version: 'v3', auth: ic.auth });
 
     const stream = Readable.from(Buffer.from(content, 'utf8'));
-    const { data } = await drive.files.create({
+    const { data } = await drive.files.create(withAllDrives({
       requestBody: { name: filename, parents: [folderId] },
       media: { mimeType, body: stream },
       fields: 'id,name,webViewLink',
-      supportsAllDrives: true,
-    } as any);
+    } as any) as any);
 
     (req as any).log?.info?.({ action: 'drive.upload', filename, folderId, id: (data as any)?.id });
     return res.json({ id: (data as any)?.id, name: (data as any)?.name, webViewLink: (data as any)?.webViewLink });
@@ -41,4 +41,3 @@ export async function uploadDriveFileHandler(req: Request, res: Response) {
     return res.status(status).json({ ok: false, error: e?.message || 'drive.upload failed', details: gerr || undefined });
   }
 }
-

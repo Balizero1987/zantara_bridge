@@ -16,9 +16,7 @@ router.get('/diag/auth', (req: Request, res: Response) => {
   const headerHash = headerPresent ? sha256(headerKey) : null;
 
   const envs = [
-    { name: 'PLUGIN_API_KEY', value: process.env.PLUGIN_API_KEY },
-    { name: 'BACKEND_API_KEY', value: process.env.BACKEND_API_KEY },
-    { name: 'API_KEY', value: process.env.API_KEY },
+    { name: 'ZANTARA_PLUGIN_API_KEY', value: process.env.ZANTARA_PLUGIN_API_KEY },
   ];
 
   const seen: Array<{ name: string; present: boolean; envHash: string | null; eq: boolean }> = [];
@@ -50,7 +48,6 @@ router.get('/diag/auth', (req: Request, res: Response) => {
 router.get('/diag/google', async (_req: Request, res: Response) => {
   try {
     const credsRaw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
-    const subject = process.env.DRIVE_SUBJECT || '';
     if (!credsRaw) {
       return res.status(500).json({ ok: false, error: 'missing_sa_key' });
     }
@@ -58,20 +55,83 @@ router.get('/diag/google', async (_req: Request, res: Response) => {
     const auth = new GoogleAuth({
       credentials,
       scopes: ['https://www.googleapis.com/auth/drive'],
-      clientOptions: { subject },
+      // Direct service account - no clientOptions needed
     });
     const client = await auth.getClient();
     const t: any = await (client as any).getAccessToken();
     const tok = typeof t === 'string' ? t : (t?.token || '');
     const token_preview = tok ? `${String(tok).slice(0, 12)}...` : 'none';
-    return res.json({ ok: true, subject, token_preview });
+    return res.json({ 
+      ok: true, 
+      service_account: credentials.client_email,
+      token_preview 
+    });
   } catch (e: any) {
     // Do not log token or secrets
     return res.status(500).json({ ok: false, error: 'diag_google_failed', message: e?.message || String(e) });
   }
 });
 
+// GET /diag/drive - Test direct service account Drive API access
+router.get('/diag/drive', async (_req: Request, res: Response) => {
+  try {
+    const credsRaw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+    if (!credsRaw) {
+      return res.status(500).json({ ok: false, error: 'missing_sa_key' });
+    }
+    
+    const credentials = JSON.parse(credsRaw);
+    const auth = new GoogleAuth({
+      credentials,
+      scopes: ['https://www.googleapis.com/auth/drive'],
+      // NO clientOptions - direct service account
+    });
+    
+    const client = await auth.getClient();
+    const t: any = await (client as any).getAccessToken();
+    const tok = typeof t === 'string' ? t : (t?.token || '');
+    const token_preview = tok ? `${String(tok).slice(0, 12)}...` : 'none';
+    
+    // Now try to make a Drive API call - test shared drive access
+    const { google } = require('googleapis');
+    const drive = google.drive({ version: 'v3', auth: client });
+    
+    const sharedDriveId = process.env.DRIVE_ID_AMBARADAM || '0AMxvxuad5E_0Uk9PVA';
+    
+    // Try to list files in the shared drive
+    const files = await drive.files.list({
+      pageSize: 2,
+      fields: 'files(id,name)',
+      includeItemsFromAllDrives: true,
+      supportsAllDrives: true,
+      corpora: 'drive',
+      driveId: sharedDriveId,
+      q: 'trashed=false',
+    });
+    
+    return res.json({ 
+      ok: true, 
+      token_preview,
+      drive_api_call: 'success',
+      shared_drive_access: 'success',
+      files_found: files.data.files?.length || 0,
+      sample_files: files.data.files,
+      sa_email: credentials.client_email,
+      shared_drive_id: sharedDriveId
+    });
+  } catch (e: any) {
+    return res.status(500).json({ 
+      ok: false, 
+      error: e?.message || 'unknown',
+      details: {
+        status: e?.response?.status,
+        statusText: e?.response?.statusText,
+        data: e?.response?.data
+      }
+    });
+  }
+});
+
 export default function registerDiag(app: any) {
   app.use('/', router);
 }
-

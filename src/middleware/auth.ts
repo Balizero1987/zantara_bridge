@@ -9,14 +9,18 @@ import { Request, Response, NextFunction } from 'express';
  * Supports multiple keys via env `API_KEYS` (comma-separated) in addition to `API_KEY` and `CODEX_DISPATCH_TOKEN`.
  */
 export function requireApiKey(req: Request, res: Response, next: NextFunction) {
-  const envKeys = ((process.env.API_KEYS || '')
-    .split(',')
-    .map(s => s.trim())
-    .filter(Boolean));
+  const envKeys: string[] = [];
 
-  if (process.env.API_KEY && process.env.API_KEY.trim()) {
-    envKeys.push(process.env.API_KEY.trim());
+  // Primary API key
+  if (process.env.ZANTARA_PLUGIN_API_KEY && process.env.ZANTARA_PLUGIN_API_KEY.trim()) {
+    envKeys.push(process.env.ZANTARA_PLUGIN_API_KEY.trim());
   }
+  
+  // Legacy support for API_KEYS CSV
+  const csvKeys = ((process.env.API_KEYS || '').split(',').map(s => s.trim()).filter(Boolean));
+  envKeys.push(...csvKeys);
+  
+  // Legacy CODEX token
   if (process.env.CODEX_DISPATCH_TOKEN && process.env.CODEX_DISPATCH_TOKEN.trim()) {
     envKeys.push(process.env.CODEX_DISPATCH_TOKEN.trim());
   }
@@ -42,7 +46,7 @@ export function requireApiKey(req: Request, res: Response, next: NextFunction) {
   } catch {}
 
   if (!envKeys.length) {
-    return res.status(500).json({ ok: false, error: 'Missing API_KEY' });
+    return res.status(500).json({ ok: false, error: 'Missing ZANTARA_PLUGIN_API_KEY' });
   }
   if (!provided) {
     return res.status(401).json({ ok: false, error: 'Unauthorized' });
