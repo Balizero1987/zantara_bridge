@@ -1,20 +1,33 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Defaults
+# Defaults (override via environment)
 PROJ="${PROJ:-involuted-box-469105-r0}"
 REGION="${REGION:-asia-southeast2}"
 REPO="${REPO:-zantara-repo}"
 SERVICE="${SERVICE:-zantara-chat-v3-1064094238013}"
-SUBJECT="${DRIVE_SUBJECT:-zero@balizero.com}"
-SHARE_ID="${DRIVE_ID_AMBARADAM:-0AMxvxuad5E_0Uk9PVA}"
+SHARE_ID="${DRIVE_ID_AMBARADAM:-}"  # optional
 
 echo "Project: $PROJ"; echo "Region: $REGION"; echo "Service: $SERVICE"; echo "Repo: $REPO";
 
-echo "Ensuring diagnostics and env..."
+echo "Ensuring diagnostics and minimal env (SA-only)..."
+# Remove legacy secret refs that may conflict (ignore errors)
 gcloud run services update "$SERVICE" \
   --region "$REGION" --project "$PROJ" \
-  --update-env-vars="ENABLE_DIAG=true,DRIVE_SUBJECT=$SUBJECT,DRIVE_ID_AMBARADAM=$SHARE_ID"
+  --remove-secrets=DRIVE_SUBJECT || true
+
+# Set secrets and diag flag
+gcloud run services update "$SERVICE" \
+  --region "$REGION" --project "$PROJ" \
+  --update-secrets="GOOGLE_SERVICE_ACCOUNT_KEY=GOOGLE_SERVICE_ACCOUNT_KEY:latest,ZANTARA_PLUGIN_API_KEY=ZANTARA_PLUGIN_API_KEY:latest" \
+  --update-env-vars="ENABLE_DIAG=true"
+
+# Optionally set Shared Drive ID
+if [[ -n "${SHARE_ID}" ]]; then
+  gcloud run services update "$SERVICE" \
+    --region "$REGION" --project "$PROJ" \
+    --update-env-vars="DRIVE_ID_AMBARADAM=${SHARE_ID}"
+fi
 
 echo "Building TypeScript..."
 npm run build
@@ -29,11 +42,15 @@ echo "Deploying to Cloud Run..."
 gcloud run deploy "$SERVICE" \
   --image "$IMG" \
   --region "$REGION" --project "$PROJ" \
-  --allow-unauthenticated \
-  --update-env-vars="ENABLE_DIAG=true,DRIVE_SUBJECT=$SUBJECT,DRIVE_ID_AMBARADAM=$SHARE_ID"
+  --allow-unauthenticated
 
-echo "Running smoke..."
-PROJ="$PROJ" REGION="$REGION" SERVICE="$SERVICE" npm run smoke
+URL=$(gcloud run services describe "$SERVICE" --region "$REGION" --project "$PROJ" --format='value(status.url)')
+KEY=$(gcloud secrets versions access latest --secret=ZANTARA_PLUGIN_API_KEY --project="$PROJ" | tr -d '\r\n')
 
-echo "Done."
+echo "\n==> GET /diag/google"
+curl -sS "$URL/diag/google" | jq . || true
 
+echo "\n==> GET /api/drive/_whoami"
+curl -sS -H "X-API-KEY: $KEY" -H "X-BZ-USER: boss" "$URL/api/drive/_whoami" | jq . || true
+
+echo "\nDone."
