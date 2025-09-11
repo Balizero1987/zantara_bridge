@@ -3,7 +3,7 @@ import { openai, DEFAULT_MODEL } from '../../core/openai';
 import { buildMessages } from '../../core/promptBuilder';
 import { storeConversationContext } from '../../core/contextualMemory';
 import { updateLearningMetrics } from '../../core/learningEngine';
-import { saveChatMessageToDrive } from '../../lib/driveSave';
+import { saveChatMessageToDrive, writeBossLog } from '../../lib/driveSave';
 
 export default function registerChat(r: Router) {
   r.post('/api/chat', async (req: Request, res: Response) => {
@@ -55,6 +55,12 @@ export default function registerChat(r: Router) {
               error: e?.message,
             });
           });
+
+        // Boss logs automatici
+        if (owner === 'BOSS') {
+          const snippet = text.length > 200 ? text.slice(0, 200) + '…' : text;
+          writeBossLog(`chat ${sessionId || 'no-session'}: ${snippet}`).catch(() => {/* ignore */});
+        }
       } catch (e: any) {
         (req as any).log?.warn?.({
           action: 'drive.autosave.catch',
