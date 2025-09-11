@@ -98,4 +98,40 @@ export default function registerDriveBrief(r: Router) {
       });
     }
   });
+
+  /**
+   * POST /api/drive/_write_smoke
+   * Crea un piccolo file di testo nella Shared Drive configurata e (di default) lo elimina.
+   * Protetto da API key (middleware a monte).
+   */
+  r.post('/api/drive/_write_smoke', async (req: Request, res: Response) => {
+    try {
+      const driveId = (process.env.DRIVE_ID_AMBARADAM || '').trim();
+      if (!driveId) return res.status(500).json({ ok: false, error: 'missing DRIVE_ID_AMBARADAM' });
+
+      const drive = await getDriveClient();
+      const name = `Smoke-${Date.now()}.txt`;
+      const content = Buffer.from('drive smoke test');
+
+      const created = await drive.files.create({
+        requestBody: { name, parents: [driveId] },
+        media: { mimeType: 'text/plain', body: content as any },
+        fields: 'id,name,webViewLink,parents',
+        supportsAllDrives: true,
+      } as any);
+
+      const file = created.data as any;
+
+      // delete=true by default; set ?delete=false to keep the file
+      const doDelete = String(req.query.delete || 'true') !== 'false';
+      if (doDelete && file?.id) {
+        await drive.files.delete({ fileId: file.id, supportsAllDrives: true } as any);
+      }
+
+      return res.status(200).json({ ok: true, created: { id: file?.id, name: file?.name, webViewLink: file?.webViewLink }, deleted: doDelete });
+    } catch (error: any) {
+      const status = error?.response?.status || error?.status || error?.code || 500;
+      return res.status(status).json({ ok: false, error: String(error?.message || error) });
+    }
+  });
 }
