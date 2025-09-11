@@ -3,6 +3,7 @@ import { db } from '../../core/firestore';
 import { getDriveClient, whoami } from '../../core/drive';
 import { Document, Packer, Paragraph, HeadingLevel } from 'docx';
 import { Readable } from 'stream';
+import { GoogleAuth } from 'google-auth-library';
 
 /**
  * Registra le rotte legate ai "brief" su Drive.
@@ -110,31 +111,44 @@ export default function registerDriveBrief(r: Router) {
       const driveId = (process.env.DRIVE_ID_AMBARADAM || '').trim();
       const folderId = (req.query.folderId as string | undefined)?.trim();
       if (!driveId && !folderId) return res.status(500).json({ ok: false, error: 'missing DRIVE_ID_AMBARADAM or folderId' });
-
-      const drive = await getDriveClient();
       const name = `Smoke-${Date.now()}.txt`;
-      // Create a Google Docs file (no media upload required)
-      let created: any;
-      try {
-        created = await drive.files.create({
-          requestBody: { name, parents: [folderId || driveId], mimeType: 'application/vnd.google-apps.document' },
-          fields: 'id,name,webViewLink,parents',
-          supportsAllDrives: true,
-        } as any);
-      } catch (e: any) {
-        // Fallback: create in My Drive root if Shared Drive parent fails (e.g., Login Required)
-        created = await drive.files.create({
-          requestBody: { name, mimeType: 'application/vnd.google-apps.document' },
-          fields: 'id,name,webViewLink,parents',
-        } as any);
+      // Acquire SA token and call Drive REST directly (metadata-only create)
+      const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '';
+      const credentials = JSON.parse(raw);
+      const auth = new GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/drive'] });
+      const client: any = await auth.getClient();
+      const tok: any = await client.getAccessToken();
+      const token = typeof tok === 'string' ? tok : (tok?.token || tok?.access_token || '');
+      const headers: any = { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+
+      async function createMetadata(meta: any): Promise<any> {
+        const resp = await fetch('https://www.googleapis.com/drive/v3/files?supportsAllDrives=true&fields=id,name,webViewLink,parents', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(meta),
+        });
+        if (!resp.ok) {
+          const err = await resp.text();
+          throw new Error(err || `HTTP ${resp.status}`);
+        }
+        return resp.json();
       }
 
-      const file = created.data as any;
+      let file: any;
+      try {
+        file = await createMetadata({ name, parents: [folderId || driveId], mimeType: 'application/vnd.google-apps.document' });
+      } catch (_e) {
+        // Fallback to My Drive
+        file = await createMetadata({ name, mimeType: 'application/vnd.google-apps.document' });
+      }
 
       // delete=true by default; set ?delete=false to keep the file
       const doDelete = String(req.query.delete || 'true') !== 'false';
       if (doDelete && file?.id) {
-        await drive.files.delete({ fileId: file.id, supportsAllDrives: true } as any);
+        await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(file.id)}?supportsAllDrives=true`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` },
+        });
       }
 
       return res.status(200).json({ ok: true, created: { id: file?.id, name: file?.name, webViewLink: file?.webViewLink }, deleted: doDelete });
