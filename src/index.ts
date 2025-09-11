@@ -6,6 +6,8 @@ import registerNotes from './routes/api/notes';
 import registerChat from './routes/api/chat';
 import registerDocgen from './routes/api/docgen';
 import registerDriveBrief from './routes/api/driveBrief';
+import registerGitHubBrief from './routes/api/githubBrief';
+import registerWebhooks from './routes/api/webhooks';
 
 const app = express();
 app.set('trust proxy', true);
@@ -28,6 +30,8 @@ registerNotes(app);
 registerChat(app);
 registerDocgen(app);
 registerDriveBrief(app);
+registerGitHubBrief(app);
+registerWebhooks(app);
 
 const port = process.env.PORT || 8080;
 app.listen(port, () => {
