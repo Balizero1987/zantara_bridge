@@ -1,6 +1,8 @@
 import type { Router, Request, Response } from 'express';
 import { openai, DEFAULT_MODEL } from '../../core/openai';
 import { buildMessages } from '../../core/promptBuilder';
+import { askNameId, welcomeFor, ownerLang } from '../../core/greetings';
+import { db } from '../../core/firestore';
 import { storeConversationContext } from '../../core/contextualMemory';
 import { updateLearningMetrics } from '../../core/learningEngine';
 import { saveChatMessageToDrive, writeBossLog, saveNote, createBrief } from '../../lib/driveSave';
@@ -9,8 +11,50 @@ export default function registerChat(r: Router) {
   r.post('/api/chat', async (req: Request, res: Response) => {
     try {
       const startTime = Date.now();
-      const owner = (req as any).canonicalOwner || 'BOSS';
+      const headerOwner = (req as any).canonicalOwner || '';
       const { message = '', ririMode = false, sessionId, saveAs = 'chat', title } = req.body || {};
+
+      const dateKey = new Date().toISOString().slice(0,10);
+      const sess = String(sessionId || '');
+
+      // Try resolve owner from header or session store
+      let owner = headerOwner || '';
+      if (!owner && sess) {
+        const sid = `session:${sess}:${dateKey}`;
+        const doc = await db.collection('chatSessions').doc(sid).get();
+        if (doc.exists) owner = (doc.data() as any)?.canonicalOwner || '';
+      }
+
+      // Command to change owner: /cambia <nome>
+      const lcmsg = message.trim();
+      const changeMatch = /^\s*\/cambia\s+(.+)$/i.exec(lcmsg);
+      if (changeMatch) {
+        const newName = changeMatch[1].trim().toUpperCase().replace(/\s+/g,'_');
+        owner = newName;
+        if (sess) await db.collection('chatSessions').doc(`session:${sess}:${dateKey}`).set({ canonicalOwner: owner, ts: Date.now() }, { merge: true });
+        const lang = ownerLang(owner);
+        const welcome = welcomeFor(owner.replace(/_/g,' '), lang);
+        // Save welcome as first entry of the day
+        await saveChatMessageToDrive({ chatId: sess || String(Date.now()), author: owner, text: welcome, title: 'Welcome' });
+        return res.json({ ok: true, text: welcome, responseTime: 0, savedAs: 'chat', owner });
+      }
+
+      // If still no owner, treat message as potential name (single line)
+      if (!owner) {
+        const maybeName = lcmsg.replace(/[\n\r]+/g,' ').trim();
+        // Accept as name if not empty and shorter than 40 chars
+        if (maybeName && maybeName.length <= 40) {
+          owner = maybeName.toUpperCase().replace(/\s+/g,'_');
+          if (sess) await db.collection('chatSessions').doc(`session:${sess}:${dateKey}`).set({ canonicalOwner: owner, ts: Date.now() }, { merge: true });
+          const lang = ownerLang(owner);
+          const welcome = welcomeFor(owner.replace(/_/g,' '), lang);
+          await saveChatMessageToDrive({ chatId: sess || String(Date.now()), author: owner, text: welcome, title: 'Welcome' });
+          return res.json({ ok: true, text: welcome, responseTime: 0, savedAs: 'chat', owner });
+        }
+        // Ask name (Indonesian) and stop here
+        const ask = askNameId();
+        return res.json({ ok: true, text: ask, need_user: true, responseTime: 0 });
+      }
 
       if (!message.trim()) {
         return res.status(400).json({ error: 'message required' });
