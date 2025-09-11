@@ -1,42 +1,26 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ES2022",
-    "moduleResolution": "Node",
+    "target": "ES2020",
+    "module": "CommonJS",
     "outDir": "dist",
-        hotfix/fix-node-modules
-    "rootDir": ".",
-    "strict": true,
-
     "rootDir": "src",
-        main
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
     "strict": true,
+    "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-        codex/update-ci/cd-workflow-for-cloud-run-deployment
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "src/test*", "**/*.test.ts", "scripts/**/*"]
-}
-
-
-  "include": [
-        hotfix/fix-node-modules
-    "src/**/*",
-    "scripts/**/*"
-
-    "src/**/*"
-        main
-  ],
   "exclude": [
-    "src/test*",
+    "node_modules",
+    "dist",
+    "scripts",
+    "tests",
+    "src/api/**",
+    "src/server.ts",
     "**/*.test.ts",
-    "scripts/**/*"
+    "**/*.spec.ts",
+    "src/test*.ts",
+    "src/**/test*.ts",
+    "src/**/__tests__/**"
   ]
 }
-        hotfix/fix-node-modules
-
-        main
-        main
