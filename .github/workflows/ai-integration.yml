@@ -1,0 +1,123 @@
+name: AI Integration Workflow
+
+on:
+  issues:
+    types: [opened, labeled, edited]
+  issue_comment:
+    types: [created]
+
+jobs:
+  ai-trigger:
+    runs-on: ubuntu-latest
+    if: |
+      (github.event.action == 'opened' && contains(github.event.issue.title, 'Daily Brief')) ||
+      (github.event.action == 'labeled' && (
+        contains(github.event.label.name, 'ai-ready') ||
+        contains(github.event.label.name, 'claude-code-candidate') ||
+        contains(github.event.label.name, 'zantara-brief')
+      )) ||
+      (github.event.action == 'created' && (
+        contains(github.event.comment.body, '@claude-code') ||
+        contains(github.event.comment.body, '@zantara') ||
+        contains(github.event.comment.body, '/ai-help')
+      ))
+    
+    steps:
+      - name: Notify Claude Code
+        run: |
+          echo "🤖 AI Integration triggered"
+          echo "Event: ${{ github.event.action }}"
+          echo "Issue: #${{ github.event.issue.number }}"
+          
+          # Here you could add actual notification logic
+          # For now, just log the event
+          echo "Would notify Claude Code about issue #${{ github.event.issue.number }}"
+          
+      - name: Add processing comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue_number = context.issue.number;
+            const comment = `🤖 **AI Integration Activated**
+            
+            This issue has been flagged for AI processing by Zantara Bridge.
+            
+            **Triggered by**: ${{ github.event.action }}
+            **Timestamp**: ${new Date().toISOString()}
+            
+            Claude Code and other AI tools will be processing this issue.
+            
+            *Automated by GitHub Actions*`;
+            
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue_number,
+              body: comment
+            });
+
+  label-management:
+    runs-on: ubuntu-latest
+    if: github.event.action == 'opened' && contains(github.event.issue.title, 'Daily Brief')
+    
+    steps:
+      - name: Add labels to Daily Brief
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue_number = context.issue.number;
+            
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue_number,
+              labels: ['zantara-brief', 'daily-brief', 'ai-ready']
+            });
+            
+            console.log(`Added AI labels to issue #${issue_number}`);
+
+  ai-analysis:
+    runs-on: ubuntu-latest
+    if: contains(github.event.issue.labels.*.name, 'ai-ready')
+    
+    steps:
+      - name: Analyze issue content
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const body = issue.body || '';
+            
+            // Simple analysis - count GitHub references
+            const githubRefs = [
+              ...body.matchAll(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/commit\/[a-f0-9]+/gi),
+              ...body.matchAll(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/issues\/\d+/gi),
+              ...body.matchAll(/https:\/\/github\.com\/[^\/]+\/[^\/]+\/pull\/\d+/gi),
+              ...body.matchAll(/#\d+/gi)
+            ];
+            
+            if (githubRefs.length > 0) {
+              const comment = `📊 **AI Analysis Results**
+              
+              Found ${githubRefs.length} GitHub references in this issue:
+              ${githubRefs.map((ref, i) => `${i + 1}. \`${ref[0]}\``).join('\n')}
+              
+              This issue appears to be development-related and suitable for automated processing.
+              
+              *Analysis by GitHub Actions*`;
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: comment
+              });
+              
+              // Add development label
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                labels: ['development', 'github-refs']
+              });
+            }
