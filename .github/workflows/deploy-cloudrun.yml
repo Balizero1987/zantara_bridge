@@ -51,7 +51,6 @@ jobs:
         with:
           node-version: '20'
 
-        hotfix/fix-node-modules
       - name: Build project
         run: |
           npm ci
@@ -69,65 +68,16 @@ jobs:
         shell: bash
         env:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-        main
 
       - name: Build & Push Docker image
         run: |
-        hotfix/fix-node-modules
-          IMAGE="${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.AR_REPO }}/zantara-chat:${{ github.sha }}"
-          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
-          docker buildx build --platform linux/amd64 -t "$IMAGE" --push .
-
-      - name: Deploy to Cloud Run
-        run: |
-          gcloud run deploy "${{ env.SERVICE }}" \
-            --image "$IMAGE" \
-            --region "${{ env.REGION }}" \
-            --platform managed \
-            --service-account "${{ secrets.GCP_RUNTIME_SA_EMAIL }}" \
-            --allow-unauthenticated \
-            --set-env-vars "CORS_ORIGINS=*.balizero.com,USE_AI_SUMMARY=false" \
-            --set-secrets "BACKEND_API_KEY=ZANTARA_BACKEND_API_KEY:latest,PLUGIN_API_KEY=ZANTARA_PLUGIN_API_KEY:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest"
-
-      - name: Post-deploy smoke tests
-        run: |
-          URL="$(gcloud run services describe ${{ env.SERVICE }} \
-            --region "${{ env.REGION }}" --format='value(status.url)')"
-
-          KEY="$(gcloud secrets versions access latest \
-            --secret=ZANTARA_PLUGIN_API_KEY --project ${{ secrets.GCP_PROJECT_ID }} | tr -d '\n\r')"
-
-          echo "Service URL: $URL"
-
-          # Health
-          curl -sS "$URL/health" | jq .
-
-          # Notes
-          curl -sS -X POST "$URL/api/notes" \
-            -H "Content-Type: application/json" \
-            -H "X-API-KEY: $KEY" -H "X-BZ-USER: riri" \
-            -d '{"title":"CI test","content":"smoke"}' | jq .
-
-          # Chat
-          curl -sS -X POST "$URL/api/chat" \
-            -H "Content-Type: application/json" \
-            -H "X-API-KEY: $KEY" -H "X-BZ-USER: riri" \
-            -d '{"message":"ping","ririMode":true}' | jq .
-
-          # Drive brief
-          TODAY=$(date -u +"%Y-%m-%d")
-          curl -sS -X POST "$URL/api/drive/brief" \
-            -H "Content-Type: application/json" \
-            -H "X-API-KEY: $KEY" -H "X-BZ-USER: riri" \
-            -d "{\"dateKey\":\"$TODAY\"}" | jq .
-
           docker buildx build --platform linux/amd64 -t "$IMAGE_URI" --push .
 
       - name: Validate required secrets
         run: |
           set -euo pipefail
           missing=0
-          for v in GCP_PROJECT_ID GCP_RUNTIME_SA_EMAIL API_KEY; do
+          for v in GCP_PROJECT_ID GCP_RUNTIME_SA_EMAIL; do
             if [[ -z "${!v}" ]]; then
               echo "::error::Missing secret: $v"
               missing=1
@@ -138,7 +88,6 @@ jobs:
         env:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
           GCP_RUNTIME_SA_EMAIL: ${{ secrets.GCP_RUNTIME_SA_EMAIL }}
-          API_KEY: ${{ secrets.API_KEY }}
 
       - name: "Preflight: identity and actAs check"
         run: |
@@ -196,4 +145,40 @@ jobs:
           echo "HTTP $CODE — $BODY"
           if [[ "$CODE" != "200" ]]; then exit 1; fi
           if ! grep -Eq '"status":"healthy"|"ok":true' <<<"$BODY"; then exit 1; fi
-        main
+
+      - name: Post-deploy smoke tests
+        run: |
+          URL="$SERVICE_URL"
+          KEY="$(gcloud secrets versions access latest \
+            --secret=ZANTARA_PLUGIN_API_KEY --project ${{ secrets.GCP_PROJECT_ID }} | tr -d '\n\r')"
+
+          echo "Service URL: $URL"
+
+          # Notes
+          curl -fsS -X POST "$URL/api/notes" \
+            -H "Content-Type: application/json" \
+            -H "X-API-KEY: $KEY" -H "X-BZ-USER: boss" \
+            -d '{"title":"CI test","content":"smoke"}' | jq .
+
+          # Chat
+          curl -fsS -X POST "$URL/api/chat" \
+            -H "Content-Type: application/json" \
+            -H "X-API-KEY: $KEY" -H "X-BZ-USER: boss" \
+            -d '{"message":"ping","ririMode":true}' | jq .
+
+          # Drive brief
+          TODAY=$(date -u +"%Y-%m-%d")
+          BRIEF_RESP="$(curl -fsS -X POST "$URL/api/drive/brief" \
+            -H "Content-Type: application/json" \
+            -H "X-API-KEY: $KEY" -H "X-BZ-USER: boss" \
+            -d "{\"dateKey\":\"$TODAY\"}")"
+          
+          echo "Drive brief response: $BRIEF_RESP"
+          
+          # Validate response has ok=true
+          if ! echo "$BRIEF_RESP" | jq -e '.ok == true' > /dev/null; then
+            echo "ERROR: Drive brief failed - ok != true"
+            exit 1
+          fi
+          
+          echo "✅ All smoke tests passed"

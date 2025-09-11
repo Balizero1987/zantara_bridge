@@ -1,26 +1,30 @@
-        hotfix/fix-node-modules
-FROM node:20-bullseye AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm install --legacy-peer-deps
-COPY tsconfig.json ./
-COPY src ./src
-RUN npm run build
-
-FROM node:20-bullseye
-
+# ---------- Builder ----------
 FROM node:20-slim AS builder
 WORKDIR /app
+
+# Install deps
 COPY package*.json ./
-RUN npm ci
+RUN npm ci || npm install
+
+# Copy sources
 COPY tsconfig.json ./
 COPY src ./src
+
+# Build TypeScript → dist/
 RUN npm run build
+
+# ---------- Runtime ----------
 FROM node:20-slim
-        main
 WORKDIR /app
+
+# Runtime-only deps
 COPY package*.json ./
-RUN npm install --omit=dev --legacy-peer-deps
+RUN npm ci --omit=dev || npm install --omit=dev
+
+# Copy built artifacts
 COPY --from=builder /app/dist ./dist
+
 ENV NODE_ENV=production
-CMD ["node","dist/src/index.js"]
+
+# Entry
+CMD ["node","dist/index.js"]
