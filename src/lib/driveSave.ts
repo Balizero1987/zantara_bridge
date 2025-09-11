@@ -43,14 +43,35 @@ export async function saveChatMessageToDrive(params: {
 }): Promise<{ id: string; webViewLink?: string; name: string }> {
   const accessToken = await getAccessToken();
   const driveId = getDriveId();
-
   const date = isoDate();
   const time = isoTime();
-  const basePath = ["Zantara", "Chats", date]; // cartelle logiche
 
-  // 1) Assicurati (o crea) le cartelle target dentro la Shared Drive
-  //    Restiamo semplici: creiamo/cerchiamo sequenzialmente le cartelle.
+  // Cartella root preferita: AMBARADAM (se esiste), altrimenti Drive root
+  // È possibile forzare l'ID con env DRIVE_FOLDER_AMBARADAM
+  const forcedRoot = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim() || null;
+
+  // Nome cartella collaboratore: trasformiamo gli underscore in spazi
+  const ownerFolderName = (params.author || 'BOSS').replace(/_/g, ' ').trim();
+
+  // Costruisci percorso logico: AMBARADAM/<OWNER>/<YYYY-MM-DD>/ oppure fallback Zantara/Chats/YYYY-MM-DD
+  let basePath: string[];
   let parentId = driveId;
+
+  if (forcedRoot) {
+    basePath = [ownerFolderName, date];
+    parentId = forcedRoot;
+  } else {
+    // Prova a risolvere AMBARADAM per nome
+    const ambFolderId = await findFolderByNameInDrive(accessToken, driveId, 'AMBARADAM');
+    if (isNonEmptyId(ambFolderId)) {
+      parentId = ambFolderId as string;
+      basePath = [ownerFolderName, date];
+    } else {
+      // Fallback storico
+      basePath = ["Zantara", "Chats", date];
+      parentId = driveId;
+    }
+  }
 
   for (const folderName of basePath) {
     const q = [
@@ -158,3 +179,21 @@ export async function saveChatMessageToDrive(params: {
   return { id: gdata.id, webViewLink: gdata.webViewLink, name: gdata.name };
 }
 
+// Helpers
+async function findFolderByNameInDrive(token: string, driveId: string, folderName: string): Promise<string | null> {
+  const url = new URL('https://www.googleapis.com/drive/v3/files');
+  url.searchParams.set('q', `name='${folderName.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+  url.searchParams.set('fields', 'files(id,name)');
+  url.searchParams.set('supportsAllDrives', 'true');
+  url.searchParams.set('includeItemsFromAllDrives', 'true');
+  url.searchParams.set('corpora', 'drive');
+  url.searchParams.set('driveId', driveId);
+  const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!resp.ok) return null;
+  const data: any = await resp.json();
+  return data?.files?.[0]?.id || null;
+}
+
+function isNonEmptyId(id: string | null): id is string {
+  return typeof id === 'string' && !!id.trim();
+}
