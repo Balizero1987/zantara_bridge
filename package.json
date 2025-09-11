@@ -8,7 +8,8 @@
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "lint": "eslint . --ext .ts,.js",
     "seed": "node dist/scripts/seed-firestore.js",
-    "test": "echo \"ok\""
+    "test": "echo \"ok\"",
+    "smoke": "bash scripts/smoke-block3.sh"
   },
   "dependencies": {
     "@google-cloud/firestore": "^7.11.3",
@@ -36,6 +37,10 @@
     "@types/node": "^20.19.13",
     "@types/on-finished": "^2.3.5",
     "@types/uuid": "^10.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.43.0",
+    "@typescript-eslint/parser": "^8.43.0",
+    "eslint": "^9.35.0",
+    "eslint-config-prettier": "^10.1.8",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.9.2"
