@@ -53,22 +53,22 @@ export async function saveChatMessageToDrive(params: {
   // Nome cartella collaboratore: trasformiamo gli underscore in spazi
   const ownerFolderName = (params.author || 'BOSS').replace(/_/g, ' ').trim();
 
-  // Costruisci percorso logico: AMBARADAM/<OWNER>/<YYYY-MM-DD>/ oppure fallback Zantara/Chats/YYYY-MM-DD
+  // Costruisci percorso logico per Chat: AMBARADAM/<OWNER>/Chat/
   let basePath: string[];
   let parentId = driveId;
 
   if (forcedRoot) {
-    basePath = [ownerFolderName, date];
+    basePath = [ownerFolderName, 'Chat'];
     parentId = forcedRoot;
   } else {
     // Prova a risolvere AMBARADAM per nome
     const ambFolderId = await findFolderByNameInDrive(accessToken, driveId, 'AMBARADAM');
     if (isNonEmptyId(ambFolderId)) {
       parentId = ambFolderId as string;
-      basePath = [ownerFolderName, date];
+      basePath = [ownerFolderName, 'Chat'];
     } else {
       // Fallback storico
-      basePath = ["Zantara", "Chats", date];
+      basePath = ["Zantara", "Chats"]; // niente sotto-cartella data: la data va nel filename
       parentId = driveId;
     }
   }
@@ -126,7 +126,7 @@ export async function saveChatMessageToDrive(params: {
   }
 
   // 2) Prepara contenuto markdown
-  const filename = `${date}__${time}__${params.chatId}__${params.author}.md`;
+  const filename = `${date}__${time}__chat.md`;
   const titleLine = params.title ? `# ${params.title}\n\n` : "";
   const content =
     `${titleLine}` +
