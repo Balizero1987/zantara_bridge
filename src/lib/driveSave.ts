@@ -197,3 +197,134 @@ async function findFolderByNameInDrive(token: string, driveId: string, folderNam
 function isNonEmptyId(id: string | null): id is string {
   return typeof id === 'string' && !!id.trim();
 }
+
+// ==========================
+// Notes saving (AMBARADAM/<OWNER>/Notes/Note-<OWNER>-YYYY-MM-DD.md)
+// ==========================
+export async function saveNote(ownerRaw: string, text: string, title?: string): Promise<{ id: string; name: string; webViewLink?: string }> {
+  const accessToken = await getAccessToken();
+  const driveId = getDriveId();
+  const ownerFolderName = (ownerRaw || 'BOSS').replace(/_/g, ' ').trim();
+  const forcedRoot = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim() || null;
+
+  // determine root base
+  let parentId = forcedRoot || (await findFolderByNameInDrive(accessToken, driveId, 'AMBARADAM')) || driveId;
+  // ensure path <OWNER>/Notes
+  parentId = await ensurePath(accessToken, driveId, parentId, [ownerFolderName, 'Notes']);
+
+  const date = isoDate();
+  const filename = `Note-${ownerFolderName}-${date}.md`;
+
+  // try find existing file in parent
+  const existingId = await findFileByNameInParent(accessToken, parentId, filename);
+  const titleLine = title ? `# ${title}\n\n` : '';
+  const entry = `${titleLine}${text}\n\n— ${new Date().toISOString()}\n`;
+
+  if (existingId) {
+    // append to existing (download, append, re-upload as media)
+    const current = await fetch(`https://www.googleapis.com/drive/v3/files/${existingId}?alt=media`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const currentText = await current.text();
+    const newBody = currentText + (currentText.endsWith('\n') ? '' : '\n') + entry;
+    const up = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=media`, {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'text/markdown; charset=UTF-8' },
+      body: newBody,
+    });
+    if (!up.ok) throw new Error(`Append note failed: ${up.status}`);
+    return { id: existingId, name: filename };
+  }
+
+  // create new multipart file
+  const boundary = 'zantaraBoundary' + Date.now();
+  const meta = { name: filename, parents: [parentId] };
+  const body =
+    `--${boundary}\r\n` +
+    `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+    JSON.stringify(meta) +
+    `\r\n--${boundary}\r\n` +
+    `Content-Type: text/markdown; charset=UTF-8\r\n\r\n` +
+    entry +
+    `\r\n--${boundary}--`;
+  const upUrl = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,webViewLink';
+  const resp = await fetch(upUrl, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': `multipart/related; boundary=${boundary}` }, body });
+  const data: any = await resp.json();
+  if (!resp.ok) throw new Error(`Create note failed: ${resp.status} ${data?.error?.message || ''}`);
+  return { id: data.id, name: data.name, webViewLink: data.webViewLink };
+}
+
+// ==========================
+// Boss logs (AMBARADAM/BOSS/Logs/Log-BOSS-YYYY-MM-DD.log)
+// ==========================
+export async function writeBossLog(line: string): Promise<{ id: string; name: string }> {
+  const accessToken = await getAccessToken();
+  const driveId = getDriveId();
+  const forcedRoot = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim() || null;
+  let parentId = forcedRoot || (await findFolderByNameInDrive(accessToken, driveId, 'AMBARADAM')) || driveId;
+  parentId = await ensurePath(accessToken, driveId, parentId, ['BOSS', 'Logs']);
+
+  const date = isoDate();
+  const filename = `Log-BOSS-${date}.log`;
+  const existingId = await findFileByNameInParent(accessToken, parentId, filename);
+  const entry = `[${new Date().toISOString()}] ${line}\n`;
+  if (existingId) {
+    const current = await fetch(`https://www.googleapis.com/drive/v3/files/${existingId}?alt=media`, { headers: { Authorization: `Bearer ${accessToken}` } });
+    const currentText = await current.text();
+    const newBody = currentText + entry;
+    const up = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${existingId}?uploadType=media`, { method: 'PATCH', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'text/plain; charset=UTF-8' }, body: newBody });
+    if (!up.ok) throw new Error(`Append log failed: ${up.status}`);
+    return { id: existingId, name: filename };
+  }
+  const boundary = 'zantaraBoundary' + Date.now();
+  const meta = { name: filename, parents: [parentId] };
+  const body = `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n--${boundary}\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\n${entry}\r\n--${boundary}--`;
+  const upUrl = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name';
+  const resp = await fetch(upUrl, { method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': `multipart/related; boundary=${boundary}` }, body });
+  const data: any = await resp.json();
+  if (!resp.ok) throw new Error(`Create log failed: ${resp.status} ${data?.error?.message || ''}`);
+  return { id: data.id, name: data.name };
+}
+
+// Ensure path helper used by notes/logs
+async function ensurePath(token: string, driveId: string, rootId: string, segments: string[]): Promise<string> {
+  let parent = rootId;
+  for (const seg of segments) {
+    const q = `name='${seg.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and '${parent}' in parents and trashed=false`;
+    const url = new URL('https://www.googleapis.com/drive/v3/files');
+    url.searchParams.set('q', q);
+    url.searchParams.set('fields', 'files(id,name)');
+    url.searchParams.set('supportsAllDrives', 'true');
+    url.searchParams.set('includeItemsFromAllDrives', 'true');
+    url.searchParams.set('corpora', 'drive');
+    url.searchParams.set('driveId', driveId);
+    const sres = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const sdata: any = await sres.json();
+    let id: string | undefined = sdata?.files?.[0]?.id;
+    if (!id) {
+      const cres = await fetch('https://www.googleapis.com/drive/v3/files?supportsAllDrives=true&fields=id,name', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: seg, mimeType: 'application/vnd.google-apps.folder', parents: [parent] }),
+      });
+      const cdata: any = await cres.json();
+      if (!cres.ok) throw new Error(`Create folder ${seg} failed: ${cres.status} ${cdata?.error?.message || ''}`);
+      id = cdata.id;
+    }
+    parent = id!;
+  }
+  return parent;
+}
+
+async function findFileByNameInParent(token: string, parentId: string, name: string): Promise<string | null> {
+  const q = `name='${name.replace(/'/g, "\\'")}' and '${parentId}' in parents and trashed=false`;
+  const url = new URL('https://www.googleapis.com/drive/v3/files');
+  url.searchParams.set('q', q);
+  url.searchParams.set('fields', 'files(id,name)');
+  url.searchParams.set('supportsAllDrives', 'true');
+  url.searchParams.set('includeItemsFromAllDrives', 'true');
+  const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!resp.ok) return null;
+  const data: any = await resp.json();
+  return data?.files?.[0]?.id || null;
+}
