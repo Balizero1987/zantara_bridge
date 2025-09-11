@@ -113,6 +113,89 @@ router.get('/diag/drive', async (req: Request, res: Response) => {
   }
 });
 
+// GET /diag/drive/today?owner=SURYA&type=Chat|Notes|Brief
+router.get('/diag/drive/today', async (req: Request, res: Response) => {
+  try {
+    const ownerRaw = String(req.query.owner || '').trim();
+    const kind = String(req.query.type || 'Chat').trim();
+    if (!ownerRaw) return res.status(400).json({ ok: false, error: 'owner required' });
+
+    const owner = ownerRaw.toUpperCase().replace(/_/g, ' ').trim();
+    const today = new Date().toISOString().slice(0, 10);
+
+    const token = await getAccessTokenSA();
+    const driveId = (process.env.DRIVE_ID_AMBARADAM || '').trim();
+    if (!driveId) return res.status(500).json({ ok: false, error: 'DRIVE_ID_AMBARADAM missing' });
+    let ambRoot = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim() || null;
+    if (!ambRoot) ambRoot = await findFolderByNameInDrive(token, driveId, 'AMBARADAM');
+    if (!ambRoot) return res.status(404).json({ ok: false, error: 'AMBARADAM not found' });
+
+    const ownerId = await findFolderByNameInParent(token, ambRoot, owner);
+    if (!ownerId) return res.status(404).json({ ok: false, error: `owner folder not found: ${owner}` });
+    const subId = await findFolderByNameInParent(token, ownerId, kind);
+    if (!subId) return res.status(404).json({ ok: false, error: `${kind} folder not found for ${owner}` });
+
+    const url = new URL('https://www.googleapis.com/drive/v3/files');
+    url.searchParams.set('q', `'${subId}' in parents and trashed=false`);
+    url.searchParams.set('fields', 'files(id,name,webViewLink)');
+    url.searchParams.set('supportsAllDrives', 'true');
+    url.searchParams.set('includeItemsFromAllDrives', 'true');
+    const fres = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const data: any = await fres.json();
+    const files: Array<{id:string;name:string;webViewLink?:string}> = data?.files || [];
+
+    const filtered = files.filter(f => matchToday(f.name, owner, kind, today));
+    return res.json({ ok: true, owner, type: kind, date: today, count: filtered.length, files: filtered });
+  } catch (e: any) {
+    return res.status(500).json({ ok: false, error: e?.message || 'diag_today_failed' });
+  }
+});
+
+function matchToday(name: string, owner: string, kind: string, today: string): boolean {
+  if (kind === 'Chat') return name.startsWith(`${today}__`) && name.endsWith('__chat.md');
+  if (kind === 'Notes') return name === `Note-${owner}-${today}.md`;
+  if (kind === 'Brief') return name === `Brief-${owner}-${today}.docx`;
+  return false;
+}
+
+async function getAccessTokenSA(): Promise<string> {
+  const { GoogleAuth } = await import('google-auth-library');
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+  if (!raw) throw new Error('Missing GOOGLE_SERVICE_ACCOUNT_KEY');
+  const credentials = JSON.parse(raw);
+  const auth = new GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/drive'] });
+  const client: any = await auth.getClient();
+  const tok: any = await client.getAccessToken();
+  const token = typeof tok === 'string' ? tok : (tok?.token || tok?.access_token || '');
+  if (!token) throw new Error('No access token');
+  return token;
+}
+
+async function findFolderByNameInParent(token: string, parentId: string, name: string): Promise<string | null> {
+  const url = new URL('https://www.googleapis.com/drive/v3/files');
+  url.searchParams.set('q', `name='${name.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`);
+  url.searchParams.set('fields', 'files(id,name)');
+  url.searchParams.set('supportsAllDrives', 'true');
+  url.searchParams.set('includeItemsFromAllDrives', 'true');
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) return null;
+  const data: any = await res.json();
+  return data?.files?.[0]?.id || null;
+}
+
+async function findFolderByNameInDrive(token: string, driveId: string, name: string): Promise<string | null> {
+  const url = new URL('https://www.googleapis.com/drive/v3/files');
+  url.searchParams.set('q', `name='${name.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+  url.searchParams.set('fields', 'files(id,name)');
+  url.searchParams.set('supportsAllDrives', 'true');
+  url.searchParams.set('includeItemsFromAllDrives', 'true');
+  url.searchParams.set('corpora', 'drive');
+  url.searchParams.set('driveId', driveId);
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) return null;
+  const data: any = await res.json();
+  return data?.files?.[0]?.id || null;
+}
 export default function registerDiag(app: any) {
   app.use('/', router);
 }
