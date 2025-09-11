@@ -24,7 +24,7 @@ export default function registerChat(r: Router) {
         model: DEFAULT_MODEL,
         messages,
       });
-      const text = out.choices?.[0]?.message?.content || '';
+      const text: string = out.choices?.[0]?.message?.content || '';
       const responseTime = Date.now() - startTime;
 
       // Persisti contesto conversazione e metriche
