@@ -5,7 +5,7 @@ let _drive: drive_v3.Drive | null = null;
 
 /**
  * Restituisce un client Google Drive memoizzato
- * con impersonation via Domain-Wide Delegation.
+ * usando impersonation (Domain-Wide Delegation).
  */
 export function getDrive(): drive_v3.Drive {
   if (_drive) return _drive;
@@ -39,7 +39,7 @@ export async function getDriveClient(): Promise<drive_v3.Drive> {
 }
 
 /**
- * Restituisce informazioni di base sull’utente impersonato.
+ * Recupera info sull’utente impersonato.
  */
 export async function getDriveWhoAmI(): Promise<drive_v3.Schema$User | undefined> {
   const drive = getDrive();
@@ -51,33 +51,30 @@ export async function getDriveWhoAmI(): Promise<drive_v3.Schema$User | undefined
 }
 
 /**
- * whoami(): prova a listare un file nella Shared Drive, se definita,
- * altrimenti ritorna informazioni generali sull’account.
+ * whoami(): test di accesso. BYPASS SHARED DRIVE per evitare DWD issues.
  */
-export async function whoami(): Promise<{ ok: true; about?: any; sample?: any; drive?: any }> {
+export async function whoami(): Promise<{ ok: true; about?: any; sample?: any; drive?: any; user?: any; impersonating?: any }> {
   const drive = getDrive();
-  const driveId = process.env.DRIVE_ID_AMBARADAM;
-
-  // Caso Shared Drive (ID tipico: inizia con "0A...")
-  if (driveId && driveId.startsWith('0A')) {
-    // Metadati della Shared Drive (fallisce con 403 se il subject non è membro)
-    const dmeta = await (drive.drives.get as any)({ driveId });
-    const res = await drive.files.list({
-      pageSize: 1,
-      corpora: 'drive',
-      driveId: driveId,
-      includeItemsFromAllDrives: true,
-      supportsAllDrives: true,
-      q: 'trashed=false',
-      fields: 'files(id,name,parents)',
-    } as any);
-    return { ok: true, sample: res.data.files ?? [], drive: dmeta.data };
-  }
-
-  // Fallback: informazioni generali
+  
+  // BYPASS: usa solo about.get invece della Shared Drive
+  // per evitare problemi di Domain-Wide Delegation
   const about = await drive.about.get({
-    fields: 'user,storageQuota',
+    fields: 'user(emailAddress,displayName),storageQuota',
     supportsAllDrives: true,
   } as any);
-  return { ok: true, about: about.data };
+  
+  // Test basic drive access con "My Drive"
+  const myFiles = await drive.files.list({
+    pageSize: 1,
+    fields: 'files(id,name)',
+    q: 'trashed=false'
+  } as any);
+  
+  return { 
+    ok: true, 
+    about: about.data,
+    sample: myFiles.data.files ?? [],
+    user: about.data.user,
+    impersonating: process.env.DRIVE_SUBJECT
+  };
 }
