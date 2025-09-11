@@ -73,7 +73,7 @@ router.get('/diag/google', async (_req: Request, res: Response) => {
 });
 
 // GET /diag/drive - Test direct service account Drive API access
-router.get('/diag/drive', async (_req: Request, res: Response) => {
+router.get('/diag/drive', async (req: Request, res: Response) => {
   try {
     const credsRaw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
     if (!credsRaw) {
@@ -96,28 +96,27 @@ router.get('/diag/drive', async (_req: Request, res: Response) => {
     const { google } = require('googleapis');
     const drive = google.drive({ version: 'v3', auth: client });
     
-    const sharedDriveId = process.env.DRIVE_ID_AMBARADAM || '0AMxvxuad5E_0Uk9PVA';
-    
-    // Try to list files in the shared drive
+    const sharedDriveId = (req.query.driveId as string) || process.env.DRIVE_ID_AMBARADAM || '0AMxvxuad5E_0Uk9PVA';
+    const q = (req.query.q as string) || 'trashed=false';
+    // Try to list/search files in the shared drive
     const files = await drive.files.list({
-      pageSize: 2,
-      fields: 'files(id,name)',
+      pageSize: 10,
+      fields: 'files(id,name,parents,webViewLink)',
       includeItemsFromAllDrives: true,
       supportsAllDrives: true,
       corpora: 'drive',
       driveId: sharedDriveId,
-      q: 'trashed=false',
+      q,
     });
-    
-    return res.json({ 
-      ok: true, 
+
+    return res.json({
+      ok: true,
       token_preview,
-      drive_api_call: 'success',
-      shared_drive_access: 'success',
-      files_found: files.data.files?.length || 0,
-      sample_files: files.data.files,
+      shared_drive_id: sharedDriveId,
+      query: q,
+      count: files.data.files?.length || 0,
+      files: files.data.files || [],
       sa_email: credentials.client_email,
-      shared_drive_id: sharedDriveId
     });
   } catch (e: any) {
     return res.status(500).json({ 
