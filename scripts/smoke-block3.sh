@@ -22,29 +22,28 @@ fi
 PASS=true
 
 echo "==> GET /diag/auth"
-if OUT=$(curl -fsS -H "X-API-KEY: $KEY" "$URL/diag/auth"); then
-  echo "$OUT"; green "OK /diag/auth"
-else
-  red "KO /diag/auth"; PASS=false
-fi
+TMP=$(mktemp)
+CODE=$(curl -sS -o "$TMP" -w "%{http_code}" -H "X-API-KEY: $KEY" "$URL/diag/auth" || echo "000")
+cat "$TMP"; echo
+if [[ "$CODE" =~ ^2 ]]; then green "OK /diag/auth (HTTP $CODE)"; else red "KO /diag/auth (HTTP $CODE)"; PASS=false; fi
+rm -f "$TMP"
 
 echo "==> GET /diag/google"
-if OUT=$(curl -fsS -H "X-API-KEY: $KEY" "$URL/diag/google"); then
-  echo "$OUT"; green "OK /diag/google"
-else
-  red "KO /diag/google"; PASS=false
-fi
+TMP=$(mktemp)
+CODE=$(curl -sS -o "$TMP" -w "%{http_code}" -H "X-API-KEY: $KEY" "$URL/diag/google" || echo "000")
+cat "$TMP"; echo
+if [[ "$CODE" =~ ^2 ]]; then green "OK /diag/google (HTTP $CODE)"; else red "KO /diag/google (HTTP $CODE)"; PASS=false; fi
+rm -f "$TMP"
 
 echo "==> GET /api/drive/_whoami"
-if OUT=$(curl -fsS -H "X-API-KEY: $KEY" -H "X-BZ-USER: boss" "$URL/api/drive/_whoami"); then
-  echo "$OUT"; green "OK /api/drive/_whoami"
-else
-  red "KO /api/drive/_whoami"; PASS=false
-fi
+TMP=$(mktemp)
+CODE=$(curl -sS -o "$TMP" -w "%{http_code}" -H "X-API-KEY: $KEY" -H "X-BZ-USER: boss" "$URL/api/drive/_whoami" || echo "000")
+cat "$TMP"; echo
+if [[ "$CODE" =~ ^2 ]]; then green "OK /api/drive/_whoami (HTTP $CODE)"; else red "KO /api/drive/_whoami (HTTP $CODE)"; PASS=false; fi
+rm -f "$TMP"
 
 if [[ "$PASS" == true ]]; then
   green "Smoke OK"; exit 0
 else
   red "Smoke FAILED"; exit 1
 fi
-
