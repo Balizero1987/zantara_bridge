@@ -1,5 +1,6 @@
 import { google } from "googleapis";
 import { GoogleAuth } from "google-auth-library";
+import { Document, Packer, Paragraph, HeadingLevel } from 'docx';
 
 const DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive"];
 
@@ -327,4 +328,48 @@ async function findFileByNameInParent(token: string, parentId: string, name: str
   if (!resp.ok) return null;
   const data: any = await resp.json();
   return data?.files?.[0]?.id || null;
+}
+
+// ==========================
+// Brief creation (AMBARADAM/<OWNER>/Brief/Brief-<OWNER>-YYYY-MM-DD.docx)
+// ==========================
+export async function createBrief(ownerRaw: string, content: string, title?: string): Promise<{ id: string; name: string; webViewLink?: string }> {
+  const accessToken = await getAccessToken();
+  const driveId = getDriveId();
+  const owner = (ownerRaw || 'BOSS').replace(/_/g, ' ').trim();
+  const forcedBriefRoot = (process.env.DRIVE_FOLDER_BRIEFS || '').trim() || null;
+  const forcedAmbaradam = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim() || null;
+
+  // root selection: briefs root > ambaradam root > locate AMBARADAM by name > drive root
+  let rootParent = forcedBriefRoot || forcedAmbaradam || (await findFolderByNameInDrive(accessToken, driveId, 'AMBARADAM')) || driveId;
+  // ensure path <OWNER>/Brief
+  const briefParent = await ensurePath(accessToken, driveId, rootParent, [owner, 'Brief']);
+
+  const date = isoDate();
+  const name = `Brief-${owner}-${date}.docx`;
+
+  // build simple docx
+  const sections: any[] = [ new Paragraph({ text: `Brief – ${owner} – ${date}`, heading: HeadingLevel.HEADING_1 }) ];
+  if (title) sections.push(new Paragraph({ text: title, heading: HeadingLevel.HEADING_2 }));
+  if (content) sections.push(new Paragraph({ text: content }));
+  const doc = new Document({ sections: [{ children: sections }] });
+  const buffer = await Packer.toBuffer(doc);
+
+  // upload multipart
+  const boundary = 'briefBoundary' + Date.now();
+  const meta = { name, parents: [briefParent] };
+  const parts = [
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${JSON.stringify(meta)}\r\n`,
+    `--${boundary}\r\nContent-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document\r\n\r\n`,
+  ].map(s => Buffer.from(s, 'utf8'));
+  const body = Buffer.concat([parts[0], parts[1], Buffer.from(buffer), Buffer.from(`\r\n--${boundary}--`) ]);
+
+  const resp = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,webViewLink', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': `multipart/related; boundary=${boundary}`, 'Content-Length': String(body.length) },
+    body: body as any,
+  });
+  const data: any = await resp.json();
+  if (!resp.ok) throw new Error(`Create brief failed: ${resp.status} ${data?.error?.message || ''}`);
+  return { id: data.id, name: data.name, webViewLink: data.webViewLink };
 }
