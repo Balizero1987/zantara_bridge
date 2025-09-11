@@ -1,7 +1,22 @@
 import type { Router, Request, Response } from 'express';
 import { db, NoteEntry } from '../../core/firestore';
+import { saveNote } from '../../lib/driveSave';
 
 export default function registerNotes(r: Router) {
+  // 📌 POST: salva nota su Drive in AMBARADAM/<OWNER>/Notes/
+  r.post('/api/notes/save', async (req: Request, res: Response) => {
+    try {
+      const owner = (req as any).canonicalOwner || 'BOSS';
+      const title = String(req.body?.title || '').trim() || undefined;
+      const content = String(req.body?.content || '').trim();
+      if (!content) return res.status(400).json({ ok: false, error: 'content required' });
+
+      const out = await saveNote(owner, content, title);
+      return res.json({ ok: true, file: out });
+    } catch (e: any) {
+      return res.status(500).json({ ok: false, error: e?.message || 'save_note_failed' });
+    }
+  });
   // 📌 POST: crea una nuova nota
   r.post('/api/notes', async (req: Request, res: Response) => {
     const owner = (req as any).canonicalOwner || 'UNKNOWN';
