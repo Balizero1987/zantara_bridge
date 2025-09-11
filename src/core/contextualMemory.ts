@@ -16,6 +16,12 @@ export interface ConversationContext {
   complexity: 'simple' | 'medium' | 'complex';
   responseTime: number;
   satisfaction?: number; // 1-5 rating
+  relatedMemoryIds?: string[];
+  crossReferences?: {
+    similarTopics: number;
+    lastSimilar: number;
+    connectionStrength: number;
+  };
 }
 
 export interface TopicFrequency {
@@ -102,6 +108,9 @@ export async function storeConversationContext(
     const sentiment = analyzeSentiment(message);
     const complexity = assessComplexity(message);
     
+    // Cross-reference with existing memories
+    const relatedMemories = await findRelatedMemories(canonicalOwner, topics, message);
+    
     const context: ConversationContext = {
       canonicalOwner,
       sessionId,
@@ -111,7 +120,13 @@ export async function storeConversationContext(
       topic: topics[0] || 'general',
       sentiment,
       complexity,
-      responseTime
+      responseTime,
+      relatedMemoryIds: relatedMemories.map(m => m.id),
+      crossReferences: relatedMemories.length > 0 ? {
+        similarTopics: relatedMemories.length,
+        lastSimilar: relatedMemories[0]?.timestamp || 0,
+        connectionStrength: calculateConnectionStrength(topics, relatedMemories)
+      } : undefined
     };
     
     // Store in conversation history
@@ -264,4 +279,71 @@ export async function getTopicFrequency(canonicalOwner: string, days: number = 3
     console.error('Error getting topic frequency:', error);
     return [];
   }
+}
+
+async function findRelatedMemories(canonicalOwner: string, topics: string[], message: string): Promise<any[]> {
+  try {
+    // Search by similar topics in notes
+    const notesSnap = await db.collection('notes')
+      .where('canonicalOwner', '==', canonicalOwner)
+      .where('tags', 'array-contains-any', topics.slice(0, 3))
+      .orderBy('timestamp', 'desc')
+      .limit(3)
+      .get();
+    
+    // Search by keywords in conversation history  
+    const keywords = extractKeywords(message);
+    const historySnap = await db.collection('conversationHistory')
+      .where('canonicalOwner', '==', canonicalOwner)
+      .where('topic', 'in', topics.slice(0, 3))
+      .orderBy('timestamp', 'desc')
+      .limit(2)
+      .get();
+    
+    const related: any[] = [];
+    
+    notesSnap.forEach(doc => {
+      related.push({ id: doc.id, ...doc.data(), type: 'note' });
+    });
+    
+    historySnap.forEach(doc => {
+      related.push({ id: doc.id, ...doc.data(), type: 'conversation' });
+    });
+    
+    return related.slice(0, 5); // Max 5 related items
+    
+  } catch (error) {
+    console.error('Error finding related memories:', error);
+    return [];
+  }
+}
+
+function extractKeywords(text: string): string[] {
+  return text
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(word => word.length > 3)
+    .filter(word => !['this', 'that', 'with', 'from', 'they', 'were', 'been', 'have', 'what', 'when', 'where'].includes(word))
+    .slice(0, 5);
+}
+
+function calculateConnectionStrength(topics: string[], relatedMemories: any[]): number {
+  if (relatedMemories.length === 0) return 0;
+  
+  let strength = 0;
+  const topicSet = new Set(topics);
+  
+  relatedMemories.forEach(memory => {
+    if (memory.tags) {
+      const overlap = memory.tags.filter((tag: string) => topicSet.has(tag)).length;
+      strength += (overlap / Math.max(topics.length, memory.tags.length)) * 0.3;
+    }
+    
+    // Recency bonus
+    const daysSince = (Date.now() - memory.timestamp) / (24 * 60 * 60 * 1000);
+    if (daysSince < 7) strength += 0.2;
+    else if (daysSince < 30) strength += 0.1;
+  });
+  
+  return Math.min(strength, 1.0);
 }
