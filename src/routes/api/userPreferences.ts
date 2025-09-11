@@ -353,7 +353,7 @@ function validatePreferences(updates: Partial<UserPreferences>): { valid: boolea
     cleanUpdates.tone = updates.tone;
   }
   
-  if (updates.language && !['it', 'en', 'id'].includes(updates.language)) {
+  if (updates.language && !['it', 'en', 'id', 'uk'].includes(updates.language)) {
     errors.push('Invalid language. Must be: it, en, id');
   } else if (updates.language) {
     cleanUpdates.language = updates.language;

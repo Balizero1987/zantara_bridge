@@ -6,7 +6,7 @@ import { db } from './firestore';
 
 export interface UserPreferences {
   tone: 'formal' | 'casual' | 'warm' | 'assertive';
-  language: 'it' | 'en' | 'id';
+  language: 'it' | 'en' | 'id' | 'uk';
   expertise: 'beginner' | 'intermediate' | 'expert' | 'executive';
   responseLength: 'brief' | 'detailed' | 'comprehensive';
   communication: 'direct' | 'diplomatic' | 'encouraging';

@@ -1,4 +1,7 @@
 import type { Router, Request, Response } from 'express';
+import profileMemoryStore from '../../store/profileMemory';
+import profileFirestoreStore from '../../store/profileFirestore';
+import { buildPersonaSystemPrompt } from '../../prompt/templates';
 import { openai, DEFAULT_MODEL } from '../../core/openai';
 import { buildMessages } from '../../core/promptBuilder';
 import { askNameId, welcomeFor, ownerLang } from '../../core/greetings';
@@ -7,12 +10,17 @@ import { db } from '../../core/firestore';
 import { storeConversationContext } from '../../core/contextualMemory';
 import { updateLearningMetrics } from '../../core/learningEngine';
 import { saveChatMessageToDrive, writeBossLog, saveNote, createBrief } from '../../lib/driveSave';
+function chooseProfileStore(){
+  const useFs = String(process.env.PROFILE_STORE || '').toLowerCase();
+  if (useFs === 'firestore') return profileFirestoreStore;
+  return profileMemoryStore;
+}
 
 export default function registerChat(r: Router) {
   r.post('/api/chat', async (req: Request, res: Response) => {
     try {
       const startTime = Date.now();
-      const headerOwner = (req as any).canonicalOwner || '';
+      const headerOwner = (req as any).canonicalOwner || String(req.header('X-BZ-USER') || req.header('x-bz-user') || '').trim();
       const { message = '', ririMode = false, sessionId, saveAs = 'chat', title } = req.body || {};
 
       const dateKey = new Date().toISOString().slice(0,10);
@@ -72,8 +80,11 @@ export default function registerChat(r: Router) {
         return res.status(400).json({ error: 'message required' });
       }
 
-      // Costruisci il contesto della conversazione
-      const messages = await buildMessages(owner, message, !!ririMode);
+      // Costruisci il contesto della conversazione con persona
+      const store = chooseProfileStore();
+      const profile = owner ? await store.get(owner) : null;
+      const persona = buildPersonaSystemPrompt(profile);
+      const messages = await buildMessages(owner, message, !!ririMode, persona);
 
       // Chiamata al modello OpenAI
       const out = await openai.chat.completions.create({
@@ -82,6 +93,16 @@ export default function registerChat(r: Router) {
       });
       const text: string = out.choices?.[0]?.message?.content || '';
       const responseTime = Date.now() - startTime;
+
+      // In dev/test, opzionalmente allega traccia persona per i test live
+      const echoPersona = process.env.CHAT_ECHO_PERSONA === 'true' && process.env.NODE_ENV !== 'production';
+      const personaTrace = profile ? `<!-- persona: ${JSON.stringify({
+        userId: profile.userId,
+        lang: (profile.locale || '').slice(0,2) || null,
+        tone: profile.meta?.rawTone || null,
+        signature: profile.meta?.signature || null,
+      })} -->` : '';
+      const textWithTrace = echoPersona ? `${text}\n${personaTrace}` : text;
 
       // Persisti contesto conversazione e metriche
       // storeConversationContext si aspetta un numero → usiamo la lunghezza del testo
@@ -126,7 +147,7 @@ export default function registerChat(r: Router) {
       }
 
       // Risposta all’utente
-      return res.json({ ok: true, text, responseTime, savedAs: String(saveAs || 'chat') });
+      return res.json({ ok: true, text: textWithTrace, responseTime, savedAs: String(saveAs || 'chat') });
     } catch (e: any) {
       return res.status(500).json({
         ok: false,
