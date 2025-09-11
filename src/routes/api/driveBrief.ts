@@ -2,6 +2,7 @@ import type { Router, Request, Response } from 'express';
 import { db } from '../../core/firestore';
 import { getDriveClient, whoami } from '../../core/drive';
 import { Document, Packer, Paragraph, HeadingLevel } from 'docx';
+import { Readable } from 'stream';
 
 /**
  * Registra le rotte legate ai "brief" su Drive.
@@ -111,7 +112,7 @@ export default function registerDriveBrief(r: Router) {
 
       const drive = await getDriveClient();
       const name = `Smoke-${Date.now()}.txt`;
-      const content = Buffer.from('drive smoke test');
+      const content = Readable.from(Buffer.from('drive smoke test'));
 
       const created = await drive.files.create({
         requestBody: { name, parents: [driveId] },
