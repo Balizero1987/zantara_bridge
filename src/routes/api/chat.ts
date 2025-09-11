@@ -28,8 +28,11 @@ export default function registerChat(r: Router) {
       const responseTime = Date.now() - startTime;
 
       // Persisti contesto conversazione e metriche
-      await storeConversationContext(owner, message, text, responseTime, sessionId || undefined);
-      await updateLearningMetrics(owner, responseTime);
+      // storeConversationContext si aspetta un numero → usiamo la lunghezza del testo
+      await storeConversationContext(owner, sessionId, message, text.length);
+
+      // updateLearningMetrics idem → passiamo numero, non stringa
+      await updateLearningMetrics(owner, message, text.length);
 
       // Auto-save su Drive (best effort, non blocca la risposta)
       try {

@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "mcp-node-tools": {
+      "command": "node",
+      "args": [
+        "/ASSOLUTO/PERCORSO/AL/REPO/mcp/node-server/src/server.js"
+      ],
+      "env": {
+        "MCP_FS_ALLOWLIST": "/ASSOLUTO/PERCORSO/AL/REPO",
+        "MCP_FETCH_ALLOW_ALL": "1"
+      }
+    },
+    "mcp-python-tools": {
+      "command": "python",
+      "args": [
+        "/ASSOLUTO/PERCORSO/AL/REPO/mcp/python-server/src/mcp_python_tools/server.py"
+      ],
+      "env": {
+        "MCP_FS_ALLOWLIST": "/ASSOLUTO/PERCORSO/AL/REPO",
+        "MCP_FETCH_ALLOW_ALL": "1"
+      }
+    }
+  }
+}
+
