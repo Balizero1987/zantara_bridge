@@ -9,19 +9,20 @@ import { analyzeInteractionPatterns, generateLearningInsights } from './learning
 
 export interface ProactiveRecommendation {
   id: string;
-  canonicalOwner: string;
-  type: 'learning' | 'productivity' | 'workflow' | 'personal' | 'technical';
+  canonicalOwner?: string;
+  type: 'learning' | 'productivity' | 'workflow' | 'personal' | 'technical' | 'contextual';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   title: string;
   description: string;
-  actionable: boolean;
+  actionable?: boolean;
   suggestedAction?: string;
   estimatedValue: number; // 1-10 scale
   confidence: number; // 0-1
-  context: string[];
+  context?: string[];
   createdAt: number;
   expiresAt?: number;
-  isPersonalized: boolean;
+  isPersonalized?: boolean;
+  triggers?: string[];
 }
 
 export interface WorkflowSuggestion {
@@ -70,6 +71,9 @@ export async function generateProactiveRecommendations(canonicalOwner: string): 
     if (isTechnicalUser(profile)) {
       recommendations.push(...await generateTechnicalRecommendations(profile, patterns));
     }
+    
+    // Contextual/temporal recommendations - make Zantara more "alive"
+    recommendations.push(...await generateContextualRecommendations(canonicalOwner, profile, context));
     
     // Sort by priority and confidence
     return recommendations
@@ -416,4 +420,94 @@ export async function markRecommendationActioned(recommendationId: string): Prom
   } catch (error) {
     console.error('Error marking recommendation as actioned:', error);
   }
+}
+
+async function generateContextualRecommendations(
+  canonicalOwner: string, 
+  profile: any, 
+  context: any
+): Promise<ProactiveRecommendation[]> {
+  const recommendations: ProactiveRecommendation[] = [];
+  const now = new Date();
+  const hour = now.getHours();
+  const dayOfWeek = now.getDay();
+  
+  try {
+    // Check for recent team activity
+    const teamSnap = await db.collection('notes')
+      .where('canonicalOwner', '!=', canonicalOwner)
+      .where('timestamp', '>=', Date.now() - 24 * 60 * 60 * 1000)
+      .get();
+    
+    if (!teamSnap.empty) {
+      recommendations.push({
+        id: `contextual-team-${canonicalOwner}-${Date.now()}`,
+        type: 'contextual',
+        title: 'Aggiornamento team disponibile',
+        description: `Il team ha aggiornato ${teamSnap.size} note nelle ultime 24h. Vuoi un recap?`,
+        priority: 'medium',
+        confidence: 0.7,
+        estimatedValue: 15,
+        createdAt: Date.now(),
+        triggers: ['team_activity']
+      });
+    }
+    
+    // Monday morning weekly planning
+    if (dayOfWeek === 1 && hour >= 8 && hour <= 11) {
+      recommendations.push({
+        id: `contextual-weekly-${canonicalOwner}-${Date.now()}`,
+        type: 'productivity',
+        title: 'Pianificazione settimanale',
+        description: 'È lunedì mattina - momento ideale per pianificare la settimana. Vuoi che generi un template?',
+        priority: 'high',
+        confidence: 0.8,
+        estimatedValue: 25,
+        createdAt: Date.now(),
+        triggers: ['monday_morning']
+      });
+    }
+    
+    // Friday afternoon wrap-up
+    if (dayOfWeek === 5 && hour >= 16 && hour <= 18) {
+      recommendations.push({
+        id: `contextual-weekly-wrap-${canonicalOwner}-${Date.now()}`,
+        type: 'productivity',
+        title: 'Recap settimanale',
+        description: 'Fine settimana lavorativa - vuoi che generi un recap delle attività completate?',
+        priority: 'medium',
+        confidence: 0.7,
+        estimatedValue: 20,
+        createdAt: Date.now(),
+        triggers: ['friday_afternoon']
+      });
+    }
+    
+    // Check for old unresolved items
+    const oldNotesSnap = await db.collection('notes')
+      .where('canonicalOwner', '==', canonicalOwner)
+      .where('timestamp', '<=', Date.now() - 7 * 24 * 60 * 60 * 1000)
+      .where('tags', 'array-contains-any', ['todo', 'action-item', 'follow-up'])
+      .limit(3)
+      .get();
+    
+    if (!oldNotesSnap.empty) {
+      recommendations.push({
+        id: `contextual-followup-${canonicalOwner}-${Date.now()}`,
+        type: 'workflow',
+        title: 'Follow-up necessari',
+        description: `Hai ${oldNotesSnap.size} item di una settimana fa che potrebbero richiedere follow-up`,
+        priority: 'medium',
+        confidence: 0.6,
+        estimatedValue: 18,
+        createdAt: Date.now(),
+        triggers: ['old_todos']
+      });
+    }
+    
+  } catch (error) {
+    console.error('Error generating contextual recommendations:', error);
+  }
+  
+  return recommendations;
 }

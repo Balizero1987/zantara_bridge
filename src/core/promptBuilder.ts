@@ -85,7 +85,84 @@ async function buildContextualInfo(profile: any, context: any, recommendations: 
     contextParts.push(`Progresso apprendimento: ${profile.learning.learningProgress}% - utente in crescita`);
   }
   
+  // Memory connections - make Zantara reference past conversations naturally
+  const memoryConnections = await getMemoryConnections(profile.canonicalOwner);
+  if (memoryConnections.length > 0) {
+    contextParts.push(`Ricordi rilevanti: ${memoryConnections.join('; ')}`);
+  }
+  
+  // Team awareness - connect with other collaborators
+  const teamContext = await getTeamContext(profile.canonicalOwner);
+  if (teamContext) {
+    contextParts.push(`Contesto team: ${teamContext}`);
+  }
+  
+  // Time-based proactivity
+  const timeInsight = getTimeBasedInsight();
+  if (timeInsight) {
+    contextParts.push(`Insight temporale: ${timeInsight}`);
+  }
+  
   return contextParts.length > 0 
     ? `Contesto Conversazionale: ${contextParts.join(' | ')}`
     : '';
+}
+
+async function getMemoryConnections(owner: string): Promise<string[]> {
+  try {
+    const snap = await db.collection('notes')
+      .where('canonicalOwner', '==', owner)
+      .orderBy('timestamp', 'desc')
+      .limit(3)
+      .get();
+    
+    return snap.docs.map(doc => {
+      const data = doc.data();
+      const daysAgo = Math.floor((Date.now() - data.timestamp) / (24 * 60 * 60 * 1000));
+      return `${daysAgo}d fa: ${data.title?.substring(0, 30)}...`;
+    });
+  } catch {
+    return [];
+  }
+}
+
+async function getTeamContext(owner: string): Promise<string | null> {
+  try {
+    const snap = await db.collection('notes')
+      .where('canonicalOwner', '!=', owner)
+      .orderBy('timestamp', 'desc')
+      .limit(2)
+      .get();
+    
+    if (snap.empty) return null;
+    
+    const recentTeamActivity = snap.docs.map(doc => {
+      const data = doc.data();
+      return `${data.canonicalOwner}: ${data.title?.substring(0, 20)}`;
+    });
+    
+    return `Team attivo: ${recentTeamActivity.join(', ')}`;
+  } catch {
+    return null;
+  }
+}
+
+function getTimeBasedInsight(): string | null {
+  const hour = new Date().getHours();
+  const day = new Date().getDay();
+  
+  if (hour === 9 && day >= 1 && day <= 5) {
+    return "Inizio settimana lavorativa - potrebbe servire un recap weekend";
+  }
+  if (hour === 18 && day >= 1 && day <= 5) {
+    return "Fine giornata - considera un wrap-up delle attività";
+  }
+  if (day === 1) {
+    return "Lunedì - momento ideale per pianificare la settimana";
+  }
+  if (day === 5) {
+    return "Venerdì - prepara il recap settimanale";
+  }
+  
+  return null;
 }
