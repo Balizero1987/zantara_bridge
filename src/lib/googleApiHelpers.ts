@@ -35,12 +35,14 @@ export async function driveShare(fileId: string, email: string, role: 'reader' |
 
 export async function driveSearch(query: string, auth: any) {
   const drive = google.drive({ version: 'v3', auth });
+  const driveId = (process.env.DRIVE_ID_AMBARADAM || '').trim() || undefined;
   const res = await drive.files.list({
     q: query,
     fields: 'files(id,name,mimeType,webViewLink)',
     includeItemsFromAllDrives: true,
     supportsAllDrives: true,
-    corpora: 'allDrives',
+    corpora: driveId ? 'drive' : 'allDrives',
+    driveId,
   } as any);
   return res.data.files || [];
 }
@@ -178,4 +180,3 @@ export function validateAPIAccess(requestSource: string) {
   }
   return true;
 }
-

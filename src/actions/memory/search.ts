@@ -16,13 +16,15 @@ export async function memorySearchHandler(req: Request, res: Response) {
     const escQ = (s: string) => s.replace(/'/g, "\\'");
     const query = `('${folderId}' in parents) and mimeType='text/markdown' and trashed=false and fullText contains '${escQ(q)}'`;
 
+    const driveId = (process.env.DRIVE_ID_AMBARADAM || '').trim() || undefined;
     const { data } = await drive.files.list({
       q: query,
       fields: 'files(id,name,createdTime,webViewLink)',
       pageSize: 50,
       includeItemsFromAllDrives: true,
       supportsAllDrives: true,
-      corpora: 'allDrives',
+      corpora: driveId ? 'drive' : 'allDrives',
+      driveId,
     } as any);
 
     const items = (data.files || []).map((f: any) => ({ id: f.id, name: f.name, createdTime: f.createdTime, webViewLink: f.webViewLink }));
@@ -35,4 +37,3 @@ export async function memorySearchHandler(req: Request, res: Response) {
     return res.status(status).json({ ok: false, error: e?.message || 'memory.search failed', details: gerr || undefined });
   }
 }
-
