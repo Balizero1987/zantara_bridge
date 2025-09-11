@@ -19,6 +19,7 @@ export async function searchDriveHandler(req: Request, res: Response) {
       `trashed=false`,
     ];
     const q = qParts.join(' and ');
+    const driveId = (process.env.DRIVE_ID_AMBARADAM || '').trim() || undefined;
     const { data } = await drive.files.list({
       q,
       pageSize,
@@ -26,7 +27,8 @@ export async function searchDriveHandler(req: Request, res: Response) {
       fields: 'nextPageToken, files(id,name,mimeType,owners(emailAddress),createdTime,modifiedTime,webViewLink)',
       includeItemsFromAllDrives: true,
       supportsAllDrives: true,
-      corpora: 'allDrives',
+      corpora: driveId ? 'drive' : 'allDrives',
+      driveId,
     } as any);
     let items = (data.files || []).map((f: any) => ({
       id: f.id,
@@ -45,4 +47,3 @@ export async function searchDriveHandler(req: Request, res: Response) {
     return res.status(status).json({ ok: false, error: e?.message || 'drive.search failed' });
   }
 }
-

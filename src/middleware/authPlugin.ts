@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 
-const SINGLE=((process.env.PLUGIN_API_KEY||process.env.BACKEND_API_KEY)||'').trim();
-const CSV=(process.env.PLUGIN_API_KEYS_CSV||process.env.BACKEND_API_KEYS_CSV||'')
+const SINGLE=(process.env.ZANTARA_PLUGIN_API_KEY||'').trim();
+const CSV=(process.env.API_KEYS||'')
   .split(',').map(s=>s.trim()).filter(Boolean);
 
 export function apiKeyGuard(req:Request,res:Response,next:NextFunction){
