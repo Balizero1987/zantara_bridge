@@ -108,16 +108,26 @@ export default function registerDriveBrief(r: Router) {
   r.post('/api/drive/_write_smoke', async (req: Request, res: Response) => {
     try {
       const driveId = (process.env.DRIVE_ID_AMBARADAM || '').trim();
-      if (!driveId) return res.status(500).json({ ok: false, error: 'missing DRIVE_ID_AMBARADAM' });
+      const folderId = (req.query.folderId as string | undefined)?.trim();
+      if (!driveId && !folderId) return res.status(500).json({ ok: false, error: 'missing DRIVE_ID_AMBARADAM or folderId' });
 
       const drive = await getDriveClient();
       const name = `Smoke-${Date.now()}.txt`;
       // Create a Google Docs file (no media upload required)
-      const created = await drive.files.create({
-        requestBody: { name, parents: [driveId], mimeType: 'application/vnd.google-apps.document' },
-        fields: 'id,name,webViewLink,parents',
-        supportsAllDrives: true,
-      } as any);
+      let created: any;
+      try {
+        created = await drive.files.create({
+          requestBody: { name, parents: [folderId || driveId], mimeType: 'application/vnd.google-apps.document' },
+          fields: 'id,name,webViewLink,parents',
+          supportsAllDrives: true,
+        } as any);
+      } catch (e: any) {
+        // Fallback: create in My Drive root if Shared Drive parent fails (e.g., Login Required)
+        created = await drive.files.create({
+          requestBody: { name, mimeType: 'application/vnd.google-apps.document' },
+          fields: 'id,name,webViewLink,parents',
+        } as any);
+      }
 
       const file = created.data as any;
 
