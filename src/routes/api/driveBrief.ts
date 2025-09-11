@@ -112,11 +112,9 @@ export default function registerDriveBrief(r: Router) {
 
       const drive = await getDriveClient();
       const name = `Smoke-${Date.now()}.txt`;
-      const content = Readable.from(Buffer.from('drive smoke test'));
-
+      // Create a Google Docs file (no media upload required)
       const created = await drive.files.create({
-        requestBody: { name, parents: [driveId] },
-        media: { mimeType: 'text/plain', body: content as any },
+        requestBody: { name, parents: [driveId], mimeType: 'application/vnd.google-apps.document' },
         fields: 'id,name,webViewLink,parents',
         supportsAllDrives: true,
       } as any);
