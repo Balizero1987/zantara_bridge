@@ -12,6 +12,7 @@ import registerChat from './routes/api/chat';
 import registerDocgen from './routes/api/docgen';
 import registerDriveBrief, { registerDriveDebug } from './routes/api/driveBrief';
 import registerUserPreferences from './routes/api/userPreferences';
+import registerMemory from './routes/api/memory';
 
 // Public/plugin manifest
 import registerPlugin from './routes/plugin';
@@ -40,6 +41,7 @@ registerDocgen(app);
 registerDriveBrief(app);
 registerDriveDebug(app);
 registerUserPreferences(app);
+registerMemory(app);
 
 // Minimal assets
 app.get('/logo.png', (_req, res) => {
