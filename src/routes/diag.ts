@@ -76,58 +76,40 @@ router.get('/diag/google', async (_req: Request, res: Response) => {
 router.get('/diag/drive', async (req: Request, res: Response) => {
   try {
     const credsRaw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
-    if (!credsRaw) {
-      return res.status(500).json({ ok: false, error: 'missing_sa_key' });
-    }
-    
+    if (!credsRaw) return res.status(500).json({ ok: false, error: 'missing_sa_key' });
     const credentials = JSON.parse(credsRaw);
-    const auth = new GoogleAuth({
-      credentials,
-      scopes: ['https://www.googleapis.com/auth/drive'],
-      // NO clientOptions - direct service account
-    });
-    
-    const client = await auth.getClient();
-    const t: any = await (client as any).getAccessToken();
-    const tok = typeof t === 'string' ? t : (t?.token || '');
-    const token_preview = tok ? `${String(tok).slice(0, 12)}...` : 'none';
-    
-    // Now try to make a Drive API call - test shared drive access
-    const { google } = require('googleapis');
-    const drive = google.drive({ version: 'v3', auth: client });
-    
-    const sharedDriveId = (req.query.driveId as string) || process.env.DRIVE_ID_AMBARADAM || '0AMxvxuad5E_0Uk9PVA';
+    const auth = new GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/drive'] });
+    const client: any = await auth.getClient();
+    const t: any = await client.getAccessToken();
+    const token = typeof t === 'string' ? t : (t?.token || '');
+    const token_preview = token ? `${String(token).slice(0, 12)}...` : 'none';
+
+    const driveId = (req.query.driveId as string) || process.env.DRIVE_ID_AMBARADAM || '';
     const q = (req.query.q as string) || 'trashed=false';
-    // Try to list/search files in the shared drive
-    const files = await drive.files.list({
-      pageSize: 10,
-      fields: 'files(id,name,parents,webViewLink)',
-      includeItemsFromAllDrives: true,
-      supportsAllDrives: true,
-      corpora: 'drive',
-      driveId: sharedDriveId,
-      q,
-    });
+    const url = new URL('https://www.googleapis.com/drive/v3/files');
+    url.searchParams.set('q', q);
+    url.searchParams.set('fields', 'files(id,name,parents,webViewLink)');
+    url.searchParams.set('supportsAllDrives', 'true');
+    url.searchParams.set('includeItemsFromAllDrives', 'true');
+    if (driveId) {
+      url.searchParams.set('corpora', 'drive');
+      url.searchParams.set('driveId', driveId);
+    }
+    const fres = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const files: any = await fres.json();
+    if (!fres.ok) throw new Error(files?.error?.message || `HTTP ${fres.status}`);
 
     return res.json({
       ok: true,
       token_preview,
-      shared_drive_id: sharedDriveId,
+      shared_drive_id: driveId || null,
       query: q,
-      count: files.data.files?.length || 0,
-      files: files.data.files || [],
+      count: files.files?.length || 0,
+      files: files.files || [],
       sa_email: credentials.client_email,
     });
   } catch (e: any) {
-    return res.status(500).json({ 
-      ok: false, 
-      error: e?.message || 'unknown',
-      details: {
-        status: e?.response?.status,
-        statusText: e?.response?.statusText,
-        data: e?.response?.data
-      }
-    });
+    return res.status(500).json({ ok: false, error: e?.message || 'unknown' });
   }
 });
 
