@@ -2,6 +2,7 @@ import type { Router, Request, Response } from 'express';
 import { openai, DEFAULT_MODEL } from '../../core/openai';
 import { buildMessages } from '../../core/promptBuilder';
 import { askNameId, welcomeFor, ownerLang } from '../../core/greetings';
+import { GoogleAuth } from 'google-auth-library';
 import { db } from '../../core/firestore';
 import { storeConversationContext } from '../../core/contextualMemory';
 import { updateLearningMetrics } from '../../core/learningEngine';
@@ -29,11 +30,16 @@ export default function registerChat(r: Router) {
       const lcmsg = message.trim();
       const changeMatch = /^\s*\/cambia\s+(.+)$/i.exec(lcmsg);
       if (changeMatch) {
-        const newName = changeMatch[1].trim().toUpperCase().replace(/\s+/g,'_');
-        owner = newName;
+        const proposed = changeMatch[1].trim().toUpperCase().replace(/\s+/g,'_');
+        const validated = await resolveOwnerFromDrive(proposed);
+        if (!validated) {
+          const ask = askNameId();
+          return res.json({ ok: true, text: ask, need_user: true, responseTime: 0 });
+        }
+        owner = validated.canonical;
         if (sess) await db.collection('chatSessions').doc(`session:${sess}:${dateKey}`).set({ canonicalOwner: owner, ts: Date.now() }, { merge: true });
         const lang = ownerLang(owner);
-        const welcome = welcomeFor(owner.replace(/_/g,' '), lang);
+        const welcome = welcomeFor(validated.display, lang);
         // Save welcome as first entry of the day
         await saveChatMessageToDrive({ chatId: sess || String(Date.now()), author: owner, text: welcome, title: 'Welcome' });
         return res.json({ ok: true, text: welcome, responseTime: 0, savedAs: 'chat', owner });
@@ -44,10 +50,16 @@ export default function registerChat(r: Router) {
         const maybeName = lcmsg.replace(/[\n\r]+/g,' ').trim();
         // Accept as name if not empty and shorter than 40 chars
         if (maybeName && maybeName.length <= 40) {
-          owner = maybeName.toUpperCase().replace(/\s+/g,'_');
+          const proposed = maybeName.toUpperCase().replace(/\s+/g,'_');
+          const validated = await resolveOwnerFromDrive(proposed);
+          if (!validated) {
+            const ask = askNameId();
+            return res.json({ ok: true, text: ask, need_user: true, responseTime: 0 });
+          }
+          owner = validated.canonical;
           if (sess) await db.collection('chatSessions').doc(`session:${sess}:${dateKey}`).set({ canonicalOwner: owner, ts: Date.now() }, { merge: true });
           const lang = ownerLang(owner);
-          const welcome = welcomeFor(owner.replace(/_/g,' '), lang);
+          const welcome = welcomeFor(validated.display, lang);
           await saveChatMessageToDrive({ chatId: sess || String(Date.now()), author: owner, text: welcome, title: 'Welcome' });
           return res.json({ ok: true, text: welcome, responseTime: 0, savedAs: 'chat', owner });
         }
@@ -122,4 +134,73 @@ export default function registerChat(r: Router) {
       });
     }
   });
+}
+
+// ===== Owner resolution helpers =====
+function aliasMap(): Record<string,string> {
+  const map: Record<string,string> = {};
+  const raw = (process.env.DRIVE_OWNER_MAP || '').trim();
+  if (!raw) return map;
+  for (const pair of raw.split(',')) {
+    const [k,v] = pair.split(':').map(s => (s||'').trim());
+    if (k && v) map[k.toUpperCase()] = v;
+  }
+  return map;
+}
+
+async function resolveOwnerFromDrive(proposedCanonical: string): Promise<{ canonical: string; display: string } | null> {
+  // Apply alias map (input uppercase underscore)
+  const mp = aliasMap();
+  const alias = mp[proposedCanonical];
+  const displayCandidate = (alias || proposedCanonical).replace(/_/g,' ').trim();
+
+  // Verify folder exists under AMBARADAM
+  const token = await getAccessToken();
+  const driveId = (process.env.DRIVE_ID_AMBARADAM || '').trim();
+  if (!driveId) return null;
+  let ambRoot = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim() || null;
+  if (!ambRoot) ambRoot = await findFolderByNameInDrive(token, driveId, 'AMBARADAM');
+  if (!ambRoot) return null;
+
+  const exists = await findFolderByNameInParent(token, ambRoot, displayCandidate);
+  if (!exists) return null;
+  return { canonical: displayCandidate.toUpperCase().replace(/\s+/g,'_'), display: displayCandidate };
+}
+
+async function getAccessToken(): Promise<string> {
+  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
+  if (!raw) throw new Error('Missing GOOGLE_SERVICE_ACCOUNT_KEY');
+  const credentials = JSON.parse(raw);
+  const auth = new GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/drive'] });
+  const client: any = await auth.getClient();
+  const tok: any = await client.getAccessToken();
+  const token = typeof tok === 'string' ? tok : (tok?.token || tok?.access_token || '');
+  if (!token) throw new Error('No access token');
+  return token;
+}
+
+async function findFolderByNameInDrive(token: string, driveId: string, name: string): Promise<string | null> {
+  const url = new URL('https://www.googleapis.com/drive/v3/files');
+  url.searchParams.set('q', `name='${name.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+  url.searchParams.set('fields', 'files(id,name)');
+  url.searchParams.set('supportsAllDrives', 'true');
+  url.searchParams.set('includeItemsFromAllDrives', 'true');
+  url.searchParams.set('corpora', 'drive');
+  url.searchParams.set('driveId', driveId);
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) return null;
+  const data: any = await res.json();
+  return data?.files?.[0]?.id || null;
+}
+
+async function findFolderByNameInParent(token: string, parentId: string, name: string): Promise<string | null> {
+  const url = new URL('https://www.googleapis.com/drive/v3/files');
+  url.searchParams.set('q', `name='${name.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`);
+  url.searchParams.set('fields', 'files(id,name)');
+  url.searchParams.set('supportsAllDrives', 'true');
+  url.searchParams.set('includeItemsFromAllDrives', 'true');
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) return null;
+  const data: any = await res.json();
+  return data?.files?.[0]?.id || null;
 }
