@@ -57,6 +57,105 @@ export async function driveRename(fileId: string, newName: string, auth: any) {
 }
 
 // =============================
+// DRIVE FOLDER RESOLUTION
+// =============================
+
+export type DriveFolderRef = { id: string; name: string; driveId?: string | null; parents?: string[] | null };
+
+export async function findFolderByName(name: string, auth: any): Promise<DriveFolderRef | null> {
+  const drive = google.drive({ version: 'v3', auth });
+  const q = [
+    "mimeType = 'application/vnd.google-apps.folder'",
+    "trashed = false",
+    `name = '${name.replace(/'/g, "\\'")}'`,
+  ].join(' and ');
+  const { data } = await drive.files.list({
+    q,
+    fields: 'files(id,name,parents,driveId)',
+    pageSize: 50,
+    includeItemsFromAllDrives: true,
+    supportsAllDrives: true,
+    corpora: 'allDrives',
+  } as any);
+  const files = data.files || [];
+  if (!files.length) return null;
+  // Prefer a match inside configured shared drive, if provided
+  const preferredDrive = process.env.ZANTARA_SHARED_DRIVE_ID;
+  const chosen = preferredDrive ? (files.find(f => (f as any).driveId === preferredDrive) || files[0]) : files[0];
+  return { id: chosen.id!, name: chosen.name!, driveId: (chosen as any).driveId || null, parents: (chosen as any).parents || null };
+}
+
+export async function findOrCreateChildFolder(parentId: string, name: string, auth: any): Promise<DriveFolderRef> {
+  const drive = google.drive({ version: 'v3', auth });
+  const q = [
+    "mimeType = 'application/vnd.google-apps.folder'",
+    "trashed = false",
+    `'${parentId}' in parents`,
+    `name = '${name.replace(/'/g, "\\'")}'`,
+  ].join(' and ');
+  const { data } = await drive.files.list({ q, fields: 'files(id,name,parents,driveId)', includeItemsFromAllDrives: true, supportsAllDrives: true } as any);
+  if (data.files && data.files.length) {
+    const f = data.files[0]!;
+    return { id: f.id!, name: f.name!, driveId: (f as any).driveId || null, parents: (f as any).parents || null };
+  }
+  const created = await drive.files.create({
+    requestBody: { name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] },
+    fields: 'id,name,parents,driveId',
+    supportsAllDrives: true,
+  } as any);
+  const f = created.data as any;
+  return { id: f.id, name: f.name, driveId: f.driveId || null, parents: f.parents || null };
+}
+
+// Resolve a path like "AMBARADAM/BOSS/Notes". If createIfMissing=true, creates missing segments.
+export async function resolveFolderPath(path: string, auth: any, createIfMissing = false): Promise<DriveFolderRef | null> {
+  const segments = path.split('/').map(s => s.trim()).filter(Boolean);
+  if (!segments.length) return null;
+  const drive = google.drive({ version: 'v3', auth });
+
+  // Resolve first segment across all drives, prefer configured shared drive
+  let current: DriveFolderRef | null = await findFolderByName(segments[0], auth);
+  if (!current && !createIfMissing) return null;
+  if (!current && createIfMissing) {
+    // Create at shared drive root if available, otherwise My Drive root
+    const preferredDrive = process.env.ZANTARA_SHARED_DRIVE_ID || undefined;
+    let parents: any = undefined;
+    if (preferredDrive) {
+      // Create under the shared drive root by specifying driveId and parents as the drive root via 'driveId' + 'supportsAllDrives'
+      // Google API doesn't allow direct 'root' parent id for shared drives; omit parents to let it use the drive root when driveId+corpora provided in request.
+      // Workaround: search any item in the drive to infer a parent; if not found, creation without parents still places it in user's My Drive.
+      // We instead attempt to create without parents (Shared Drive admins commonly restrict this). Fallback to search again.
+    }
+    const created = await drive.files.create({
+      requestBody: { name: segments[0], mimeType: 'application/vnd.google-apps.folder' },
+      fields: 'id,name,parents,driveId',
+      supportsAllDrives: true,
+    } as any);
+    const f = created.data as any;
+    current = { id: f.id, name: f.name, driveId: f.driveId || null, parents: f.parents || null };
+  }
+
+  for (let i = 1; i < segments.length; i++) {
+    const seg = segments[i];
+    if (!current) return null;
+    current = createIfMissing
+      ? await findOrCreateChildFolder(current.id, seg, auth)
+      : await (async () => {
+          const q = [
+            "mimeType = 'application/vnd.google-apps.folder'",
+            "trashed = false",
+            `'${current!.id}' in parents`,
+            `name = '${seg.replace(/'/g, "\\'")}'`,
+          ].join(' and ');
+          const { data } = await drive.files.list({ q, fields: 'files(id,name,parents,driveId)', includeItemsFromAllDrives: true, supportsAllDrives: true } as any);
+          const f = (data.files || [])[0];
+          return f ? { id: f.id!, name: f.name!, driveId: (f as any).driveId || null, parents: (f as any).parents || null } : null;
+        })();
+  }
+  return current;
+}
+
+// =============================
 // GOOGLE CALENDAR
 // =============================
 
@@ -178,4 +277,3 @@ export function validateAPIAccess(requestSource: string) {
   }
   return true;
 }
-

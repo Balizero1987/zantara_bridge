@@ -72,3 +72,8 @@ export function requireIdentity(req: Request, res: Response, next: Function) {
 }
 
 export default router;
+
+// Accessor used by routes to infer defaults (e.g., Drive folder)
+export function getCurrentUser() {
+  return currentUser;
+}

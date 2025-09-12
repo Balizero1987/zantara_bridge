@@ -14,7 +14,7 @@ export type NoteEntry = {
   dateKey: string; // YYYY-MM-DD
 };
 
-function canonicalOwner(input?: string | null): string | null {
+export function canonicalOwner(input?: string | null): string | null {
   if (!input) return null;
   const s = String(input).trim();
   if (!s) return null;
