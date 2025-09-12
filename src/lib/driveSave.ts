@@ -234,8 +234,8 @@ export async function saveNote(ownerRaw: string, text: string, title?: string): 
 export async function writeBossLog(line: string): Promise<{ id: string; name: string }> {
   const accessToken = await getAccessToken();
   const { folderId } = resolveDriveContext();
-  const forcedRoot = folderId || null;
-  let parentId = forcedRoot;
+  const forcedRoot: string = folderId; // non-null
+  let parentId: string = forcedRoot;
   parentId = await ensurePathUnderParent(accessToken, parentId, ['BOSS', 'Logs']);
 
   const date = isoDate();
@@ -308,11 +308,11 @@ export async function createBrief(ownerRaw: string, content: string, title?: str
   const accessToken = await getAccessToken();
   const { folderId } = resolveDriveContext();
   const owner = (ownerRaw || 'BOSS').replace(/_/g, ' ').trim();
-  const forcedBriefRoot = (process.env.DRIVE_FOLDER_BRIEFS || '').trim() || null;
-  const forcedAmbaradam = folderId || null;
+  const forcedBriefRoot: string = (process.env.DRIVE_FOLDER_BRIEFS || '').trim();
+  const forcedAmbaradam: string = folderId; // non-null
 
   // root selection: briefs root > ambaradam root > locate AMBARADAM by name > drive root
-  let rootParent = forcedBriefRoot || forcedAmbaradam;
+  let rootParent: string = forcedBriefRoot || forcedAmbaradam;
   // ensure path <OWNER>/Brief under AMBARADAM folder
   const briefParent = await ensurePathUnderParent(accessToken, rootParent, [owner, 'Brief']);
 
