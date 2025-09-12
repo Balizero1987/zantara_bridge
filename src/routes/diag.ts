@@ -126,7 +126,7 @@ router.get('/diag/drive/today', async (req: Request, res: Response) => {
     const today = new Date().toISOString().slice(0, 10);
 
     const token = await getAccessTokenSA();
-    const { folderId } = resolveDriveContext();
+    const { folderId } = await resolveDriveContext();
     let ambRoot = folderId || null;
     if (!ambRoot) ambRoot = await findFolderByNameGlobal(token, 'AMBARADAM');
     if (!ambRoot) return res.status(404).json({ ok: false, error: 'AMBARADAM not found' });

@@ -38,7 +38,7 @@ export async function saveChatMessageToDrive(params: {
   title?: string;    // titolo conversazione (opzionale)
 }): Promise<{ id: string; webViewLink?: string; name: string }> {
   const accessToken = await getAccessToken();
-  const { folderId } = resolveDriveContext();
+  const { folderId } = await resolveDriveContext();
   const date = isoDate();
   const time = isoTime();
 
@@ -183,7 +183,7 @@ export async function saveNote(ownerRaw: string, text: string, title?: string): 
   console.log('[DEBUG] saveNote - title:', title);
   console.log('[DEBUG] saveNote - text length:', text?.length);
   
-  const { folderId } = resolveDriveContext();
+  const { folderId } = await resolveDriveContext(ownerRaw);
   console.log('[DEBUG] saveNote - resolveDriveContext folderId:', folderId);
   
   const ownerFolderName = (ownerRaw || 'BOSS').replace(/_/g, ' ').trim();
@@ -247,7 +247,7 @@ export async function saveNote(ownerRaw: string, text: string, title?: string): 
 // ==========================
 export async function writeBossLog(line: string): Promise<{ id: string; name: string }> {
   const accessToken = await getAccessToken();
-  const { folderId } = resolveDriveContext();
+  const { folderId } = await resolveDriveContext();
   const forcedRoot: string = folderId; // non-null
   let parentId: string = forcedRoot;
   parentId = await ensurePathUnderParent(accessToken, parentId, ['BOSS', 'Logs']);
@@ -320,7 +320,7 @@ async function findFileByNameInParent(token: string, parentId: string, name: str
 // ==========================
 export async function createBrief(ownerRaw: string, content: string, title?: string): Promise<{ id: string; name: string; webViewLink?: string }> {
   const accessToken = await getAccessToken();
-  const { folderId } = resolveDriveContext();
+  const { folderId } = await resolveDriveContext();
   const owner = (ownerRaw || 'BOSS').replace(/_/g, ' ').trim();
   const forcedBriefRoot: string = (process.env.DRIVE_FOLDER_BRIEFS || '').trim();
   const forcedAmbaradam: string = folderId; // non-null
