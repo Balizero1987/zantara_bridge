@@ -23,17 +23,10 @@ export default function registerCron(r: Router) {
 // ===== Core =====
 async function weeklyMerge() {
   const token = await getAccessToken();
-  const driveId = (process.env.DRIVE_ID_AMBARADAM || '').trim();
-  if (!driveId) throw new Error('DRIVE_ID_AMBARADAM required');
+  const ambRoot = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim();
+  if (!ambRoot) throw new Error('DRIVE_FOLDER_AMBARADAM required');
 
-  // Resolve AMBARADAM root
-  let ambRoot = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim() || null;
-  if (!ambRoot) {
-    ambRoot = await findFolderByNameInDrive(token, driveId, 'AMBARADAM');
-    if (!ambRoot) throw new Error('AMBARADAM folder not found');
-  }
-
-  const owners = await listChildFolders(token, driveId, ambRoot);
+  const owners = await listChildFolders(token, ambRoot);
   const { weekLabel, dates } = currentIsoWeek();
 
   const results: WeeklyResult[] = [];
@@ -47,9 +40,9 @@ async function weeklyMerge() {
     if (owner === 'BOSS') subs.push('Logs');
 
     for (const sub of subs) {
-      const subId = await ensurePath(token, driveId, ambRoot, [owner, sub]);
+      const subId = await ensurePath(token, ambRoot, [owner, sub]);
       // gather files for the week based on naming
-      const files = await listFilesInParent(token, driveId, subId);
+      const files = await listFilesInParent(token, subId);
       const weekFiles = files.filter(f => isFileInWeek(f.name, owner, sub, dates));
       if (!weekFiles.length) continue;
 
@@ -106,28 +99,26 @@ async function findFolderByNameInDrive(token: string, driveId: string, name: str
   url.searchParams.set('fields', 'files(id,name)');
   url.searchParams.set('supportsAllDrives', 'true');
   url.searchParams.set('includeItemsFromAllDrives', 'true');
-  url.searchParams.set('corpora', 'drive');
-  url.searchParams.set('driveId', driveId);
+  url.searchParams.set('corpora', 'allDrives');
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) return null;
   const data: any = await res.json();
   return data?.files?.[0]?.id || null;
 }
 
-async function listChildFolders(token: string, driveId: string, parentId: string): Promise<string[]> {
+async function listChildFolders(token: string, parentId: string): Promise<string[]> {
   const url = new URL('https://www.googleapis.com/drive/v3/files');
   url.searchParams.set('q', `'${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`);
   url.searchParams.set('fields', 'files(id,name)');
   url.searchParams.set('supportsAllDrives', 'true');
   url.searchParams.set('includeItemsFromAllDrives', 'true');
-  url.searchParams.set('corpora', 'drive');
-  url.searchParams.set('driveId', driveId);
+  // parent filter is sufficient
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   const data: any = await res.json();
   return (data?.files || []).map((f: any) => f.name);
 }
 
-async function ensurePath(token: string, driveId: string, rootId: string, segments: string[]): Promise<string> {
+async function ensurePath(token: string, rootId: string, segments: string[]): Promise<string> {
   let parent = rootId;
   for (const seg of segments) {
     const q = `name='${seg.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and '${parent}' in parents and trashed=false`;
@@ -136,8 +127,7 @@ async function ensurePath(token: string, driveId: string, rootId: string, segmen
     url.searchParams.set('fields', 'files(id,name)');
     url.searchParams.set('supportsAllDrives', 'true');
     url.searchParams.set('includeItemsFromAllDrives', 'true');
-    url.searchParams.set('corpora', 'drive');
-    url.searchParams.set('driveId', driveId);
+    // parent filter is sufficient
     const sres = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     const sdata: any = await sres.json();
     let id: string | undefined = sdata?.files?.[0]?.id;
@@ -155,14 +145,13 @@ async function ensurePath(token: string, driveId: string, rootId: string, segmen
   return parent;
 }
 
-async function listFilesInParent(token: string, driveId: string, parentId: string): Promise<Array<{id: string, name: string}>> {
+async function listFilesInParent(token: string, parentId: string): Promise<Array<{id: string, name: string}>> {
   const url = new URL('https://www.googleapis.com/drive/v3/files');
   url.searchParams.set('q', `'${parentId}' in parents and trashed=false`);
   url.searchParams.set('fields', 'files(id,name)');
   url.searchParams.set('supportsAllDrives', 'true');
   url.searchParams.set('includeItemsFromAllDrives', 'true');
-  url.searchParams.set('corpora', 'drive');
-  // no driveId here because parent filter is enough
+  // parent filter is sufficient
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   const data: any = await res.json();
   return data?.files || [];

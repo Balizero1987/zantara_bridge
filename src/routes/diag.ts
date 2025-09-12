@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import { Router } from 'express';
 import { createHash } from 'crypto';
 import { GoogleAuth } from 'google-auth-library';
+import { resolveDriveContext } from '../core/drive';
 
 function sha256(input: string): string {
   return createHash('sha256').update(input, 'utf8').digest('hex');
@@ -84,13 +85,14 @@ router.get('/diag/drive', async (req: Request, res: Response) => {
     const token = typeof t === 'string' ? t : (t?.token || '');
     const token_preview = token ? `${String(token).slice(0, 12)}...` : 'none';
 
-    const driveId = (req.query.driveId as string) || process.env.DRIVE_ID_AMBARADAM || '';
+    const driveId = (req.query.driveId as string) || '';
     const q = (req.query.q as string) || 'trashed=false';
     const url = new URL('https://www.googleapis.com/drive/v3/files');
     url.searchParams.set('q', q);
     url.searchParams.set('fields', 'files(id,name,parents,webViewLink)');
     url.searchParams.set('supportsAllDrives', 'true');
     url.searchParams.set('includeItemsFromAllDrives', 'true');
+    // If a driveId is provided, restrict; otherwise default to user scope
     if (driveId) {
       url.searchParams.set('corpora', 'drive');
       url.searchParams.set('driveId', driveId);
@@ -124,10 +126,9 @@ router.get('/diag/drive/today', async (req: Request, res: Response) => {
     const today = new Date().toISOString().slice(0, 10);
 
     const token = await getAccessTokenSA();
-    const driveId = (process.env.DRIVE_ID_AMBARADAM || '').trim();
-    if (!driveId) return res.status(500).json({ ok: false, error: 'DRIVE_ID_AMBARADAM missing' });
-    let ambRoot = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim() || null;
-    if (!ambRoot) ambRoot = await findFolderByNameInDrive(token, driveId, 'AMBARADAM');
+    const { folderId } = resolveDriveContext();
+    let ambRoot = folderId || null;
+    if (!ambRoot) ambRoot = await findFolderByNameGlobal(token, 'AMBARADAM');
     if (!ambRoot) return res.status(404).json({ ok: false, error: 'AMBARADAM not found' });
 
     const ownerId = await findFolderByNameInParent(token, ambRoot, owner);
@@ -183,14 +184,13 @@ async function findFolderByNameInParent(token: string, parentId: string, name: s
   return data?.files?.[0]?.id || null;
 }
 
-async function findFolderByNameInDrive(token: string, driveId: string, name: string): Promise<string | null> {
+async function findFolderByNameGlobal(token: string, name: string): Promise<string | null> {
   const url = new URL('https://www.googleapis.com/drive/v3/files');
   url.searchParams.set('q', `name='${name.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
   url.searchParams.set('fields', 'files(id,name)');
   url.searchParams.set('supportsAllDrives', 'true');
   url.searchParams.set('includeItemsFromAllDrives', 'true');
-  url.searchParams.set('corpora', 'drive');
-  url.searchParams.set('driveId', driveId);
+  url.searchParams.set('corpora', 'allDrives');
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) return null;
   const data: any = await res.json();

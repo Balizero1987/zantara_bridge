@@ -35,14 +35,12 @@ export async function driveShare(fileId: string, email: string, role: 'reader' |
 
 export async function driveSearch(query: string, auth: any) {
   const drive = google.drive({ version: 'v3', auth });
-  const driveId = (process.env.DRIVE_ID_AMBARADAM || '').trim() || undefined;
   const res = await drive.files.list({
     q: query,
     fields: 'files(id,name,mimeType,webViewLink)',
     includeItemsFromAllDrives: true,
     supportsAllDrives: true,
-    corpora: driveId ? 'drive' : 'allDrives',
-    driveId,
+    corpora: 'allDrives',
   } as any);
   return res.data.files || [];
 }
@@ -59,25 +57,6 @@ export async function driveRename(fileId: string, newName: string, auth: any) {
 }
 
 // =============================
-// DRIVE CONTEXT RESOLUTION
-// =============================
-
-export interface DriveContext {
-  rootFolderId: string;      // AMBARADAM folder ID in My Drive
-  defaultPath: string;       // Default root folder name
-}
-
-export function resolveDriveContext(): DriveContext {
-  const rootFolderId = process.env.DRIVE_FOLDER_AMBARADAM;
-  if (!rootFolderId) throw new Error('Missing DRIVE_FOLDER_AMBARADAM');
-  
-  return {
-    rootFolderId,
-    defaultPath: process.env.DEFAULT_FOLDER_ROOT || 'AMBARADAM'
-  };
-}
-
-// =============================
 // DRIVE FOLDER RESOLUTION
 // =============================
 
@@ -85,115 +64,93 @@ export type DriveFolderRef = { id: string; name: string; driveId?: string | null
 
 export async function findFolderByName(name: string, auth: any): Promise<DriveFolderRef | null> {
   const drive = google.drive({ version: 'v3', auth });
-  
   const q = [
     "mimeType = 'application/vnd.google-apps.folder'",
     "trashed = false",
     `name = '${name.replace(/'/g, "\\'")}'`,
   ].join(' and ');
-  
   const { data } = await drive.files.list({
     q,
-    fields: 'files(id,name,parents)',
+    fields: 'files(id,name,parents,driveId)',
     pageSize: 50,
+    includeItemsFromAllDrives: true,
+    supportsAllDrives: true,
+    corpora: 'allDrives',
   } as any);
-  
   const files = data.files || [];
   if (!files.length) return null;
-  
   const chosen = files[0];
-  return { id: chosen.id!, name: chosen.name!, driveId: null, parents: (chosen as any).parents || null };
+  return { id: chosen.id!, name: chosen.name!, driveId: (chosen as any).driveId || null, parents: (chosen as any).parents || null };
 }
 
 export async function findOrCreateChildFolder(parentId: string, name: string, auth: any): Promise<DriveFolderRef> {
   const drive = google.drive({ version: 'v3', auth });
-  
   const q = [
     "mimeType = 'application/vnd.google-apps.folder'",
     "trashed = false",
     `'${parentId}' in parents`,
     `name = '${name.replace(/'/g, "\\'")}'`,
   ].join(' and ');
-  
-  const { data } = await drive.files.list({ 
-    q, 
-    fields: 'files(id,name,parents)', 
-  } as any);
-  
+  const { data } = await drive.files.list({ q, fields: 'files(id,name,parents,driveId)', includeItemsFromAllDrives: true, supportsAllDrives: true } as any);
   if (data.files && data.files.length) {
     const f = data.files[0]!;
-    return { id: f.id!, name: f.name!, driveId: null, parents: (f as any).parents || null };
+    return { id: f.id!, name: f.name!, driveId: (f as any).driveId || null, parents: (f as any).parents || null };
   }
-  
   const created = await drive.files.create({
     requestBody: { name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] },
-    fields: 'id,name,parents',
+    fields: 'id,name,parents,driveId',
+    supportsAllDrives: true,
   } as any);
-  
   const f = created.data as any;
-  return { id: f.id, name: f.name, driveId: null, parents: f.parents || null };
+  return { id: f.id, name: f.name, driveId: f.driveId || null, parents: f.parents || null };
 }
 
 // Resolve a path like "AMBARADAM/BOSS/Notes". If createIfMissing=true, creates missing segments.
 export async function resolveFolderPath(path: string, auth: any, createIfMissing = false): Promise<DriveFolderRef | null> {
   const segments = path.split('/').map(s => s.trim()).filter(Boolean);
   if (!segments.length) return null;
-  
-  const context = resolveDriveContext();
+  const drive = google.drive({ version: 'v3', auth });
 
-  // For AMBARADAM root path, use direct folder ID from env
-  let current: DriveFolderRef | null = null;
-  
-  if (segments[0] === context.defaultPath) {
-    // Direct access to AMBARADAM folder via DRIVE_FOLDER_AMBARADAM
-    current = { 
-      id: context.rootFolderId, 
-      name: context.defaultPath, 
-      driveId: null, 
-      parents: null 
-    };
-  } else {
-    // For other folders, search by name
+  // Anchor to AMBARADAM root if provided via env
+  const rootFolder = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim();
+  let current: DriveFolderRef | null = rootFolder ? { id: rootFolder, name: 'AMBARADAM' } as any : null;
+  let startIndex = 0;
+  if (current && segments.length && segments[0].toUpperCase() === 'AMBARADAM') startIndex = 1;
+
+  // If no explicit root, resolve the first segment globally (and optionally create it)
+  if (!current) {
     current = await findFolderByName(segments[0], auth);
+    if (!current && !createIfMissing) return null;
     if (!current && createIfMissing) {
-      const drive = google.drive({ version: 'v3', auth });
       const created = await drive.files.create({
-        requestBody: { 
-          name: segments[0], 
-          mimeType: 'application/vnd.google-apps.folder' 
-        },
-        fields: 'id,name,parents',
+        requestBody: { name: segments[0], mimeType: 'application/vnd.google-apps.folder' },
+        fields: 'id,name,parents,driveId',
+        supportsAllDrives: true,
       } as any);
       const f = created.data as any;
-      current = { id: f.id, name: f.name, driveId: null, parents: f.parents || null };
+      current = { id: f.id, name: f.name, driveId: f.driveId || null, parents: f.parents || null };
     }
+    startIndex = 1;
   }
-  
-  if (!current) return null;
 
-  // For remaining segments, build path step by step
-  for (let i = 1; i < segments.length; i++) {
+  for (let i = startIndex; i < segments.length; i++) {
     const seg = segments[i];
     if (!current) return null;
     current = createIfMissing
       ? await findOrCreateChildFolder(current.id, seg, auth)
-      : await findChildFolder(current.id, seg, auth);
+      : await (async () => {
+          const q = [
+            "mimeType = 'application/vnd.google-apps.folder'",
+            "trashed = false",
+            `'${current!.id}' in parents`,
+            `name = '${seg.replace(/'/g, "\\'")}'`,
+          ].join(' and ');
+          const { data } = await drive.files.list({ q, fields: 'files(id,name,parents,driveId)', includeItemsFromAllDrives: true, supportsAllDrives: true } as any);
+          const f = (data.files || [])[0];
+          return f ? { id: f.id!, name: f.name!, driveId: (f as any).driveId || null, parents: (f as any).parents || null } : null;
+        })();
   }
   return current;
-}
-
-async function findChildFolder(parentId: string, name: string, auth: any): Promise<DriveFolderRef | null> {
-  const drive = google.drive({ version: 'v3', auth });
-  const q = [
-    "mimeType = 'application/vnd.google-apps.folder'",
-    "trashed = false",
-    `'${parentId}' in parents`,
-    `name = '${name.replace(/'/g, "\\'")}'`,
-  ].join(' and ');
-  
-  const { data } = await drive.files.list({ q, fields: 'files(id,name,parents)' } as any);
-  const f = (data.files || [])[0];
-  return f ? { id: f.id!, name: f.name!, driveId: null, parents: (f as any).parents || null } : null;
 }
 
 // =============================

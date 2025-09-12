@@ -150,8 +150,8 @@ jobs:
             --image "asia-southeast2-docker.pkg.dev/$PROJECT_ID/zantara-repo/zantara-chat:manual" \
             --service-account "$RUNTIME_SA" \
             --allow-unauthenticated \
-            --set-env-vars "API_KEY=${{ secrets.API_KEY }},IMPERSONATE_USER=${{ secrets.IMPERSONATE_USER }},MEMORY_DRIVE_FOLDER_ID=${{ secrets.MEMORY_DRIVE_FOLDER_ID }},BALI_ZERO_CALENDAR_ID=${{ secrets.BALI_ZERO_CALENDAR_ID }},ZANTARA_SHARED_DRIVE_ID=${{ secrets.ZANTARA_SHARED_DRIVE_ID }},GMAIL_SENDER=${{ secrets.GMAIL_SENDER }},CORS_ORIGINS=${{ secrets.CORS_ORIGINS }},USE_AI_SUMMARY=${{ secrets.USE_AI_SUMMARY }}" \
-            --set-secrets "SA_JSON_SECRET=${{ secrets.SA_JSON_SECRET_NAME }}:latest,OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY_SM_NAME }}:latest"
+            --set-env-vars "API_KEY=${{ secrets.API_KEY }},IMPERSONATE_USER=${{ secrets.IMPERSONATE_USER }},MEMORY_DRIVE_FOLDER_ID=${{ secrets.MEMORY_DRIVE_FOLDER_ID }},BALI_ZERO_CALENDAR_ID=${{ secrets.BALI_ZERO_CALENDAR_ID }},DRIVE_FOLDER_AMBARADAM=${{ secrets.DRIVE_FOLDER_AMBARADAM }},DEFAULT_FOLDER_ROOT=AMBARADAM,GMAIL_SENDER=${{ secrets.GMAIL_SENDER }},CORS_ORIGINS=${{ secrets.CORS_ORIGINS }},USE_AI_SUMMARY=${{ secrets.USE_AI_SUMMARY }}" \
+            --set-secrets "SA_JSON_SECRET=${{ secrets.SA_JSON_SECRET_NAME }}:latest,GOOGLE_SERVICE_ACCOUNT_KEY=GOOGLE_SERVICE_ACCOUNT_KEY:latest,OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY_SM_NAME }}:latest"
 
       - name: Resolve Cloud Run URL
         run: |
@@ -166,6 +166,20 @@ jobs:
       - name: Run post-deploy test
         run: bash ./post_deploy_check.sh
 
+      - name: SA access smoke (/diag/drive or scripts)
+        run: |
+          set -euo pipefail
+          : > sa_access.txt
+          URL=$(gcloud run services describe "${{ env.SERVICE }}" --project "${{ secrets.GCP_PROJECT_ID }}" --region asia-southeast2 --format='value(status.url)')
+          echo "SA access check — $(date -u --iso-8601=seconds)" | tee -a sa_access.txt
+          if [[ -f scripts/smoke-drive.sh ]]; then
+            echo "Running scripts/smoke-drive.sh" | tee -a sa_access.txt
+            PROJ="${{ secrets.GCP_PROJECT_ID }}" REGION="asia-southeast2" SERVICE="${{ env.SERVICE }}" bash scripts/smoke-drive.sh 2>&1 | tee -a sa_access.txt
+          else
+            echo "Fallback: curl $URL/diag/drive" | tee -a sa_access.txt
+            curl -sS "$URL/diag/drive" | tee -a sa_access.txt
+          fi
+
       - name: Upload post-deploy results
         if: always()
         uses: actions/upload-artifact@v4
@@ -173,3 +187,67 @@ jobs:
           name: post_deploy_results.txt
           path: post_deploy_results.txt
           retention-days: 7
+
+      - name: Upload SA access artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sa_access
+          path: sa_access.txt
+          retention-days: 7
+
+      - name: Optional tests (scripts/test_upload.sh + scripts/test-sa-access.sh)
+        run: |
+          set +e
+          : > test-output.log
+          URL=$(gcloud run services describe "${{ env.SERVICE }}" --project "${{ secrets.GCP_PROJECT_ID }}" --region asia-southeast2 --format='value(status.url)')
+          KEY="${{ secrets.API_KEY }}"
+          if [[ -f scripts/test_upload.sh ]]; then
+            echo "Running scripts/test_upload.sh" | tee -a test-output.log
+            PROJ="${{ secrets.GCP_PROJECT_ID }}" REGION="asia-southeast2" SERVICE="${{ env.SERVICE }}" SERVICE_URL="$URL" KEY="$KEY" FOLDER_ID="${{ secrets.DRIVE_FOLDER_AMBARADAM }}" bash scripts/test_upload.sh >> test-output.log 2>&1 || echo "test_upload.sh failed" | tee -a test-output.log
+          else
+            echo "scripts/test_upload.sh not found" | tee -a test-output.log
+          fi
+          if [[ -f scripts/test-sa-access.sh ]]; then
+            echo "Running scripts/test-sa-access.sh" | tee -a test-output.log
+            PROJ="${{ secrets.GCP_PROJECT_ID }}" REGION="asia-southeast2" SERVICE="${{ env.SERVICE }}" bash scripts/test-sa-access.sh >> test-output.log 2>&1 || echo "test-sa-access.sh failed" | tee -a test-output.log
+          else
+            echo "scripts/test-sa-access.sh not found" | tee -a test-output.log
+          fi
+
+      - name: Upload optional tests artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output
+          path: test-output.log
+          retention-days: 7
+
+      - name: Optional SA direct access test (scripts/test-sa-access.sh)
+        run: |
+          set +e
+          : > test-sa-access.log
+          if [[ -f scripts/test-sa-access.sh ]]; then
+            echo "Running scripts/test-sa-access.sh" | tee -a test-sa-access.log
+            PROJ="${{ secrets.GCP_PROJECT_ID }}" REGION="asia-southeast2" SERVICE="${{ env.SERVICE }}" bash scripts/test-sa-access.sh >> test-sa-access.log 2>&1 || echo "test-sa-access.sh failed" | tee -a test-sa-access.log
+          else
+            echo "scripts/test-sa-access.sh not found" | tee -a test-sa-access.log
+          fi
+          true
+
+      - name: Upload SA direct access test artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-sa-access
+          path: test-sa-access.log
+          retention-days: 7
+
+      - name: Disable diagnostics (ENABLE_DIAG=false)
+        if: ${{ success() }}
+        run: |
+          PROJECT_ID=$(printf '%s' "${{ secrets.GCP_PROJECT_ID }}" | tr -d '\r\n' | xargs)
+          gcloud run services update zantara-chat-v3 \
+            --project "$PROJECT_ID" \
+            --region asia-southeast2 \
+            --set-env-vars "ENABLE_DIAG=false"

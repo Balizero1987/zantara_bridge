@@ -48,7 +48,7 @@ diag.get('/check', async (req: Request, res: Response) => {
       env: {
         MEMORY_DRIVE_FOLDER_ID: process.env.MEMORY_DRIVE_FOLDER_ID || null,
         DRIVE_FOLDER_ID: process.env.DRIVE_FOLDER_ID || null,
-        ZANTARA_SHARED_DRIVE_ID: process.env.ZANTARA_SHARED_DRIVE_ID || null,
+        DRIVE_FOLDER_AMBARADAM: process.env.DRIVE_FOLDER_AMBARADAM || null,
       },
       ts: new Date().toISOString(),
     });

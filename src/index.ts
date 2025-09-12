@@ -1,32 +1,20 @@
 import express from 'express';
 import registerPlugin from './routes/plugin';
-import { pluginLimiter } from './middleware/rateLimit';
 import registerDiag from './routes/diag';
 import { apiKeyGuard } from './middleware/authPlugin';
 import registerNotes from './routes/api/notes';
 import registerChat from './routes/api/chat';
 import registerDocgen from './routes/api/docgen';
 import registerDriveBrief from './routes/api/driveBrief';
+import drive, { driveDiagRouter } from './api/drive';
 import registerGitHubBrief from './routes/api/githubBrief';
 import registerWebhooks from './routes/api/webhooks';
-import memoryActions from './routes/actions/memory';
+import { saveNote } from './lib/driveSave';
 
 const app = express();
 app.set('trust proxy', true);
 app.disable('x-powered-by');
 app.use(express.json({ limit: '1mb' }));
-
-// Gestione errori JSON non valido -> 400 immediato (evita stack trace nei log)
-app.use((err: any, _req: any, res: any, next: any) => {
-  if (err?.type === 'entity.parse.failed' || err instanceof SyntaxError) {
-    return res.status(400).json({ ok: false, error: 'invalid_json' });
-  }
-  return next(err);
-});
-
-// Limite richieste per endpoint sensibili (adatta se necessario)
-// Nota: aggiungere qui altre basi di path se serve (es. '/api').
-app.use('/actions', pluginLimiter);
 
 // Plugin pubblico
 registerPlugin(app);
@@ -34,6 +22,8 @@ registerPlugin(app);
 // Rotte diagnostiche (solo se abilitate)
 if (process.env.ENABLE_DIAG === 'true') {
   registerDiag(app);
+  // Additional Drive diagnostics (check/find-folder)
+  app.use('/diag/drive', driveDiagRouter);
 }
 
 // Middleware protetti (API Key obbligatoria)
@@ -47,8 +37,22 @@ registerDriveBrief(app);
 registerGitHubBrief(app);
 registerWebhooks(app);
 
-// Actions endpoints
-app.use('/actions/memory', memoryActions);
+// Actions: Drive upload (requires API key guard)
+app.use('/actions/drive', drive as any);
+
+// Back-compat alias: /actions/memory/save → same semantics as /api/notes/save
+app.post('/actions/memory/save', async (req, res) => {
+  try {
+    const owner = (req as any).canonicalOwner || 'BOSS';
+    const title = String(req.body?.title || '').trim() || undefined;
+    const content = String(req.body?.content || '').trim();
+    if (!content) return res.status(400).json({ ok: false, error: 'content required' });
+    const out = await saveNote(owner, content, title);
+    return res.json({ ok: true, file: out });
+  } catch (e: any) {
+    return res.status(500).json({ ok: false, error: e?.message || 'save_note_failed' });
+  }
+});
 
 const port = process.env.PORT || 8080;
 app.listen(port, () => {

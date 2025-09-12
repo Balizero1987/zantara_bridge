@@ -5,7 +5,7 @@ Questa guida verifica e abilita l’impersonation del Service Account per Google
 ## Prerequisiti
 - Service Account JSON in `GOOGLE_SERVICE_ACCOUNT_KEY`.
 - `DRIVE_SUBJECT` impostato a un utente del dominio (es. `boss@…`).
-- `DRIVE_ID_AMBARADAM` è la Shared Drive (ID inizia con `0A…`) dove operare.
+- `DRIVE_FOLDER_AMBARADAM` è l'ID della cartella AMBARADAM (My Drive condivisa) dove operare.
 
 ## 1) Recupera runtime SA e OAuth2 Client ID
 ```bash
@@ -34,8 +34,8 @@ In Google Admin Console:
     https://www.googleapis.com/auth/drive
     ```
 
-## 3) Permessi sulla Shared Drive
-- `DRIVE_SUBJECT` deve essere membro della Shared Drive `DRIVE_ID_AMBARADAM` (almeno Viewer/Contributor a seconda delle operazioni).
+## 3) Permessi sulla Cartella AMBARADAM
+- `DRIVE_SUBJECT` e il Service Account devono avere accesso (almeno Writer) alla cartella `DRIVE_FOLDER_AMBARADAM`.
 
 ## 4) Verifica token e accesso
 Con servizio in staging e `ENABLE_DIAG=true`:
@@ -53,4 +53,3 @@ gcloud run services update "$SERVICE" \
   --region "$REGION" --project "$PROJ" \
   --update-env-vars="ENABLE_DIAG=false"
 ```
-

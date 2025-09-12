@@ -33,7 +33,7 @@ curl -s -X POST "$SERVICE_URL/actions/calendar/create" \
 step "Drive upload smoke (/actions/drive/upload)"
 UPLOAD_PAYLOAD=$(jq -n --arg fn "smoke-$(date -u +%Y%m%dT%H%M%SZ).txt" --arg ct "text/plain" --arg c "Zantara smoke test $(date -u)" '{filename:$fn,mimeType:$ct,content:$c}')
 curl -s -X POST "$SERVICE_URL/actions/drive/upload" \
-  -H "Content-Type: application/json" -H "X-Api-Key: $API_KEY" \
+  -H "Content-Type: application/json" -H "X-Api-Key: $API_KEY" -H "X-BZ-USER: boss" \
   -d "$UPLOAD_PAYLOAD" | tee -a "$OUT" >/dev/null || true
 
 step "Gmail draft smoke (/actions/email/draft)"

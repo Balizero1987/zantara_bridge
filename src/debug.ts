@@ -14,14 +14,12 @@ async function checkDrive(user: string): Promise<CheckResult> {
       'https://www.googleapis.com/auth/drive.file',
     ]);
     const drive = google.drive({ version: 'v3', auth: ic.auth });
-    const driveId = (process.env.DRIVE_ID_AMBARADAM || '').trim() || undefined;
     const { data } = await drive.files.list({
       pageSize: 1,
       fields: 'files(id,name)',
       supportsAllDrives: true,
       includeItemsFromAllDrives: true,
-      corpora: driveId ? 'drive' : 'allDrives',
-      driveId,
+      corpora: 'allDrives',
     } as any);
     return { ok: true, details: { sample: data.files?.[0] || null } };
   } catch (e: any) {
@@ -139,15 +137,7 @@ export function debugRoutes(app: Express) {
       out.drive = { user: about.data.user || null };
 
       // If a Shared Drive ID is configured, verify access and basic metadata
-      const sharedId = process.env.DRIVE_ID_AMBARADAM || process.env.ZANTARA_SHARED_DRIVE_ID;
-      if (sharedId) {
-        try {
-          const dr = await (drive as any).drives.get({ driveId: sharedId });
-          out.sharedDrive = { id: sharedId, name: dr.data?.name || null };
-        } catch (e: any) {
-          out.sharedDrive = { id: sharedId, error: e?.message || String(e) };
-        }
-      }
+      // Shared Drive removed — skipping sharedDrive check
     } catch (e: any) {
       out.drive = { error: e?.message || String(e) };
     }
@@ -180,7 +170,7 @@ export function debugRoutes(app: Express) {
       DRIVE_FOLDER_ID: !!process.env.DRIVE_FOLDER_ID,
       BALI_ZERO_CALENDAR_ID: !!process.env.BALI_ZERO_CALENDAR_ID,
       MEMORY_DRIVE_FOLDER_ID: !!process.env.MEMORY_DRIVE_FOLDER_ID,
-      ZANTARA_SHARED_DRIVE_ID: !!process.env.ZANTARA_SHARED_DRIVE_ID,
+      DRIVE_FOLDER_AMBARADAM: !!process.env.DRIVE_FOLDER_AMBARADAM,
       IMPERSONATE_USER: !!process.env.IMPERSONATE_USER,
       GMAIL_SENDER: !!process.env.GMAIL_SENDER,
       SA_JSON_SECRET: !!process.env.SA_JSON_SECRET || !!process.env.GOOGLE_SA_JSON_SECRET,
@@ -207,7 +197,7 @@ export function debugRawRoutes(app: Express) {
       DRIVE_FOLDER_ID: process.env.DRIVE_FOLDER_ID || null,
       MEMORY_DRIVE_FOLDER_ID: process.env.MEMORY_DRIVE_FOLDER_ID || null,
       BALI_ZERO_CALENDAR_ID: process.env.BALI_ZERO_CALENDAR_ID || null,
-      ZANTARA_SHARED_DRIVE_ID: process.env.ZANTARA_SHARED_DRIVE_ID || null,
+      DRIVE_FOLDER_AMBARADAM: process.env.DRIVE_FOLDER_AMBARADAM || null,
     });
   });
 }
