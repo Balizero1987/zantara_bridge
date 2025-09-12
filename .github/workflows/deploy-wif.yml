@@ -11,17 +11,14 @@ permissions:
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  REGION: ${{ secrets.GCP_REGION }}
-  REPO: ${{ secrets.GCP_ARTIFACT_REPO }}
-  SERVICE: ${{ secrets.CLOUD_RUN_SERVICE }}
+  REGION: asia-southeast2
+  REPO: zantara-repo
+  SERVICE: zantara-chat-v3-1064094238013
   IMAGE_NAME: zantara-chat
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: zantara_bridge
     steps:
       - name: Checkout
         uses: actions/checkout@v4
