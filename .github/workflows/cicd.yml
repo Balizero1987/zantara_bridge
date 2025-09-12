@@ -48,7 +48,6 @@ jobs:
             --image "$IMAGE_URI" \
             --service-account "$RUNTIME_SA" \
             --allow-unauthenticated \
-            --no-build \
             --set-env-vars "CORS_ORIGINS=*.balizero.com,USE_AI_SUMMARY=false,DRIVE_FOLDER_AMBARADAM=${{ secrets.DRIVE_FOLDER_AMBARADAM }},DEFAULT_FOLDER_ROOT=AMBARADAM" \
             --set-secrets "BACKEND_API_KEY=ZANTARA_BACKEND_API_KEY:latest,PLUGIN_API_KEY=ZANTARA_PLUGIN_API_KEY:latest,OPENAI_API_KEY=OPENAI_API_KEY:latest,GOOGLE_SERVICE_ACCOUNT_KEY=GOOGLE_SERVICE_ACCOUNT_KEY:latest"
 

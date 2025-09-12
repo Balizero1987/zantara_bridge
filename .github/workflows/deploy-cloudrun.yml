@@ -125,7 +125,6 @@ jobs:
             --image "$IMAGE_URI" \
             --service-account "$RUNTIME_SA" \
             --allow-unauthenticated \
-            --no-build \
             --set-env-vars "CORS_ORIGINS=*.balizero.com,USE_AI_SUMMARY=false,DRIVE_FOLDER_AMBARADAM=${{ secrets.DRIVE_FOLDER_AMBARADAM }},DEFAULT_FOLDER_ROOT=AMBARADAM,IMPERSONATE_USER=${{ secrets.IMPERSONATE_USER }}" \
             --set-secrets "BACKEND_API_KEY=ZANTARA_BACKEND_API_KEY:2,PLUGIN_API_KEY=ZANTARA_PLUGIN_API_KEY:1,OPENAI_API_KEY=OPENAI_API_KEY:2,GOOGLE_SERVICE_ACCOUNT_KEY=GOOGLE_SERVICE_ACCOUNT_KEY:latest"
 
