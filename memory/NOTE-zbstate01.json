@@ -2,7 +2,7 @@
   "timestamp": "2025-09-12T00:00:00Z",
   "fonte": "nota",
   "autore": "utente",
-  "contenuto": "Contesto: SaaS API-first per automazioni Google Workspace (Zantara Bridge) con endpoint REST e CLI/console.",
-  "tag": ["CONTESTO", "PRODUCT"],
-  "id": "NOTE-zbctx01"
+  "contenuto": "Stato: post-MVP in consolidamento; feature principali stabili; CI/CD attivo; refactor moduli Drive/Auth/Claude; deploy GCP/Cloud Run operativo.",
+  "tag": ["STATO", "CI/CD", "REFACTOR", "DEPLOY"],
+  "id": "NOTE-zbstate01"
 }
