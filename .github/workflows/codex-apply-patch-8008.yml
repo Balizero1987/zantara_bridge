@@ -1,0 +1,71 @@
+name: Codex Apply Patch (8008)
+on:
+  repository_dispatch:
+    types: [8008]
+  workflow_dispatch:
+    inputs:
+      branch:     { description: 'Target branch', required: true }
+      title:      { description: 'PR title',     required: true }
+      body:       { description: 'PR body',      required: false, default: '' }
+      patch_b64:  { description: 'Base64 patch', required: true }
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  apply-patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Resolve inputs (dispatch or manual)
+        id: params
+        run: |
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            echo "branch=${{ github.event.client_payload.branch }}"   >> $GITHUB_OUTPUT
+            echo "title=${{ github.event.client_payload.title }}"     >> $GITHUB_OUTPUT
+            echo "body=${{ github.event.client_payload.body }}"       >> $GITHUB_OUTPUT
+            echo "patch_b64=${{ github.event.client_payload.patch_b64 }}" >> $GITHUB_OUTPUT
+          else
+            echo "branch=${{ github.event.inputs.branch }}"   >> $GITHUB_OUTPUT
+            echo "title=${{ github.event.inputs.title }}"     >> $GITHUB_OUTPUT
+            echo "body=${{ github.event.inputs.body }}"       >> $GITHUB_OUTPUT
+            echo "patch_b64=${{ github.event.inputs.patch_b64 }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Apply patch
+        env:
+          BRANCH:   ${{ steps.params.outputs.branch }}
+          TITLE:    ${{ steps.params.outputs.title }}
+          BODY:     ${{ steps.params.outputs.body }}
+          PATCH_B64:${{ steps.params.outputs.patch_b64 }}
+        run: |
+          set -euo pipefail
+          echo "::group::Prepare branch"
+          git checkout -B "$BRANCH" origin/main || git checkout -b "$BRANCH"
+          echo "::endgroup::"
+
+          echo "::group::Decode & apply"
+          PATCHFILE=/tmp/patch.diff
+          printf "%s" "$PATCH_B64" | base64 -d > "$PATCHFILE"
+          git apply --whitespace=fix "$PATCHFILE"
+          echo "::endgroup::"
+
+          echo "::group::Commit & push"
+          git add -A
+          git commit -m "$TITLE" || echo "Nothing to commit"
+          git push -u origin "$BRANCH"
+          echo "::endgroup::"
+
+      - name: Open PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH:   ${{ steps.params.outputs.branch }}
+          TITLE:    ${{ steps.params.outputs.title }}
+          BODY:     ${{ steps.params.outputs.body }}
+        run: |
+          set -euo pipefail
+          # Crea PR solo se non esiste già
+          gh pr view "$BRANCH" >/dev/null 2>&1 || gh pr create -H "$BRANCH" -B main -t "$TITLE" -b "$BODY"

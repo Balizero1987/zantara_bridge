@@ -1,0 +1,19 @@
+{
+  "schema_version": "v1",
+  "name_for_human": "Zantara Bridge",
+  "name_for_model": "zantara_bridge",
+  "description_for_human": "Gestisci note, chat AI e genera brief in Google Drive con autenticazione sicura.",
+  "description_for_model": "Plugin per note, chat contestuale e creazione di brief in Google Drive. Richiede intestazioni X-API-KEY e X-BZ-USER.",
+  "auth": {
+    "type": "service_http",
+    "authorization_type": "header",
+    "verification_tokens": {}
+  },
+  "api": {
+    "type": "openapi",
+    "url": "https://zantara-chat-v3-1064094238013.asia-southeast2.run.app/.well-known/openapi.json"
+  },
+  "logo_url": "https://zantara-chat-v3-1064094238013.asia-southeast2.run.app/logo.png",
+  "contact_email": "ops@balizero.com",
+  "legal_info_url": "https://zantara-chat-v3-1064094238013.asia-southeast2.run.app/terms"
+}

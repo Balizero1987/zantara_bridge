@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "mcp-node-tools": {
+      "command": "node",
+      "args": [
+        "/Users/antonellosiano/zantara_bridge/mcp/node-server/src/server.js"
+      ],
+      "env": {
+        "MCP_FS_ALLOWLIST": "/Users/antonellosiano/zantara_bridge",
+        "MCP_FETCH_ALLOW_HOSTS": "github.com,githubusercontent.com,gitlab.com,bitbucket.org,atlassian.net,slack.com,notion.com,linear.app,trello.com,developer.mozilla.org,nodejs.org,docs.python.org,pypi.org,registry.npmjs.org,cdn.jsdelivr.net,unpkg.com,httpbin.org,jsonplaceholder.typicode.com"
+      }
+    }
+  }
+}
