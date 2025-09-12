@@ -1,13 +1,13 @@
 import { google } from "googleapis";
 import { GoogleAuth } from "google-auth-library";
 import { Document, Packer, Paragraph, HeadingLevel } from 'docx';
+import { resolveDriveContext } from "./googleApiHelpers";
 
 const DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive"];
 
 function getDriveId(): string {
-  const id = (process.env.DRIVE_ID_AMBARADAM || "").trim();
-  if (!id) throw new Error("DRIVE_ID_AMBARADAM non impostato");
-  return id;
+  const context = resolveDriveContext();
+  return context.driveId;
 }
 
 async function getAccessToken(): Promise<string> {
@@ -47,23 +47,23 @@ export async function saveChatMessageToDrive(params: {
   const date = isoDate();
   const time = isoTime();
 
-  // Cartella root preferita: AMBARADAM (se esiste), altrimenti Drive root
-  // È possibile forzare l'ID con env DRIVE_FOLDER_AMBARADAM
-  const forcedRoot = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim() || null;
-
+  // Use drive context to resolve proper IDs
+  const context = resolveDriveContext();
+  
   // Nome cartella collaboratore: trasformiamo gli underscore in spazi
   const ownerFolderName = (params.author || 'BOSS').replace(/_/g, ' ').trim();
 
-  // Costruisci percorso logico per Chat: AMBARADAM/<OWNER>/Chat/
+  // Construisci percorso logico per Chat: AMBARADAM/<OWNER>/Chat/
   let basePath: string[];
-  let parentId = driveId;
+  let parentId: string;
 
-  if (forcedRoot) {
+  // If we have a specific AMBARADAM folder ID, use it as parent
+  if (context.rootFolderId) {
     basePath = [ownerFolderName, 'Chat'];
-    parentId = forcedRoot;
+    parentId = context.rootFolderId;  // This is the actual AMBARADAM folder (1U...)
   } else {
-    // Prova a risolvere AMBARADAM per nome
-    const ambFolderId = await findFolderByNameInDrive(accessToken, driveId, 'AMBARADAM');
+    // Fallback: try to find AMBARADAM by name in the Shared Drive
+    const ambFolderId = await findFolderByNameInDrive(accessToken, driveId, context.defaultPath);
     if (isNonEmptyId(ambFolderId)) {
       parentId = ambFolderId as string;
       basePath = [ownerFolderName, 'Chat'];
@@ -206,7 +206,8 @@ export async function saveNote(ownerRaw: string, text: string, title?: string): 
   const accessToken = await getAccessToken();
   const driveId = getDriveId();
   const ownerFolderName = (ownerRaw || 'BOSS').replace(/_/g, ' ').trim();
-  const forcedRoot = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim() || null;
+  const context = resolveDriveContext();
+  const forcedRoot = context.rootFolderId || null;
 
   // determine root base
   let parentId = forcedRoot || (await findFolderByNameInDrive(accessToken, driveId, 'AMBARADAM')) || driveId;
@@ -261,7 +262,8 @@ export async function saveNote(ownerRaw: string, text: string, title?: string): 
 export async function writeBossLog(line: string): Promise<{ id: string; name: string }> {
   const accessToken = await getAccessToken();
   const driveId = getDriveId();
-  const forcedRoot = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim() || null;
+  const context = resolveDriveContext();
+  const forcedRoot = context.rootFolderId || null;
   let parentId = forcedRoot || (await findFolderByNameInDrive(accessToken, driveId, 'AMBARADAM')) || driveId;
   parentId = await ensurePath(accessToken, driveId, parentId, ['BOSS', 'Logs']);
 
@@ -338,7 +340,8 @@ export async function createBrief(ownerRaw: string, content: string, title?: str
   const driveId = getDriveId();
   const owner = (ownerRaw || 'BOSS').replace(/_/g, ' ').trim();
   const forcedBriefRoot = (process.env.DRIVE_FOLDER_BRIEFS || '').trim() || null;
-  const forcedAmbaradam = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim() || null;
+  const context = resolveDriveContext();
+  const forcedAmbaradam = context.rootFolderId || null;
 
   // root selection: briefs root > ambaradam root > locate AMBARADAM by name > drive root
   let rootParent = forcedBriefRoot || forcedAmbaradam || (await findFolderByNameInDrive(accessToken, driveId, 'AMBARADAM')) || driveId;

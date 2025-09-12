@@ -59,6 +59,27 @@ export async function driveRename(fileId: string, newName: string, auth: any) {
 }
 
 // =============================
+// DRIVE CONTEXT RESOLUTION
+// =============================
+
+export interface DriveContext {
+  driveId: string;           // Root Shared Drive ID
+  rootFolderId?: string;     // AMBARADAM folder ID (if specific folder needed)
+  defaultPath: string;       // Default root folder name
+}
+
+export function resolveDriveContext(): DriveContext {
+  const driveId = process.env.DRIVE_ID_AMBARADAM || process.env.ZANTARA_SHARED_DRIVE_ID;
+  if (!driveId) throw new Error('Missing DRIVE_ID_AMBARADAM or ZANTARA_SHARED_DRIVE_ID');
+  
+  return {
+    driveId,
+    rootFolderId: process.env.DRIVE_FOLDER_AMBARADAM,  // Optional specific folder
+    defaultPath: process.env.DEFAULT_FOLDER_ROOT || 'AMBARADAM'
+  };
+}
+
+// =============================
 // DRIVE FOLDER RESOLUTION
 // =============================
 
@@ -66,41 +87,50 @@ export type DriveFolderRef = { id: string; name: string; driveId?: string | null
 
 export async function findFolderByName(name: string, auth: any): Promise<DriveFolderRef | null> {
   const drive = google.drive({ version: 'v3', auth });
+  const context = resolveDriveContext();
+  
   const q = [
     "mimeType = 'application/vnd.google-apps.folder'",
     "trashed = false",
     `name = '${name.replace(/'/g, "\\'")}'`,
   ].join(' and ');
+  
   const { data } = await drive.files.list({
     q,
     fields: 'files(id,name,parents,driveId)',
     pageSize: 50,
     includeItemsFromAllDrives: true,
     supportsAllDrives: true,
-    corpora: 'allDrives',
+    corpora: 'drive',
+    driveId: context.driveId,
   } as any);
+  
   const files = data.files || [];
   if (!files.length) return null;
-  // Prefer a match inside configured shared drive, if provided
-  const preferredDrive = process.env.ZANTARA_SHARED_DRIVE_ID;
-  const chosen = preferredDrive ? (files.find(f => (f as any).driveId === preferredDrive) || files[0]) : files[0];
+  
+  // Prefer a match inside configured shared drive
+  const chosen = files.find(f => (f as any).driveId === context.driveId) || files[0];
   return { id: chosen.id!, name: chosen.name!, driveId: (chosen as any).driveId || null, parents: (chosen as any).parents || null };
 }
 
 export async function findOrCreateChildFolder(parentId: string, name: string, auth: any): Promise<DriveFolderRef> {
   const drive = google.drive({ version: 'v3', auth });
+  const context = resolveDriveContext();
+  
   const q = [
     "mimeType = 'application/vnd.google-apps.folder'",
     "trashed = false",
     `'${parentId}' in parents`,
     `name = '${name.replace(/'/g, "\\'")}'`,
   ].join(' and ');
+  
   const { data } = await drive.files.list({ 
     q, 
     fields: 'files(id,name,parents,driveId)', 
     includeItemsFromAllDrives: true, 
     supportsAllDrives: true,
-    corpora: 'allDrives'
+    corpora: 'drive',
+    driveId: context.driveId
   } as any);
   if (data.files && data.files.length) {
     const f = data.files[0]!;
@@ -119,32 +149,33 @@ export async function findOrCreateChildFolder(parentId: string, name: string, au
 export async function resolveFolderPath(path: string, auth: any, createIfMissing = false): Promise<DriveFolderRef | null> {
   const segments = path.split('/').map(s => s.trim()).filter(Boolean);
   if (!segments.length) return null;
+  
   const drive = google.drive({ version: 'v3', auth });
+  const context = resolveDriveContext();
 
-  // Resolve first segment across all drives, prefer configured shared drive
+  // Resolve first segment in configured shared drive
   let current: DriveFolderRef | null = await findFolderByName(segments[0], auth);
   if (!current && !createIfMissing) return null;
   if (!current && createIfMissing) {
     // Force Shared Drive root for first segment (AMBARADAM)
-    let parentId: string | undefined = undefined;
-    if (segments[0] === 'AMBARADAM' || segments[0] === (process.env.DEFAULT_FOLDER_ROOT || 'AMBARADAM')) {
-      parentId = process.env.ZANTARA_SHARED_DRIVE_ID || process.env.DRIVE_ID_AMBARADAM;
-    }
+    const isRootFolder = segments[0] === context.defaultPath;
     
     const requestBody: any = { 
       name: segments[0], 
       mimeType: 'application/vnd.google-apps.folder' 
     };
-    if (parentId) {
-      requestBody.parents = [parentId];
+    
+    // For root folder (AMBARADAM), create directly in Shared Drive root
+    if (isRootFolder) {
+      requestBody.parents = [context.driveId];
     }
     
     const created = await drive.files.create({
       requestBody,
       fields: 'id,name,parents,driveId',
       supportsAllDrives: true,
-      corpora: parentId ? 'drive' : undefined,
-      driveId: parentId,
+      corpora: 'drive',
+      driveId: context.driveId,
     } as any);
     const f = created.data as any;
     current = { id: f.id, name: f.name, driveId: f.driveId || null, parents: f.parents || null };
