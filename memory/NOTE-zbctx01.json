@@ -1,0 +1,9 @@
+{
+  "NOTE-zbctx01.json": {
+    "timestamp": "2025-09-12T00:00:00Z",
+    "fonte": "nota",
+    "autore": "utente",
+    "contenuto": "Contesto: SaaS API-first per automazioni Google Workspace (Zantara Bridge) con endpoint REST e CLI/console.",
+    "tag": ["CONTESTO", "PRODUCT"],
+    "id": "NOTE-zbctx01"
+  },
