@@ -6,7 +6,7 @@ PROJ="${PROJ:-involuted-box-469105-r0}"
 REGION="${REGION:-asia-southeast2}"
 REPO="${REPO:-zantara-repo}"
 SERVICE="${SERVICE:-zantara-chat-v3-1064094238013}"
-SHARE_ID="${DRIVE_ID_AMBARADAM:-}"  # optional
+FOLDER_ID="${DRIVE_FOLDER_AMBARADAM:-}"  # required
 
 echo "Project: $PROJ"; echo "Region: $REGION"; echo "Service: $SERVICE"; echo "Repo: $REPO";
 
@@ -26,7 +26,7 @@ gcloud run services update "$SERVICE" \
 if [[ -n "${SHARE_ID}" ]]; then
   gcloud run services update "$SERVICE" \
     --region "$REGION" --project "$PROJ" \
-    --update-env-vars="DRIVE_ID_AMBARADAM=${SHARE_ID}"
+    --update-env-vars="DRIVE_FOLDER_AMBARADAM=${FOLDER_ID}"
 fi
 
 echo "Building TypeScript..."

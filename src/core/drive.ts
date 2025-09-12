@@ -90,37 +90,16 @@ export async function whoami(): Promise<{
     about = { error: e?.message || 'about_failed' };
   }
 
-  const sharedId = (process.env.DRIVE_ID_AMBARADAM || '').trim();
   let sample: any[] = [];
-  let driveMeta: any = {};
-
-  if (sharedId) {
-    try {
-      const md = await fetch(
-        `https://www.googleapis.com/drive/v3/drives/${encodeURIComponent(sharedId)}`,
-        { headers }
-      );
-      driveMeta = md.ok ? await md.json() : { error: await md.text() };
-
-      const url = `https://www.googleapis.com/drive/v3/files?driveId=${encodeURIComponent(
-        sharedId
-      )}&corpora=drive&supportsAllDrives=true&includeItemsFromAllDrives=true&pageSize=1&q=trashed=false&fields=files(id,name)`;
-      const res = await fetch(url, { headers });
-      const data = res.ok ? await res.json() : { files: [], error: await res.text() };
-      sample = data.files || [];
-    } catch (e: any) {
-      driveMeta = { id: sharedId, error: e?.message || 'forbidden' };
-    }
-  } else {
-    try {
-      const url =
-        'https://www.googleapis.com/drive/v3/files?corpora=user&supportsAllDrives=true&includeItemsFromAllDrives=true&pageSize=1&q=trashed=false&fields=files(id,name)';
-      const res = await fetch(url, { headers });
-      const data = res.ok ? await res.json() : { files: [], error: await res.text() };
-      sample = data.files || [];
-    } catch (e: any) {
-      sample = [];
-    }
+  let driveMeta: any = { info: 'My Drive context (no shared drive)' };
+  try {
+    const url =
+      'https://www.googleapis.com/drive/v3/files?corpora=user&supportsAllDrives=true&includeItemsFromAllDrives=true&pageSize=1&q=trashed=false&fields=files(id,name)';
+    const res = await fetch(url, { headers });
+    const data = res.ok ? await res.json() : { files: [], error: await res.text() };
+    sample = data.files || [];
+  } catch (e: any) {
+    sample = [];
   }
 
   return {
@@ -137,31 +116,12 @@ export async function whoami(): Promise<{
 // Shared Drive helpers
 // ===============
 
-export function getSharedDriveId(): string | null {
-  const id = (process.env.DRIVE_ID_AMBARADAM || '').trim();
-  return id || null;
-}
+// Deprecated helpers removed: we no longer use a Shared Drive root.
+// All operations are now anchored by a folderId (DRIVE_FOLDER_AMBARADAM) in My Drive.
 
-export function listInSharedDriveParams(overrides: any = {}): any {
-  const driveId = getSharedDriveId();
-  return {
-    corpora: 'drive',
-    driveId: driveId || undefined,
-    includeItemsFromAllDrives: true,
-    supportsAllDrives: true,
-    ...overrides,
-  };
-}
-
-export function withAllDrives<T extends Record<string, any>>(
-  overrides: T
-): T & { supportsAllDrives: true } {
-  return { supportsAllDrives: true, ...overrides } as any;
-}
-
-export function ensureParentsInSharedDrive(parents?: string[] | null): string[] | undefined {
-  const driveId = getSharedDriveId();
-  const list = Array.isArray(parents) ? parents.slice() : [];
-  if (driveId && !list.includes(driveId)) list.unshift(driveId);
-  return list.length ? list : undefined;
+export type DriveContext = { folderId: string };
+export function resolveDriveContext(): DriveContext {
+  const folderId = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim();
+  if (!folderId) throw new Error('Missing DRIVE_FOLDER_AMBARADAM');
+  return { folderId };
 }

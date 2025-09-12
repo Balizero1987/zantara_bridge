@@ -57,6 +57,6 @@ gcloud run deploy "$SERVICE" --image "$IMG" --region "$REGION" --project "$PROJ"
 - Configure service env:
   - `gcloud run services update "$SERVICE" --region "$REGION" --project "$PROJ" \\
     --update-secrets="GOOGLE_SERVICE_ACCOUNT_KEY=GOOGLE_SERVICE_ACCOUNT_KEY:latest,ZANTARA_PLUGIN_API_KEY=ZANTARA_PLUGIN_API_KEY:latest" \\
-    --update-env-vars="ENABLE_DIAG=true,DRIVE_ID_AMBARADAM=0A..."`
-- `DRIVE_ID_AMBARADAM` optional; SA must be a member of the Shared Drive to list files.
+    --update-env-vars="ENABLE_DIAG=true,DRIVE_FOLDER_AMBARADAM=<folderId>"`
+- Shared Drive non più usata. Usare solo `DRIVE_FOLDER_AMBARADAM` (cartella AMBARADAM in My Drive, accessibile dal SA).
 - Set `ENABLE_DIAG=false` in production.
