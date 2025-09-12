@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import { google } from 'googleapis';
 import { impersonatedClient } from '../../google';
-import { withAllDrives } from '../../core/drive';
 
 export async function permissionsAuditHandler(req: Request, res: Response) {
   try {
@@ -10,7 +9,7 @@ export async function permissionsAuditHandler(req: Request, res: Response) {
     const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/drive']);
     const drive = google.drive({ version: 'v3', auth: ic.auth });
-    const { data } = await drive.permissions.list(withAllDrives({ fileId, fields: 'permissions(id,type,role,domain,expirationTime,emailAddress,displayName)' } as any) as any);
+    const { data } = await drive.permissions.list({ fileId, fields: 'permissions(id,type,role,domain,expirationTime,emailAddress,displayName)' } as any);
     return res.json({ ok: true, fileId, permissions: data.permissions || [] });
   } catch (e: any) {
     const status = e?.response?.status || 500;
