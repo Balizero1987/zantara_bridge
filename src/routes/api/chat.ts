@@ -85,7 +85,7 @@ export default function registerChat(r: Router) {
       const store = chooseProfileStore();
       const profile = owner ? await store.get(owner) : null;
       const persona = buildPersonaSystemPrompt(profile);
-      const messages = await buildMessages(owner, message, !!ririMode, persona);
+      const messages = await buildMessages(owner, message, !!ririMode);
 
       // Chiamata al modello OpenAI
       const out = await openai.chat.completions.create({
