@@ -39,7 +39,7 @@ export default function registerDriveBrief(r: Router) {
       const owner = (req as any).canonicalOwner || 'UNKNOWN';
       const dateKey = String(req.body?.dateKey || new Date().toISOString().slice(0, 10));
       const ambaradamFolder = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim();
-      if (!ambaramdamFolder && !process.env.DRIVE_FOLDER_AMBARADAM) {
+      if (!ambaradamFolder && !process.env.DRIVE_FOLDER_AMBARADAM) {
         return res.status(500).json({ ok: false, error: 'Missing DRIVE_FOLDER_AMBARADAM' });
       }
 
