@@ -1,0 +1,9 @@
+"NOTE-zbguides01.json": {
+    "timestamp": "2025-09-12T00:00:00Z",
+    "fonte": "nota",
+    "autore": "utente",
+    "contenuto": "Linee guida presenti: docs modulari (/docs,/scripts,/routes); log conversazionali Codex/Claude; smoke test CLI; policy IAM + OIDC/WIF centralizzate; backup incrementali; naming condiviso.",
+    "tag": ["DOCS", "TEST", "SECURITY", "BACKUP", "NAMING"],
+    "id": "NOTE-zbguides01"
+  }
+}
