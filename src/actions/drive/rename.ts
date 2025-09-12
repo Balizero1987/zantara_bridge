@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { google } from 'googleapis';
-import { withAllDrives } from '../../core/drive';
 import { impersonatedClient } from '../../google';
 
 export async function renameDriveFileHandler(req: Request, res: Response) {
@@ -10,7 +9,7 @@ export async function renameDriveFileHandler(req: Request, res: Response) {
     const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/drive']);
     const drive = google.drive({ version: 'v3', auth: ic.auth });
-    const { data } = await drive.files.update(withAllDrives({ fileId, requestBody: { name }, fields: 'id,name' } as any) as any);
+    const { data } = await drive.files.update({ fileId, requestBody: { name }, fields: 'id,name' } as any);
     (req as any).log?.info?.({ action: 'drive.rename', fileId, name: data.name });
     return res.json({ ok: true, id: data.id, name: data.name });
   } catch (e: any) {

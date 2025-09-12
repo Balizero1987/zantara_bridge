@@ -2,7 +2,6 @@ import { Request, Response } from 'express';
 import { google } from 'googleapis';
 import { Readable } from 'stream';
 import { impersonatedClient } from '../../google';
-import { withAllDrives } from '../../core/drive';
 
 export async function modifyDriveFileHandler(req: Request, res: Response) {
   try {
@@ -18,11 +17,11 @@ export async function modifyDriveFileHandler(req: Request, res: Response) {
     ]);
     const drive = google.drive({ version: 'v3', auth: ic.auth });
     const stream = Readable.from(Buffer.from(content, 'utf8'));
-    const { data } = await drive.files.update(withAllDrives({
+    const { data } = await drive.files.update({
       fileId,
       media: { mimeType: mt, body: stream },
       fields: 'id,name,modifiedTime',
-    } as any) as any);
+    } as any);
     (req as any).log?.info?.({ action: 'drive.modify', fileId, mimeType: mt });
     return res.json({ ok: true, id: data.id, name: (data as any).name, modifiedTime: (data as any).modifiedTime });
   } catch (e: any) {

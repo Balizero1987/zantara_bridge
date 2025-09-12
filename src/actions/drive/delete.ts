@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import { google } from 'googleapis';
-import { withAllDrives } from '../../core/drive';
 import { impersonatedClient } from '../../google';
 
 export async function deleteDriveFileHandler(req: Request, res: Response) {
@@ -10,7 +9,7 @@ export async function deleteDriveFileHandler(req: Request, res: Response) {
     const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/drive']);
     const drive = google.drive({ version: 'v3', auth: ic.auth });
-    await drive.files.delete(withAllDrives({ fileId } as any) as any);
+    await drive.files.delete({ fileId } as any);
     (req as any).log?.info?.({ action: 'drive.delete', fileId });
     return res.json({ ok: true });
   } catch (e: any) {
