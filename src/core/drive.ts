@@ -120,7 +120,130 @@ export async function whoami(): Promise<{
 // All operations are now anchored by a folderId (DRIVE_FOLDER_AMBARADAM) in My Drive.
 
 export type DriveContext = { folderId: string };
-export function resolveDriveContext(): DriveContext {
+
+/**
+ * Utility functions for dynamic folder resolution
+ */
+async function findFolderByNameGlobal(token: string, name: string): Promise<string | null> {
+  console.log(`[DEBUG] findFolderByNameGlobal - searching for: ${name}`);
+  try {
+    const url = new URL('https://www.googleapis.com/drive/v3/files');
+    url.searchParams.set('q', `name='${name.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
+    url.searchParams.set('fields', 'files(id,name)');
+    url.searchParams.set('supportsAllDrives', 'true');
+    url.searchParams.set('includeItemsFromAllDrives', 'true');
+    url.searchParams.set('corpora', 'allDrives');
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) {
+      console.log(`[DEBUG] findFolderByNameGlobal - API error: ${res.status}`);
+      return null;
+    }
+    const data: any = await res.json();
+    const folderId = data?.files?.[0]?.id || null;
+    console.log(`[DEBUG] findFolderByNameGlobal - result: ${folderId}`);
+    return folderId;
+  } catch (e: any) {
+    console.log(`[DEBUG] findFolderByNameGlobal - exception: ${e.message}`);
+    return null;
+  }
+}
+
+async function ensurePathUnderParent(token: string, rootId: string, segments: string[]): Promise<string> {
+  console.log(`[DEBUG] ensurePathUnderParent - rootId: ${rootId}, segments: ${segments.join('/')}`);
+  let parent = rootId;
+  for (const seg of segments) {
+    const q = `name='${seg.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and '${parent}' in parents and trashed=false`;
+    const url = new URL('https://www.googleapis.com/drive/v3/files');
+    url.searchParams.set('q', q);
+    url.searchParams.set('fields', 'files(id,name)');
+    url.searchParams.set('supportsAllDrives', 'true');
+    url.searchParams.set('includeItemsFromAllDrives', 'true');
+    const sres = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const sdata: any = await sres.json();
+    let id: string | undefined = sdata?.files?.[0]?.id;
+    if (!id) {
+      console.log(`[DEBUG] ensurePathUnderParent - creating folder: ${seg} under ${parent}`);
+      const cres = await fetch('https://www.googleapis.com/drive/v3/files?supportsAllDrives=true&fields=id,name', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: seg, mimeType: 'application/vnd.google-apps.folder', parents: [parent] }),
+      });
+      if (!cres.ok) throw new Error(`Create folder failed: ${cres.status}`);
+      const cdata: any = await cres.json();
+      id = cdata.id;
+    }
+    if (!id) throw new Error(`Failed to resolve folder: ${seg}`);
+    parent = id;
+    console.log(`[DEBUG] ensurePathUnderParent - resolved ${seg} to: ${id}`);
+  }
+  return parent;
+}
+
+/**
+ * Enhanced resolveDriveContext with dynamic folder resolution fallback
+ */
+export async function resolveDriveContext(ownerRaw?: string): Promise<DriveContext> {
+  console.log('[DEBUG] resolveDriveContext - starting resolution');
+  
+  // Try environment variable first
+  const envFolderId = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim();
+  console.log('[DEBUG] resolveDriveContext - DRIVE_FOLDER_AMBARADAM:', envFolderId || '(empty)');
+  
+  if (envFolderId) {
+    console.log('[DEBUG] resolveDriveContext - using env folderId:', envFolderId);
+    return { folderId: envFolderId };
+  }
+  
+  // Fallback to dynamic resolution
+  console.log('[DEBUG] resolveDriveContext - attempting dynamic resolution');
+  
+  try {
+    const { token } = await getAccessToken();
+    const rootFolder = process.env.DEFAULT_FOLDER_ROOT || 'AMBARADAM';
+    const owner = (ownerRaw || 'BOSS').toUpperCase();
+    
+    console.log('[DEBUG] resolveDriveContext - DEFAULT_FOLDER_ROOT:', rootFolder);
+    console.log('[DEBUG] resolveDriveContext - owner:', owner);
+    
+    // Try to find root folder by name
+    let ambaradamId = await findFolderByNameGlobal(token, rootFolder);
+    
+    if (!ambaradamId) {
+      console.warn('[WARN] resolveDriveContext - root folder not found, creating it');
+      // Create root folder if it doesn't exist
+      const createRes = await fetch('https://www.googleapis.com/drive/v3/files?supportsAllDrives=true&fields=id,name', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          name: rootFolder, 
+          mimeType: 'application/vnd.google-apps.folder' 
+        }),
+      });
+      if (!createRes.ok) {
+        throw new Error(`Failed to create root folder ${rootFolder}: ${createRes.status}`);
+      }
+      const createData: any = await createRes.json();
+      ambaradamId = createData.id;
+      console.log('[DEBUG] resolveDriveContext - created root folder:', ambaradamId);
+    }
+    
+    // Ensure owner subfolder exists  
+    if (!ambaradamId) throw new Error('Failed to resolve AMBARADAM folder');
+    const finalFolderId = await ensurePathUnderParent(token, ambaradamId, [owner]);
+    console.log('[DEBUG] resolveDriveContext - final folderId:', finalFolderId);
+    
+    return { folderId: finalFolderId };
+    
+  } catch (e: any) {
+    console.error('[ERROR] resolveDriveContext - dynamic resolution failed:', e.message);
+    throw new Error('AMBARADAM authentication required');
+  }
+}
+
+/**
+ * Legacy synchronous version for backward compatibility
+ */
+export function resolveDriveContextSync(): DriveContext {
   const folderId = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim();
   if (!folderId) throw new Error('Missing DRIVE_FOLDER_AMBARADAM');
   return { folderId };

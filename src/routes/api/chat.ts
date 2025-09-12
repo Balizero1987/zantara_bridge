@@ -178,7 +178,7 @@ async function resolveOwnerFromDrive(proposedCanonical: string): Promise<{ canon
 
   // Verify folder exists under AMBARADAM
   const token = await getAccessToken();
-  const { folderId } = resolveDriveContext();
+  const { folderId } = await resolveDriveContext();
   let ambRoot = folderId || null;
   if (!ambRoot) ambRoot = await findFolderByNameGlobal(token, 'AMBARADAM');
   if (!ambRoot) return null;
