@@ -177,9 +177,23 @@ function isNonEmptyId(id: string | null): id is string {
 // ==========================
 export async function saveNote(ownerRaw: string, text: string, title?: string): Promise<{ id: string; name: string; webViewLink?: string }> {
   const accessToken = await getAccessToken();
+  
+  // ⏺ DEBUG: Logging per verifica
+  console.log('[DEBUG] saveNote - ownerRaw:', ownerRaw);
+  console.log('[DEBUG] saveNote - title:', title);
+  console.log('[DEBUG] saveNote - text length:', text?.length);
+  
   const { folderId } = resolveDriveContext();
+  console.log('[DEBUG] saveNote - resolveDriveContext folderId:', folderId);
+  
   const ownerFolderName = (ownerRaw || 'BOSS').replace(/_/g, ' ').trim();
   const forcedRoot = folderId || null;
+  
+  // ⏺ Fallback se il resolve fallisce
+  if (!forcedRoot) {
+    console.warn('[WARN] Failed to resolve Drive context - no folderId available');
+    throw new Error('AMBARADAM authentication required');
+  }
 
   // determine root base
   let parentId = forcedRoot || folderId;
