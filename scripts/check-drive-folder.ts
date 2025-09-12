@@ -8,11 +8,10 @@ async function main() {
 
     const drive = google.drive({ version: "v3", auth });
 
-    const folderId =
-      process.env.BRIEF_DRIVE_FOLDER_ID || process.env.ZANTARA_SHARED_DRIVE_ID;
+    const folderId = process.env.BRIEF_DRIVE_FOLDER_ID || process.env.DRIVE_FOLDER_AMBARADAM;
 
     if (!folderId) {
-      console.error("❌ Nessuna variabile BRIEF_DRIVE_FOLDER_ID o ZANTARA_SHARED_DRIVE_ID trovata");
+      console.error("❌ Nessuna variabile BRIEF_DRIVE_FOLDER_ID o DRIVE_FOLDER_AMBARADAM trovata");
       process.exit(1);
     }
 

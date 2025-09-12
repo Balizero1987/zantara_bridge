@@ -65,16 +65,7 @@ async function findOrCreateOwnerFolder(drive: any, rootId: string, owner: string
   const escQ = (s: string) => s.replace(/'/g, "\\'");
   const name = owner.trim();
   const q = `name='${escQ(name)}' and mimeType='application/vnd.google-apps.folder' and '${rootId}' in parents and trashed=false`;
-  const driveId = (process.env.DRIVE_ID_AMBARADAM || '').trim() || undefined;
-  const listParams: any = {
-    q,
-    fields: 'files(id,name)',
-    supportsAllDrives: true,
-    includeItemsFromAllDrives: true,
-    corpora: driveId ? 'drive' : 'allDrives',
-    driveId,
-  };
-  const { data } = await drive.files.list(listParams);
+  const { data } = await drive.files.list({ q, fields: 'files(id,name)', supportsAllDrives: true, includeItemsFromAllDrives: true } as any);
   if (data.files && data.files[0]?.id) return data.files[0].id as string;
   const { data: created } = await drive.files.create({
     requestBody: { name, mimeType: 'application/vnd.google-apps.folder', parents: [rootId] },
@@ -88,8 +79,7 @@ async function uploadOrReplaceDocx(drive: any, parentId: string, name: string, b
   // Search by exact name within the owner folder
   const escQ = (s: string) => s.replace(/'/g, "\\'");
   const q = `name='${escQ(name)}' and '${parentId}' in parents and trashed=false`;
-  const driveId = (process.env.DRIVE_ID_AMBARADAM || '').trim() || undefined;
-  const { data: list } = await drive.files.list({ q, fields: 'files(id,name,parents)', supportsAllDrives: true, includeItemsFromAllDrives: true, corpora: driveId ? 'drive' : 'allDrives', driveId } as any);
+  const { data: list } = await drive.files.list({ q, fields: 'files(id,name,parents)', supportsAllDrives: true, includeItemsFromAllDrives: true } as any);
   if (list.files && list.files[0]?.id) {
     const fileId = list.files[0].id as string;
     const stream = Readable.from(buffer);

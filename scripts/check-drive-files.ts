@@ -7,24 +7,25 @@ async function main() {
 
   const drive = google.drive({ version: "v3", auth });
 
-  const driveId = process.env.DRIVE_ID_AMBARADAM; // ID dello Shared Drive
+  const rootFolder = process.env.DRIVE_FOLDER_AMBARADAM; // ID cartella AMBARADAM in My Drive
   const owner = process.argv[2] || "BOSS"; // default BOSS se non passi argomento
 
-  if (!driveId) {
-    console.error("❌ DRIVE_ID_AMBARADAM non impostato");
+  if (!rootFolder) {
+    console.error("❌ DRIVE_FOLDER_AMBARADAM non impostato");
     process.exit(1);
   }
 
-  console.log(`📂 Listing files in ${owner} (driveId=${driveId})`);
+  console.log(`📂 Listing files in ${owner} (rootFolder=${rootFolder})`);
 
+  // Trova (o crea) la cartella dell'owner sotto AMBARADAM
+  const esc = (s: string) => s.replace(/'/g, "\\'");
+  const qOwner = `name='${esc(owner)}' and mimeType='application/vnd.google-apps.folder' and '${rootFolder}' in parents and trashed=false`;
   const res = await drive.files.list({
-    q: `name='${owner}' and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-    corpora: "drive",
-    driveId,
+    q: qOwner,
     includeItemsFromAllDrives: true,
     supportsAllDrives: true,
     fields: "files(id,name)",
-  });
+  } as any);
 
   if (!res.data.files || res.data.files.length === 0) {
     console.log(`⚠️ Nessuna cartella trovata per ${owner}`);
@@ -36,14 +37,12 @@ async function main() {
 
   const files = await drive.files.list({
     q: `'${folderId}' in parents and trashed=false`,
-    corpora: "drive",
-    driveId,
     includeItemsFromAllDrives: true,
     supportsAllDrives: true,
     fields: "files(id,name,webViewLink,createdTime)",
     orderBy: "createdTime desc",
     pageSize: 10,
-  });
+  } as any);
 
   if (!files.data.files || files.data.files.length === 0) {
     console.log(`⚠️ Nessun file trovato in cartella ${owner}`);

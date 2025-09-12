@@ -38,14 +38,9 @@ export default function registerDriveBrief(r: Router) {
     try {
       const owner = (req as any).canonicalOwner || 'UNKNOWN';
       const dateKey = String(req.body?.dateKey || new Date().toISOString().slice(0, 10));
-      const driveId = process.env.DRIVE_ID_AMBARADAM;
-
-      if (!driveId || !driveId.startsWith('0A')) {
-        return res.status(500).json({
-          ok: false,
-          error: 'invalid_drive_config',
-          detail: 'DRIVE_ID_AMBARADAM must start with 0A...',
-        });
+      const ambaradamFolder = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim();
+      if (!ambaradamFolder && !process.env.DRIVE_FOLDER_AMBARADAM) {
+        return res.status(500).json({ ok: false, error: 'Missing DRIVE_FOLDER_AMBARADAM' });
       }
 
       // Leggi note da Firestore (senza pretendere campi title/content forti)
@@ -152,25 +147,14 @@ export default function registerDriveBrief(r: Router) {
       const forcedAmbaradam = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim() || null;
       const ownerFolder = (owner || 'BOSS').replace(/_/g, ' ').trim();
 
-      let rootParent = forcedBriefRoot || forcedAmbaradam || driveId!;
-      if (!forcedBriefRoot && !forcedAmbaradam) {
-        // Prova a risolvere la cartella AMBARADAM nella shared drive
-        const resolved = await findFolderByName(token, driveId!, 'AMBARADAM');
-        if (resolved) rootParent = resolved;
-      }
+      let rootParent = forcedBriefRoot || forcedAmbaradam || ambaradamFolder;
 
       // AMBARADAM/<OWNER>/Brief (o <forcedRoot>/<OWNER>/Brief)
       const ownerId = await ensureFolder(token, rootParent, ownerFolder);
       const briefRootId = await ensureFolder(token, ownerId, 'Brief');
 
       // ===== Upload DOCX nella cartella Brief =====
-      let fileMeta: any;
-      try {
-        fileMeta = await uploadDocx({ name: `Brief-${owner}-${dateKey}.docx`, parents: [briefRootId] }, Buffer.from(buffer));
-      } catch (_e) {
-        // Fallback: root drive
-        fileMeta = await uploadDocx({ name: `Brief-${owner}-${dateKey}.docx`, parents: [driveId] }, Buffer.from(buffer));
-      }
+      const fileMeta = await uploadDocx({ name: `Brief-${owner}-${dateKey}.docx`, parents: [briefRootId] }, Buffer.from(buffer));
 
       return res.status(200).json({ ok: true, file: fileMeta });
     } catch (error: any) {
@@ -189,9 +173,8 @@ export default function registerDriveBrief(r: Router) {
    */
   r.post('/api/drive/_write_smoke', async (req: Request, res: Response) => {
     try {
-      const driveId = (process.env.DRIVE_ID_AMBARADAM || '').trim();
-      const folderId = (req.query.folderId as string | undefined)?.trim();
-      if (!driveId && !folderId) return res.status(500).json({ ok: false, error: 'missing DRIVE_ID_AMBARADAM or folderId' });
+      const folderId = (req.query.folderId as string | undefined)?.trim() || (process.env.DRIVE_FOLDER_AMBARADAM || '').trim();
+      if (!folderId) return res.status(500).json({ ok: false, error: 'missing folderId (DRIVE_FOLDER_AMBARADAM)' });
       const name = `Smoke-${Date.now()}.txt`;
       // Acquire SA token and call Drive REST directly (metadata-only create)
       const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '';
@@ -215,13 +198,7 @@ export default function registerDriveBrief(r: Router) {
         return resp.json();
       }
 
-      let file: any;
-      try {
-        file = await createMetadata({ name, parents: [folderId || driveId], mimeType: 'application/vnd.google-apps.document' });
-      } catch (_e) {
-        // Fallback to My Drive
-        file = await createMetadata({ name, mimeType: 'application/vnd.google-apps.document' });
-      }
+      const file = await createMetadata({ name, parents: [folderId], mimeType: 'application/vnd.google-apps.document' });
 
       // delete=true by default; set ?delete=false to keep the file
       const doDelete = String(req.query.delete || 'true') !== 'false';
