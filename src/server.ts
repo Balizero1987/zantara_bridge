@@ -1,61 +1,34 @@
-import express from 'express';
-import pino from 'pino';
-
-// Middleware
-import { pluginCors } from './middleware/corsPlugin';
-import { pluginLimiter } from './middleware/rateLimit';
-import { apiKeyGuard } from './middleware/authPlugin';
-
-// Routes API
-import registerNotes from './routes/api/notes';
-import registerChat from './routes/api/chat';
-import registerDocgen from './routes/api/docgen';
-import registerDriveBrief, { registerDriveDebug } from './routes/api/driveBrief';
-import registerUserPreferences from './routes/api/userPreferences';
-import registerMemory from './routes/api/memory';
-
-// Public/plugin manifest
-import registerPlugin from './routes/plugin';
+import express from "express";
+import router from "./chatRouter";
+import identity, { requireIdentity } from "./api/identity";
+import gmail from "./api/gmail";
+import drive, { driveDiagRouter } from "./api/drive";
+import chat from "./api/chat";
+import memory from "./api/memory";
 
 const app = express();
-app.set('trust proxy', true);
-app.disable('x-powered-by');
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json());
 
-// Public middleware
-app.use(pluginCors);
-app.use(pluginLimiter);
+// Rotte principali (Codex, Drive, Calendar…)
+app.use(router);
 
-// Public health/info
-app.get('/health', (_req, res) => res.json({ ok: true, service: 'zantara-bridge' }));
-app.get('/version', (_req, res) => res.json({ version: process.env.ZANTARA_VERSION || 'dev' }));
+// Health check
+app.get("/health", (_req, res) => res.json({ ok: true, service: "zantara-bridge" }));
 
-// Manifest + OpenAPI
-registerPlugin(app);
+// Identity (login/me)
+app.use(identity);
 
-// Protected area (API key)
-app.use(apiKeyGuard);
-registerNotes(app);
-registerChat(app);
-registerDocgen(app);
-registerDriveBrief(app);
-registerDriveDebug(app);
-registerUserPreferences(app);
-registerMemory(app);
+// Azioni che richiedono login AMBARADAM
+app.use("/actions/gmail", requireIdentity, gmail);
+app.use("/actions/memory", requireIdentity, memory);
+app.use("/actions/drive", requireIdentity, drive);
+app.use("/actions/chat", requireIdentity, chat);
 
-// Minimal assets
-app.get('/logo.png', (_req, res) => {
-  res.type('png');
-  const b = Buffer.from(
-    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGP4BwQACfsD/ed8yQgAAAAASUVORK5CYII=',
-    'base64'
-  );
-  res.send(b);
-});
-app.get('/terms', (_req, res) => res.send('Terms will be provided by Bali Zero.'));
+// Diagnostica Drive (senza login AMBARADAM; usarla per setup/health)
+app.use("/diag/drive", driveDiagRouter);
 
-// Start server
+// Porta
 const port = process.env.PORT || 8080;
-app.listen(port, () => pino().info({ message: 'plugin.ready', port }));
+app.listen(port, () => console.log("Listening on", port));
 
 export default app;
