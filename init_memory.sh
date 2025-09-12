@@ -1,5 +1,5 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -euo pipefail
 
 mkdir -p memory
 
@@ -36,4 +36,4 @@ cat > memory/NOTE-zbguides01.json <<EOF
 }
 EOF
 
-echo "✅ Memory inizializzata in memory/"
+echo "✅ Memory initialized: 3 NOTE-*.json salvate in ./memory/"
