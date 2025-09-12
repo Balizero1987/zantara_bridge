@@ -3,8 +3,7 @@
   Migrates root-level Brief-* docs into AMBARADAM/<OWNER>/Brief/
   Env required:
     - GOOGLE_SERVICE_ACCOUNT_KEY (JSON)
-    - DRIVE_ID_AMBARADAM (shared drive id, 0A...)
-    - DRIVE_FOLDER_AMBARADAM (folder id of AMBARADAM) [recommended]
+    - DRIVE_FOLDER_AMBARADAM (folder id of AMBARADAM root in My Drive)
 */
 const { GoogleAuth } = require('google-auth-library');
 
@@ -29,21 +28,20 @@ async function rest(method, url, token, body, headers = {}) {
   return res.json();
 }
 
-async function findFolderByNameInDrive(token, driveId, name) {
+async function findFolderByNameGlobal(token, name) {
   const url = new URL('https://www.googleapis.com/drive/v3/files');
   url.searchParams.set('q', `name='${name.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
   url.searchParams.set('fields', 'files(id,name)');
   url.searchParams.set('supportsAllDrives', 'true');
   url.searchParams.set('includeItemsFromAllDrives', 'true');
-  url.searchParams.set('corpora', 'drive');
-  url.searchParams.set('driveId', driveId);
+  url.searchParams.set('corpora', 'allDrives');
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) return null;
   const data = await res.json();
   return (data.files && data.files[0] && data.files[0].id) || null;
 }
 
-async function ensurePath(token, driveId, rootId, segments) {
+async function ensurePath(token, rootId, segments) {
   let parent = rootId;
   for (const seg of segments) {
     const q = `name='${seg.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and '${parent}' in parents and trashed=false`;
@@ -52,8 +50,6 @@ async function ensurePath(token, driveId, rootId, segments) {
     url.searchParams.set('fields', 'files(id,name)');
     url.searchParams.set('supportsAllDrives', 'true');
     url.searchParams.set('includeItemsFromAllDrives', 'true');
-    url.searchParams.set('corpora', 'drive');
-    url.searchParams.set('driveId', driveId);
     const sres = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     const sdata = await sres.json();
     let id = sdata.files && sdata.files[0] && sdata.files[0].id;
@@ -79,9 +75,8 @@ function parseOwnerFromBrief(name) {
 
 async function main() {
   const token = await getToken();
-  const driveId = (process.env.DRIVE_ID_AMBARADAM || '').trim();
   const ambRoot = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim();
-  if (!driveId) throw new Error('DRIVE_ID_AMBARADAM required');
+  if (!ambRoot) throw new Error('DRIVE_FOLDER_AMBARADAM required');
 
   // 1) Cerca tutti i Brief-* in tutta la drive
   const listUrl = new URL('https://www.googleapis.com/drive/v3/files');
@@ -89,15 +84,12 @@ async function main() {
   listUrl.searchParams.set('fields', 'files(id,name,parents)');
   listUrl.searchParams.set('supportsAllDrives', 'true');
   listUrl.searchParams.set('includeItemsFromAllDrives', 'true');
-  listUrl.searchParams.set('corpora', 'drive');
-  listUrl.searchParams.set('driveId', driveId);
+  listUrl.searchParams.set('corpora', 'allDrives');
   const all = await rest('GET', listUrl.toString(), token);
 
   // 2) Risolvi AMBARADAM base
-  let ambaradamId = ambRoot;
-  if (!ambRoot) ambaradamId = await findFolderByNameInDrive(token, driveId, 'AMBARADAM');
+  const ambaradamId = ambRoot || await findFolderByNameGlobal(token, 'AMBARADAM');
   if (!ambardamIdTruthy(ambaramId(ambardamId))) throw new Error('AMBARADAM folder not found');
-  ambaradamId = ambaradamId;
 
   let moved = 0;
   for (const f of all.files || []) {
@@ -107,7 +99,7 @@ async function main() {
     // se già sotto AMBARADAM, salta
     if (parents.includes(ambaramId(ambardamId))) continue;
     const ownerFolder = owner.replace(/_/g, ' ').trim();
-    const briefTarget = await ensurePath(token, driveId, ambaradamId, [ownerFolder, 'Brief']);
+    const briefTarget = await ensurePath(token, ambaradamId, [ownerFolder, 'Brief']);
     const addParents = briefTarget;
     const removeParents = parents.join(',');
     // move
@@ -124,4 +116,3 @@ main().catch((e) => {
   console.error(JSON.stringify({ ok: false, error: e.message }));
   process.exit(1);
 });
-

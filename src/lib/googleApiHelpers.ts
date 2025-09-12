@@ -35,14 +35,12 @@ export async function driveShare(fileId: string, email: string, role: 'reader' |
 
 export async function driveSearch(query: string, auth: any) {
   const drive = google.drive({ version: 'v3', auth });
-  const driveId = (process.env.DRIVE_ID_AMBARADAM || '').trim() || undefined;
   const res = await drive.files.list({
     q: query,
     fields: 'files(id,name,mimeType,webViewLink)',
     includeItemsFromAllDrives: true,
     supportsAllDrives: true,
-    corpora: driveId ? 'drive' : 'allDrives',
-    driveId,
+    corpora: 'allDrives',
   } as any);
   return res.data.files || [];
 }
@@ -81,9 +79,7 @@ export async function findFolderByName(name: string, auth: any): Promise<DriveFo
   } as any);
   const files = data.files || [];
   if (!files.length) return null;
-  // Prefer a match inside configured shared drive, if provided
-  const preferredDrive = process.env.ZANTARA_SHARED_DRIVE_ID;
-  const chosen = preferredDrive ? (files.find(f => (f as any).driveId === preferredDrive) || files[0]) : files[0];
+  const chosen = files[0];
   return { id: chosen.id!, name: chosen.name!, driveId: (chosen as any).driveId || null, parents: (chosen as any).parents || null };
 }
 
@@ -115,29 +111,29 @@ export async function resolveFolderPath(path: string, auth: any, createIfMissing
   if (!segments.length) return null;
   const drive = google.drive({ version: 'v3', auth });
 
-  // Resolve first segment across all drives, prefer configured shared drive
-  let current: DriveFolderRef | null = await findFolderByName(segments[0], auth);
-  if (!current && !createIfMissing) return null;
-  if (!current && createIfMissing) {
-    // Create at shared drive root if available, otherwise My Drive root
-    const preferredDrive = process.env.ZANTARA_SHARED_DRIVE_ID || undefined;
-    let parents: any = undefined;
-    if (preferredDrive) {
-      // Create under the shared drive root by specifying driveId and parents as the drive root via 'driveId' + 'supportsAllDrives'
-      // Google API doesn't allow direct 'root' parent id for shared drives; omit parents to let it use the drive root when driveId+corpora provided in request.
-      // Workaround: search any item in the drive to infer a parent; if not found, creation without parents still places it in user's My Drive.
-      // We instead attempt to create without parents (Shared Drive admins commonly restrict this). Fallback to search again.
+  // Anchor to AMBARADAM root if provided via env
+  const rootFolder = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim();
+  let current: DriveFolderRef | null = rootFolder ? { id: rootFolder, name: 'AMBARADAM' } as any : null;
+  let startIndex = 0;
+  if (current && segments.length && segments[0].toUpperCase() === 'AMBARADAM') startIndex = 1;
+
+  // If no explicit root, resolve the first segment globally (and optionally create it)
+  if (!current) {
+    current = await findFolderByName(segments[0], auth);
+    if (!current && !createIfMissing) return null;
+    if (!current && createIfMissing) {
+      const created = await drive.files.create({
+        requestBody: { name: segments[0], mimeType: 'application/vnd.google-apps.folder' },
+        fields: 'id,name,parents,driveId',
+        supportsAllDrives: true,
+      } as any);
+      const f = created.data as any;
+      current = { id: f.id, name: f.name, driveId: f.driveId || null, parents: f.parents || null };
     }
-    const created = await drive.files.create({
-      requestBody: { name: segments[0], mimeType: 'application/vnd.google-apps.folder' },
-      fields: 'id,name,parents,driveId',
-      supportsAllDrives: true,
-    } as any);
-    const f = created.data as any;
-    current = { id: f.id, name: f.name, driveId: f.driveId || null, parents: f.parents || null };
+    startIndex = 1;
   }
 
-  for (let i = 1; i < segments.length; i++) {
+  for (let i = startIndex; i < segments.length; i++) {
     const seg = segments[i];
     if (!current) return null;
     current = createIfMissing

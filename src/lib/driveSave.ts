@@ -1,14 +1,9 @@
 import { google } from "googleapis";
 import { GoogleAuth } from "google-auth-library";
 import { Document, Packer, Paragraph, HeadingLevel } from 'docx';
+import { resolveDriveContext } from "../core/drive";
 
 const DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive"];
-
-function getDriveId(): string {
-  const id = (process.env.DRIVE_ID_AMBARADAM || "").trim();
-  if (!id) throw new Error("DRIVE_ID_AMBARADAM non impostato");
-  return id;
-}
 
 async function getAccessToken(): Promise<string> {
   const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
@@ -43,35 +38,26 @@ export async function saveChatMessageToDrive(params: {
   title?: string;    // titolo conversazione (opzionale)
 }): Promise<{ id: string; webViewLink?: string; name: string }> {
   const accessToken = await getAccessToken();
-  const driveId = getDriveId();
+  const { folderId } = resolveDriveContext();
   const date = isoDate();
   const time = isoTime();
 
   // Cartella root preferita: AMBARADAM (se esiste), altrimenti Drive root
-  // È possibile forzare l'ID con env DRIVE_FOLDER_AMBARADAM
-  const forcedRoot = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim() || null;
+  // È possibile forzare l'ID con env/contesto DRIVE_FOLDER_AMBARADAM
+  const forcedRoot = folderId || null;
 
   // Nome cartella collaboratore: trasformiamo gli underscore in spazi
   const ownerFolderName = (params.author || 'BOSS').replace(/_/g, ' ').trim();
 
   // Costruisci percorso logico per Chat: AMBARADAM/<OWNER>/Chat/
   let basePath: string[];
-  let parentId = driveId;
+  let parentId = folderId; // anchor to AMBARADAM root folder in My Drive
 
   if (forcedRoot) {
     basePath = [ownerFolderName, 'Chat'];
     parentId = forcedRoot;
   } else {
-    // Prova a risolvere AMBARADAM per nome
-    const ambFolderId = await findFolderByNameInDrive(accessToken, driveId, 'AMBARADAM');
-    if (isNonEmptyId(ambFolderId)) {
-      parentId = ambFolderId as string;
-      basePath = [ownerFolderName, 'Chat'];
-    } else {
-      // Fallback storico
-      basePath = ["Zantara", "Chats"]; // niente sotto-cartella data: la data va nel filename
-      parentId = driveId;
-    }
+    basePath = [ownerFolderName, 'Chat'];
   }
 
   for (const folderName of basePath) {
@@ -88,8 +74,7 @@ export async function saveChatMessageToDrive(params: {
     searchUrl.searchParams.set("fields", "files(id,name)");
     searchUrl.searchParams.set("supportsAllDrives", "true");
     searchUrl.searchParams.set("includeItemsFromAllDrives", "true");
-    searchUrl.searchParams.set("corpora", "drive");
-    searchUrl.searchParams.set("driveId", driveId);
+    // Search within My Drive by parent; no shared drive corpora needed
 
     const sres = await fetch(searchUrl, {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -181,19 +166,7 @@ export async function saveChatMessageToDrive(params: {
 }
 
 // Helpers
-async function findFolderByNameInDrive(token: string, driveId: string, folderName: string): Promise<string | null> {
-  const url = new URL('https://www.googleapis.com/drive/v3/files');
-  url.searchParams.set('q', `name='${folderName.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
-  url.searchParams.set('fields', 'files(id,name)');
-  url.searchParams.set('supportsAllDrives', 'true');
-  url.searchParams.set('includeItemsFromAllDrives', 'true');
-  url.searchParams.set('corpora', 'drive');
-  url.searchParams.set('driveId', driveId);
-  const resp = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (!resp.ok) return null;
-  const data: any = await resp.json();
-  return data?.files?.[0]?.id || null;
-}
+// Not used anymore (Shared Drive removed)
 
 function isNonEmptyId(id: string | null): id is string {
   return typeof id === 'string' && !!id.trim();
@@ -204,14 +177,14 @@ function isNonEmptyId(id: string | null): id is string {
 // ==========================
 export async function saveNote(ownerRaw: string, text: string, title?: string): Promise<{ id: string; name: string; webViewLink?: string }> {
   const accessToken = await getAccessToken();
-  const driveId = getDriveId();
+  const { folderId } = resolveDriveContext();
   const ownerFolderName = (ownerRaw || 'BOSS').replace(/_/g, ' ').trim();
-  const forcedRoot = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim() || null;
+  const forcedRoot = folderId || null;
 
   // determine root base
-  let parentId = forcedRoot || (await findFolderByNameInDrive(accessToken, driveId, 'AMBARADAM')) || driveId;
-  // ensure path <OWNER>/Notes
-  parentId = await ensurePath(accessToken, driveId, parentId, [ownerFolderName, 'Notes']);
+  let parentId = forcedRoot || folderId;
+  // ensure path <OWNER>/Notes under AMBARADAM folder
+  parentId = await ensurePathUnderParent(accessToken, parentId, [ownerFolderName, 'Notes']);
 
   const date = isoDate();
   const filename = `Note-${ownerFolderName}-${date}.md`;
@@ -260,10 +233,10 @@ export async function saveNote(ownerRaw: string, text: string, title?: string): 
 // ==========================
 export async function writeBossLog(line: string): Promise<{ id: string; name: string }> {
   const accessToken = await getAccessToken();
-  const driveId = getDriveId();
-  const forcedRoot = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim() || null;
-  let parentId = forcedRoot || (await findFolderByNameInDrive(accessToken, driveId, 'AMBARADAM')) || driveId;
-  parentId = await ensurePath(accessToken, driveId, parentId, ['BOSS', 'Logs']);
+  const { folderId } = resolveDriveContext();
+  const forcedRoot = folderId || null;
+  let parentId = forcedRoot;
+  parentId = await ensurePathUnderParent(accessToken, parentId, ['BOSS', 'Logs']);
 
   const date = isoDate();
   const filename = `Log-BOSS-${date}.log`;
@@ -288,7 +261,7 @@ export async function writeBossLog(line: string): Promise<{ id: string; name: st
 }
 
 // Ensure path helper used by notes/logs
-async function ensurePath(token: string, driveId: string, rootId: string, segments: string[]): Promise<string> {
+async function ensurePathUnderParent(token: string, rootId: string, segments: string[]): Promise<string> {
   let parent = rootId;
   for (const seg of segments) {
     const q = `name='${seg.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and '${parent}' in parents and trashed=false`;
@@ -297,8 +270,6 @@ async function ensurePath(token: string, driveId: string, rootId: string, segmen
     url.searchParams.set('fields', 'files(id,name)');
     url.searchParams.set('supportsAllDrives', 'true');
     url.searchParams.set('includeItemsFromAllDrives', 'true');
-    url.searchParams.set('corpora', 'drive');
-    url.searchParams.set('driveId', driveId);
     const sres = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
     const sdata: any = await sres.json();
     let id: string | undefined = sdata?.files?.[0]?.id;
@@ -335,15 +306,15 @@ async function findFileByNameInParent(token: string, parentId: string, name: str
 // ==========================
 export async function createBrief(ownerRaw: string, content: string, title?: string): Promise<{ id: string; name: string; webViewLink?: string }> {
   const accessToken = await getAccessToken();
-  const driveId = getDriveId();
+  const { folderId } = resolveDriveContext();
   const owner = (ownerRaw || 'BOSS').replace(/_/g, ' ').trim();
   const forcedBriefRoot = (process.env.DRIVE_FOLDER_BRIEFS || '').trim() || null;
-  const forcedAmbaradam = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim() || null;
+  const forcedAmbaradam = folderId || null;
 
   // root selection: briefs root > ambaradam root > locate AMBARADAM by name > drive root
-  let rootParent = forcedBriefRoot || forcedAmbaradam || (await findFolderByNameInDrive(accessToken, driveId, 'AMBARADAM')) || driveId;
-  // ensure path <OWNER>/Brief
-  const briefParent = await ensurePath(accessToken, driveId, rootParent, [owner, 'Brief']);
+  let rootParent = forcedBriefRoot || forcedAmbaradam;
+  // ensure path <OWNER>/Brief under AMBARADAM folder
+  const briefParent = await ensurePathUnderParent(accessToken, rootParent, [owner, 'Brief']);
 
   const date = isoDate();
   const name = `Brief-${owner}-${date}.docx`;

@@ -10,6 +10,7 @@ import { db } from '../../core/firestore';
 import { storeConversationContext } from '../../core/contextualMemory';
 import { updateLearningMetrics } from '../../core/learningEngine';
 import { saveChatMessageToDrive, writeBossLog, saveNote, createBrief } from '../../lib/driveSave';
+import { resolveDriveContext } from '../../core/drive';
 function chooseProfileStore(){
   const useFs = String(process.env.PROFILE_STORE || '').toLowerCase();
   if (useFs === 'firestore') return profileFirestoreStore;
@@ -177,10 +178,9 @@ async function resolveOwnerFromDrive(proposedCanonical: string): Promise<{ canon
 
   // Verify folder exists under AMBARADAM
   const token = await getAccessToken();
-  const driveId = (process.env.DRIVE_ID_AMBARADAM || '').trim();
-  if (!driveId) return null;
-  let ambRoot = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim() || null;
-  if (!ambRoot) ambRoot = await findFolderByNameInDrive(token, driveId, 'AMBARADAM');
+  const { folderId } = resolveDriveContext();
+  let ambRoot = folderId || null;
+  if (!ambRoot) ambRoot = await findFolderByNameGlobal(token, 'AMBARADAM');
   if (!ambRoot) return null;
 
   const exists = await findFolderByNameInParent(token, ambRoot, displayCandidate);
@@ -200,14 +200,13 @@ async function getAccessToken(): Promise<string> {
   return token;
 }
 
-async function findFolderByNameInDrive(token: string, driveId: string, name: string): Promise<string | null> {
+async function findFolderByNameGlobal(token: string, name: string): Promise<string | null> {
   const url = new URL('https://www.googleapis.com/drive/v3/files');
   url.searchParams.set('q', `name='${name.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
   url.searchParams.set('fields', 'files(id,name)');
   url.searchParams.set('supportsAllDrives', 'true');
   url.searchParams.set('includeItemsFromAllDrives', 'true');
-  url.searchParams.set('corpora', 'drive');
-  url.searchParams.set('driveId', driveId);
+  url.searchParams.set('corpora', 'allDrives');
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) return null;
   const data: any = await res.json();
