@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { google } from 'googleapis';
 import { Readable } from 'stream';
 import { impersonatedClient } from '../../google';
+import { resolveFolderPath } from '../../lib/googleApiHelpers';
 
 type Body = { title: string; content: string; tags?: string[] };
 
@@ -14,8 +15,11 @@ export async function memorySaveHandler(req: Request, res: Response) {
   try {
     const { title, content, tags } = (req.body || {}) as Partial<Body>;
     if (!title || !content) return res.status(400).json({ ok: false, error: 'Missing title/content' });
-    const folderId = process.env.MEMORY_DRIVE_FOLDER_ID || process.env.DRIVE_FOLDER_ID || '';
-    if (!folderId) return res.status(500).json({ ok: false, error: 'Missing MEMORY_DRIVE_FOLDER_ID' });
+    
+    // Use path-based folder resolution with DEFAULT_FOLDER_ROOT
+    const owner = (req as any).canonicalOwner || 'BOSS';
+    const rootFolder = process.env.DEFAULT_FOLDER_ROOT || 'AMBARADAM';
+    const folderPath = `${rootFolder}/${owner}/Notes`;
 
     const safeTitle = String(title).trim().replace(/\s+/g, '-');
     const name = `${tsLabel()}_${safeTitle}.md`;
@@ -25,10 +29,15 @@ export async function memorySaveHandler(req: Request, res: Response) {
 
     const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
     const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/drive']);
+    
+    // Resolve folder path in Shared Drive
+    const targetFolder = await resolveFolderPath(folderPath, ic.auth, true);
+    if (!targetFolder) return res.status(500).json({ ok: false, error: 'Failed to resolve folder path' });
+
     const drive = google.drive({ version: 'v3', auth: ic.auth });
     const stream = Readable.from(Buffer.from(md, 'utf8'));
     const { data } = await drive.files.create({
-      requestBody: { name, parents: [folderId] },
+      requestBody: { name, parents: [targetFolder.id] },
       media: { mimeType: 'text/markdown', body: stream },
       fields: 'id,name,webViewLink',
       supportsAllDrives: true,

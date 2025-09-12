@@ -95,7 +95,13 @@ export async function findOrCreateChildFolder(parentId: string, name: string, au
     `'${parentId}' in parents`,
     `name = '${name.replace(/'/g, "\\'")}'`,
   ].join(' and ');
-  const { data } = await drive.files.list({ q, fields: 'files(id,name,parents,driveId)', includeItemsFromAllDrives: true, supportsAllDrives: true } as any);
+  const { data } = await drive.files.list({ 
+    q, 
+    fields: 'files(id,name,parents,driveId)', 
+    includeItemsFromAllDrives: true, 
+    supportsAllDrives: true,
+    corpora: 'allDrives'
+  } as any);
   if (data.files && data.files.length) {
     const f = data.files[0]!;
     return { id: f.id!, name: f.name!, driveId: (f as any).driveId || null, parents: (f as any).parents || null };
@@ -119,19 +125,26 @@ export async function resolveFolderPath(path: string, auth: any, createIfMissing
   let current: DriveFolderRef | null = await findFolderByName(segments[0], auth);
   if (!current && !createIfMissing) return null;
   if (!current && createIfMissing) {
-    // Create at shared drive root if available, otherwise My Drive root
-    const preferredDrive = process.env.ZANTARA_SHARED_DRIVE_ID || undefined;
-    let parents: any = undefined;
-    if (preferredDrive) {
-      // Create under the shared drive root by specifying driveId and parents as the drive root via 'driveId' + 'supportsAllDrives'
-      // Google API doesn't allow direct 'root' parent id for shared drives; omit parents to let it use the drive root when driveId+corpora provided in request.
-      // Workaround: search any item in the drive to infer a parent; if not found, creation without parents still places it in user's My Drive.
-      // We instead attempt to create without parents (Shared Drive admins commonly restrict this). Fallback to search again.
+    // Force Shared Drive root for first segment (AMBARADAM)
+    let parentId: string | undefined = undefined;
+    if (segments[0] === 'AMBARADAM' || segments[0] === (process.env.DEFAULT_FOLDER_ROOT || 'AMBARADAM')) {
+      parentId = process.env.ZANTARA_SHARED_DRIVE_ID || process.env.DRIVE_ID_AMBARADAM;
     }
+    
+    const requestBody: any = { 
+      name: segments[0], 
+      mimeType: 'application/vnd.google-apps.folder' 
+    };
+    if (parentId) {
+      requestBody.parents = [parentId];
+    }
+    
     const created = await drive.files.create({
-      requestBody: { name: segments[0], mimeType: 'application/vnd.google-apps.folder' },
+      requestBody,
       fields: 'id,name,parents,driveId',
       supportsAllDrives: true,
+      corpora: parentId ? 'drive' : undefined,
+      driveId: parentId,
     } as any);
     const f = created.data as any;
     current = { id: f.id, name: f.name, driveId: f.driveId || null, parents: f.parents || null };
