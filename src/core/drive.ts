@@ -125,3 +125,19 @@ export function resolveDriveContext(): DriveContext {
   if (!folderId) throw new Error('Missing DRIVE_FOLDER_AMBARADAM');
   return { folderId };
 }
+
+/**
+ * Compatibility helper: wrap Drive API request options with supportsAllDrives/includeItemsFromAllDrives.
+ * Many call sites expect this function to exist. It simply adds the flags required
+ * to operate across My Drive and Shared Drives.
+ */
+export function withAllDrives<T extends Record<string, any>>(opts: T): T & { supportsAllDrives: true } {
+  // Do not mutate the original object
+  const merged: any = { ...opts };
+  merged.supportsAllDrives = true;
+  // If the request accepts includeItemsFromAllDrives, set it as well (harmless otherwise)
+  if (merged.includeItemsFromAllDrives === undefined) {
+    merged.includeItemsFromAllDrives = true;
+  }
+  return merged as T & { supportsAllDrives: true };
+}
