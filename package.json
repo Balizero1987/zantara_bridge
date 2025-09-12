@@ -10,6 +10,7 @@
     "seed": "node dist/scripts/seed-firestore.js",
     "test": "echo \"ok\"",
     "smoke": "bash scripts/smoke-block3.sh",
+    "smoke:postfix": "bash scripts/smoke-postfix.sh",
     "migrate:briefs": "node scripts/migrate-briefs.js"
   },
   "dependencies": {
