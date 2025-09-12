@@ -9,6 +9,7 @@ import registerDocgen from './routes/api/docgen';
 import registerDriveBrief from './routes/api/driveBrief';
 import registerGitHubBrief from './routes/api/githubBrief';
 import registerWebhooks from './routes/api/webhooks';
+import memoryActions from './routes/actions/memory';
 
 const app = express();
 app.set('trust proxy', true);
@@ -45,6 +46,9 @@ registerDocgen(app);
 registerDriveBrief(app);
 registerGitHubBrief(app);
 registerWebhooks(app);
+
+// Actions endpoints
+app.use('/actions/memory', memoryActions);
 
 const port = process.env.PORT || 8080;
 app.listen(port, () => {
