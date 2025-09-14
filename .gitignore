@@ -5,8 +5,12 @@ dist/
 # Env & secrets
 .env
 *.env
+.env.local
+.env.production
 sa-key.json
 zantara_bridge-main/service-account.json
+credentials.json
+oauth_client.json
 
 # Logs
 *.log
