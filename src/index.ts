@@ -12,6 +12,20 @@ import registerWebhooks from './routes/api/webhooks';
 import { saveNote } from './lib/driveSave';
 import registerChatEnhanced from './routes/api/chatEnhanced';
 import registerFileOperations from './routes/api/fileOperations';
+import registerTeamWorkspace from './routes/api/teamWorkspace';
+import registerTemplates from './routes/api/templates';
+import registerTeamNotifications from './routes/api/teamNotifications';
+import registerKnowledgeBase from './routes/api/knowledgeBase';
+import registerTeamAnalytics from './routes/api/teamAnalytics';
+import registerPersonalMemory from './routes/api/personalMemory';
+import registerRelationshipBuilder from './routes/api/relationshipBuilder';
+import registerEmotionalIntelligence from './routes/api/emotionalIntelligence';
+import { analyticsRouter } from './routes/analytics';
+import { usersRouter } from './routes/users';
+import { searchRouter } from './routes/search';
+import { dashboardRouter } from './routes/dashboard';
+import { webhooksRouter } from './routes/webhooks';
+import { aiRouter } from './routes/ai';
 
 const app = express();
 app.set('trust proxy', true);
@@ -36,10 +50,26 @@ registerNotes(app);
 registerChat(app);
 registerChatEnhanced(app); // Enhanced chat with Drive integration
 registerFileOperations(app); // File operations: delete, summarize, analyze
+registerTeamWorkspace(app); // Team workspace setup and management
+registerTemplates(app); // Business templates system
+registerTeamNotifications(app); // Team notifications and webhooks
+registerKnowledgeBase(app); // Shared knowledge base
+registerTeamAnalytics(app); // Team analytics and dashboard
+registerPersonalMemory(app); // Personal memory and relationship tracking
+registerRelationshipBuilder(app); // Advanced relationship building
+registerEmotionalIntelligence(app); // Emotional intelligence and wellness
 registerDocgen(app);
 registerDriveBrief(app);
 registerGitHubBrief(app);
 registerWebhooks(app);
+
+// New API routes
+app.use('/api/analytics', analyticsRouter);
+app.use('/api/users', usersRouter);
+app.use('/api/search', searchRouter);
+app.use('/api/dashboard', dashboardRouter);
+app.use('/api/webhooks', webhooksRouter);
+app.use('/api/ai', aiRouter);
 
 // Actions: Drive upload (requires API key guard)
 app.use('/actions/drive', drive as any);

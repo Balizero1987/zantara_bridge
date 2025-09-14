@@ -32,3 +32,5 @@ setup_codex_dispatch.sh*
 *.swp
 *~
 .DS_Store
+.env
+service-account.json

@@ -1,7 +1,8 @@
 import { google } from 'googleapis';
 import { Buffer } from 'buffer';
+import * as fs from 'fs';
 
-const AMBARADAM_FOLDER_ID = 'f1UGbm5er6Go351S57GQKUjmxMxHyT4QZb';
+const AMBARADAM_FOLDER_ID = process.env.DRIVE_FOLDER_ID || '1UGbm5er6Go351S57GQKUjmxMxHyT4QZb';
 
 export interface DriveUploadResult {
   fileId: string;
@@ -20,21 +21,49 @@ export async function uploadToDrive(
   mimeType: string = 'application/octet-stream'
 ): Promise<DriveUploadResult> {
   try {
-    // Get service account key from environment
-    const serviceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY || 
-                             process.env.GOOGLE_SERVICE_ACCOUNT_KEY_B64;
+    // Get service account key from environment or mounted secret
+    let serviceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY || 
+                           process.env.GOOGLE_SERVICE_ACCOUNT_KEY_B64;
+    
+    // If not in env vars, try to read from mounted secret file
+    if (!serviceAccountKey || serviceAccountKey.length < 10) {
+      try {
+        // Cloud Run mounts secrets at /secrets/<secret-name>
+        serviceAccountKey = fs.readFileSync('/secrets/GOOGLE_SERVICE_ACCOUNT_KEY', 'utf8');
+      } catch (e) {
+        try {
+          serviceAccountKey = fs.readFileSync('/secrets/GOOGLE_SERVICE_ACCOUNT_KEY_B64', 'utf8');
+        } catch (e2) {
+          console.log('Could not read secret files:', e.message, e2.message);
+        }
+      }
+    }
     
     if (!serviceAccountKey) {
       throw new Error('Missing Google Service Account key');
     }
     
-    // Decode if base64
+    console.log('Service account key type:', typeof serviceAccountKey);
+    console.log('Service account key length:', serviceAccountKey.length);
+    console.log('Service account key first 50 chars:', serviceAccountKey.substring(0, 50));
+    
+    // Parse credentials - handle different formats
     let credentials;
-    if (serviceAccountKey.includes('BEGIN')) {
+    try {
+      // Try direct JSON parse first
       credentials = JSON.parse(serviceAccountKey);
-    } else {
-      const decoded = Buffer.from(serviceAccountKey, 'base64').toString('utf-8');
-      credentials = JSON.parse(decoded);
+      console.log('✅ Direct JSON parse successful');
+    } catch (e) {
+      console.log('❌ Direct JSON parse failed:', e.message);
+      try {
+        // Try base64 decode then parse
+        const decoded = Buffer.from(serviceAccountKey, 'base64').toString('utf-8');
+        credentials = JSON.parse(decoded);
+        console.log('✅ Base64 decode + JSON parse successful');
+      } catch (e2) {
+        console.log('❌ Base64 decode + JSON parse failed:', e2.message);
+        throw new Error(`Invalid service account key format: ${e.message} | ${e2.message}`);
+      }
     }
     
     // Create auth client
@@ -100,19 +129,48 @@ export async function uploadTextAsDoc(
   userId: string
 ): Promise<DriveUploadResult> {
   try {
-    const serviceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY || 
-                             process.env.GOOGLE_SERVICE_ACCOUNT_KEY_B64;
+    let serviceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY || 
+                           process.env.GOOGLE_SERVICE_ACCOUNT_KEY_B64;
+    
+    // If not in env vars, try to read from mounted secret file
+    if (!serviceAccountKey || serviceAccountKey.length < 10) {
+      try {
+        // Cloud Run mounts secrets at /secrets/<secret-name>
+        serviceAccountKey = fs.readFileSync('/secrets/GOOGLE_SERVICE_ACCOUNT_KEY', 'utf8');
+      } catch (e) {
+        try {
+          serviceAccountKey = fs.readFileSync('/secrets/GOOGLE_SERVICE_ACCOUNT_KEY_B64', 'utf8');
+        } catch (e2) {
+          console.log('Could not read secret files:', e.message, e2.message);
+        }
+      }
+    }
     
     if (!serviceAccountKey) {
       throw new Error('Missing Google Service Account key');
     }
     
+    console.log('Service account key type:', typeof serviceAccountKey);
+    console.log('Service account key length:', serviceAccountKey.length);
+    console.log('Service account key first 50 chars:', serviceAccountKey.substring(0, 50));
+    
+    // Parse credentials - handle different formats
     let credentials;
-    if (serviceAccountKey.includes('BEGIN')) {
+    try {
+      // Try direct JSON parse first
       credentials = JSON.parse(serviceAccountKey);
-    } else {
-      const decoded = Buffer.from(serviceAccountKey, 'base64').toString('utf-8');
-      credentials = JSON.parse(decoded);
+      console.log('✅ Direct JSON parse successful');
+    } catch (e) {
+      console.log('❌ Direct JSON parse failed:', e.message);
+      try {
+        // Try base64 decode then parse
+        const decoded = Buffer.from(serviceAccountKey, 'base64').toString('utf-8');
+        credentials = JSON.parse(decoded);
+        console.log('✅ Base64 decode + JSON parse successful');
+      } catch (e2) {
+        console.log('❌ Base64 decode + JSON parse failed:', e2.message);
+        throw new Error(`Invalid service account key format: ${e.message} | ${e2.message}`);
+      }
     }
     
     const auth = new google.auth.GoogleAuth({
@@ -172,19 +230,48 @@ export async function createDriveFolder(
   parentId: string = AMBARADAM_FOLDER_ID
 ): Promise<string> {
   try {
-    const serviceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY || 
-                             process.env.GOOGLE_SERVICE_ACCOUNT_KEY_B64;
+    let serviceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY || 
+                           process.env.GOOGLE_SERVICE_ACCOUNT_KEY_B64;
+    
+    // If not in env vars, try to read from mounted secret file
+    if (!serviceAccountKey || serviceAccountKey.length < 10) {
+      try {
+        // Cloud Run mounts secrets at /secrets/<secret-name>
+        serviceAccountKey = fs.readFileSync('/secrets/GOOGLE_SERVICE_ACCOUNT_KEY', 'utf8');
+      } catch (e) {
+        try {
+          serviceAccountKey = fs.readFileSync('/secrets/GOOGLE_SERVICE_ACCOUNT_KEY_B64', 'utf8');
+        } catch (e2) {
+          console.log('Could not read secret files:', e.message, e2.message);
+        }
+      }
+    }
     
     if (!serviceAccountKey) {
       throw new Error('Missing Google Service Account key');
     }
     
+    console.log('Service account key type:', typeof serviceAccountKey);
+    console.log('Service account key length:', serviceAccountKey.length);
+    console.log('Service account key first 50 chars:', serviceAccountKey.substring(0, 50));
+    
+    // Parse credentials - handle different formats
     let credentials;
-    if (serviceAccountKey.includes('BEGIN')) {
+    try {
+      // Try direct JSON parse first
       credentials = JSON.parse(serviceAccountKey);
-    } else {
-      const decoded = Buffer.from(serviceAccountKey, 'base64').toString('utf-8');
-      credentials = JSON.parse(decoded);
+      console.log('✅ Direct JSON parse successful');
+    } catch (e) {
+      console.log('❌ Direct JSON parse failed:', e.message);
+      try {
+        // Try base64 decode then parse
+        const decoded = Buffer.from(serviceAccountKey, 'base64').toString('utf-8');
+        credentials = JSON.parse(decoded);
+        console.log('✅ Base64 decode + JSON parse successful');
+      } catch (e2) {
+        console.log('❌ Base64 decode + JSON parse failed:', e2.message);
+        throw new Error(`Invalid service account key format: ${e.message} | ${e2.message}`);
+      }
     }
     
     const auth = new google.auth.GoogleAuth({
@@ -232,19 +319,48 @@ export async function listDriveFiles(
   limit: number = 10
 ): Promise<any[]> {
   try {
-    const serviceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY || 
-                             process.env.GOOGLE_SERVICE_ACCOUNT_KEY_B64;
+    let serviceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY || 
+                           process.env.GOOGLE_SERVICE_ACCOUNT_KEY_B64;
+    
+    // If not in env vars, try to read from mounted secret file
+    if (!serviceAccountKey || serviceAccountKey.length < 10) {
+      try {
+        // Cloud Run mounts secrets at /secrets/<secret-name>
+        serviceAccountKey = fs.readFileSync('/secrets/GOOGLE_SERVICE_ACCOUNT_KEY', 'utf8');
+      } catch (e) {
+        try {
+          serviceAccountKey = fs.readFileSync('/secrets/GOOGLE_SERVICE_ACCOUNT_KEY_B64', 'utf8');
+        } catch (e2) {
+          console.log('Could not read secret files:', e.message, e2.message);
+        }
+      }
+    }
     
     if (!serviceAccountKey) {
       throw new Error('Missing Google Service Account key');
     }
     
+    console.log('Service account key type:', typeof serviceAccountKey);
+    console.log('Service account key length:', serviceAccountKey.length);
+    console.log('Service account key first 50 chars:', serviceAccountKey.substring(0, 50));
+    
+    // Parse credentials - handle different formats
     let credentials;
-    if (serviceAccountKey.includes('BEGIN')) {
+    try {
+      // Try direct JSON parse first
       credentials = JSON.parse(serviceAccountKey);
-    } else {
-      const decoded = Buffer.from(serviceAccountKey, 'base64').toString('utf-8');
-      credentials = JSON.parse(decoded);
+      console.log('✅ Direct JSON parse successful');
+    } catch (e) {
+      console.log('❌ Direct JSON parse failed:', e.message);
+      try {
+        // Try base64 decode then parse
+        const decoded = Buffer.from(serviceAccountKey, 'base64').toString('utf-8');
+        credentials = JSON.parse(decoded);
+        console.log('✅ Base64 decode + JSON parse successful');
+      } catch (e2) {
+        console.log('❌ Base64 decode + JSON parse failed:', e2.message);
+        throw new Error(`Invalid service account key format: ${e.message} | ${e2.message}`);
+      }
     }
     
     const auth = new google.auth.GoogleAuth({

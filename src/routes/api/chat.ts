@@ -11,6 +11,7 @@ import { storeConversationContext } from '../../core/contextualMemory';
 import { updateLearningMetrics } from '../../core/learningEngine';
 import { saveChatMessageToDrive, writeBossLog, saveNote, createBrief } from '../../lib/driveSave';
 import { resolveDriveContext } from '../../core/drive';
+import { trackAnalytics, trackDocument } from '../analytics';
 function chooseProfileStore(){
   const useFs = String(process.env.PROFILE_STORE || '').toLowerCase();
   if (useFs === 'firestore') return profileFirestoreStore;
@@ -22,6 +23,9 @@ export default function registerChat(r: Router) {
     try {
       const startTime = Date.now();
       const headerOwner = (req as any).canonicalOwner || String(req.header('X-BZ-USER') || req.header('x-bz-user') || '').trim();
+      
+      // Track analytics
+      trackAnalytics('/api/chat', headerOwner);
       const { message = '', ririMode = false, sessionId, saveAs = 'chat', title } = req.body || {};
 
       const dateKey = new Date().toISOString().slice(0,10);
