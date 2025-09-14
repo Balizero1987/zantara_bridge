@@ -11,6 +11,7 @@ import registerGitHubBrief from './routes/api/githubBrief';
 import registerWebhooks from './routes/api/webhooks';
 import { saveNote } from './lib/driveSave';
 import registerChatEnhanced from './routes/api/chatEnhanced';
+import registerFileOperations from './routes/api/fileOperations';
 
 const app = express();
 app.set('trust proxy', true);
@@ -34,6 +35,7 @@ app.use(apiKeyGuard as any);
 registerNotes(app);
 registerChat(app);
 registerChatEnhanced(app); // Enhanced chat with Drive integration
+registerFileOperations(app); // File operations: delete, summarize, analyze
 registerDocgen(app);
 registerDriveBrief(app);
 registerGitHubBrief(app);
