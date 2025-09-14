@@ -10,6 +10,7 @@ import drive, { driveDiagRouter } from './api/drive';
 import registerGitHubBrief from './routes/api/githubBrief';
 import registerWebhooks from './routes/api/webhooks';
 import { saveNote } from './lib/driveSave';
+import registerChatEnhanced from './routes/api/chatEnhanced';
 
 const app = express();
 app.set('trust proxy', true);
@@ -32,6 +33,7 @@ app.use(apiKeyGuard as any);
 // API protette
 registerNotes(app);
 registerChat(app);
+registerChatEnhanced(app); // Enhanced chat with Drive integration
 registerDocgen(app);
 registerDriveBrief(app);
 registerGitHubBrief(app);
