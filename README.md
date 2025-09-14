@@ -92,3 +92,4 @@ Note:
 
 - 401/403 su Drive: verificare DWD (se si usa `IMPERSONATE_USER`) e che il SA abbia permessi writer sulla cartella `DRIVE_FOLDER_AMBARADAM`.
 - 404/`notFound`: controllare `DRIVE_FOLDER_AMBARADAM` (folderId corretto e condiviso col SA).
+⚠️ MANDATORY: Read ZANTARA_CONFIG_COMPLETE.md before any work
