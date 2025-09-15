@@ -3,12 +3,23 @@ import { google } from 'googleapis';
 import { uploadDriveFileHandler } from '../actions/drive/upload';
 import { impersonatedClient } from '../google';
 import { resolveFolderPath } from '../lib/googleApiHelpers';
+import { ensureComplianceKnowledgeStructure } from '../services/driveUpload';
 
 const actions = Router();
 
 // POST /actions/drive/upload
 // Requires folderId in body; uses uploadDriveFileHandler for core logic
 actions.post('/upload', uploadDriveFileHandler as any);
+
+// POST /actions/drive/setup-compliance-knowledge
+actions.post('/setup-compliance-knowledge', async (_req, res) => {
+  try {
+    const out = await ensureComplianceKnowledgeStructure();
+    return res.json({ ok: true, ...out });
+  } catch (e: any) {
+    return res.status(500).json({ ok: false, error: e?.message || 'setup-compliance-knowledge failed' });
+  }
+});
 
 // Diagnostic router for Drive
 const diag = Router();
@@ -26,7 +37,7 @@ diag.get('/check', async (req: Request, res: Response) => {
     ]);
     const drive = google.drive({ version: 'v3', auth: ic.auth });
 
-    const about = await drive.about.get({ fields: 'user,permissionId,storageQuota', supportsAllDrives: true } as any);
+    const about = await drive.about.get({ fields: 'user,storageQuota', supportsAllDrives: true } as any);
     const folderId = (req.query.folderId || '').toString().trim();
     let folderCheck: any = null;
     if (folderId) {
@@ -41,7 +52,6 @@ diag.get('/check', async (req: Request, res: Response) => {
     return res.json({
       ok: true,
       user: about.data.user || null,
-      drivePermissionId: (about.data as any)?.permissionId || null,
       quota: (about.data as any)?.storageQuota || null,
       folderId: folderId || null,
       folderCheck,
