@@ -62,7 +62,7 @@ gcloud iam service-accounts add-iam-policy-binding "$SA_EMAIL" \
 Set repository secrets (Settings → Secrets and variables → Actions):
 - `GCP_PROJECT_ID`, `GCP_REGION`
 - `GCP_ARTIFACT_REPO` (e.g., zantara-repo)
-- `CLOUD_RUN_SERVICE` (e.g., zantara-chat-v3-XXXXXXXXXXXX)
+- `CLOUD_RUN_SERVICE` (e.g., zantara-bridge-v2-prod-XXXXXXXXXXXX)
 - `GCP_WIF_PROVIDER` → `projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/providers/github-provider`
 - `GCP_WIF_SERVICE_ACCOUNT` → `<deploy-sa>@PROJECT_ID.iam.gserviceaccount.com`
 - Optional smoke: `SERVICE_URL`, `PLUGIN_API_KEY`

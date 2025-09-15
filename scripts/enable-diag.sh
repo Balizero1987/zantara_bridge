@@ -5,7 +5,7 @@ set -euo pipefail
 
 PROJ="${PROJ:-involuted-box-469105-r0}"
 REGION="${REGION:-asia-southeast2}"
-SERVICE="${SERVICE:-zantara-chat-v3-1064094238013}"
+SERVICE="${SERVICE:-zantara-bridge-v2-prod}"
 
 echo "Project: $PROJ"; echo "Region: $REGION"; echo "Service: $SERVICE";
 

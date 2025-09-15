@@ -13,7 +13,7 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: asia-southeast2
   REPO: zantara-repo
-  SERVICE: zantara-chat-v3-1064094238013
+  SERVICE: zantara-bridge-v2-prod
   IMAGE_NAME: zantara-chat
 
 jobs:

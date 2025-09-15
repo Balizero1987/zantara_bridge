@@ -1,0 +1,45 @@
+steps:
+  # Build Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build', 
+      '-t', 'gcr.io/$PROJECT_ID/zantara-bridge-v2-prod:$COMMIT_SHA',
+      '-t', 'gcr.io/$PROJECT_ID/zantara-bridge-v2-prod:latest',
+      '.'
+    ]
+
+  # Push Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/zantara-bridge-v2-prod:$COMMIT_SHA']
+  
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/zantara-bridge-v2-prod:latest']
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args: [
+      'run', 'deploy', 'zantara-bridge-v2-prod',
+      '--image', 'gcr.io/$PROJECT_ID/zantara-bridge-v2-prod:$COMMIT_SHA',
+      '--region', 'asia-southeast2',
+      '--allow-unauthenticated',
+      '--memory', '2Gi',
+      '--cpu', '2',
+      '--min-instances', '1',
+      '--max-instances', '10',
+      '--concurrency', '80',
+      '--timeout', '300'
+    ]
+
+  # Run smoke tests
+  - name: 'gcr.io/cloud-builders/curl'
+    args: [
+      '-f', '-s',
+      'https://zantara-bridge-v2-prod-1064094238013.asia-southeast2.run.app/health'
+    ]
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: 'E2_HIGHCPU_8'
+
+timeout: '1200s'

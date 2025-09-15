@@ -2,6 +2,13 @@ import { google } from "googleapis";
 import { GoogleAuth } from "google-auth-library";
 import { Document, Packer, Paragraph, HeadingLevel } from 'docx';
 import { resolveDriveContext } from "../core/drive";
+import { 
+  uploadChatToAmbaradam, 
+  uploadNoteToAmbaradam, 
+  uploadBriefToAmbaradam,
+  AppsScriptDriveService,
+  extractUserFromRequest 
+} from '../services/appsScriptDrive';
 
 const DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive"];
 
@@ -27,9 +34,8 @@ function isoTime(d = new Date()) {
 }
 
 /**
- * Salva un messaggio di chat come file Markdown su Shared Drive.
- * Crea automaticamente una struttura di cartelle: Zantara/Chats/YYYY-MM-DD/
- * Ritorna {id, webViewLink, name}.
+ * Salva un messaggio di chat come file Markdown su Drive via Apps Script.
+ * Fallback to legacy method if Apps Script fails.
  */
 export async function saveChatMessageToDrive(params: {
   chatId: string;
@@ -37,6 +43,23 @@ export async function saveChatMessageToDrive(params: {
   text: string;
   title?: string;    // titolo conversazione (opzionale)
 }): Promise<{ id: string; webViewLink?: string; name: string }> {
+  // Try Apps Script first
+  if (process.env.APPS_SCRIPT_URL) {
+    try {
+      const result = await uploadChatToAmbaradam(params);
+      if (result.ok) {
+        return {
+          id: result.fileId!,
+          webViewLink: result.webViewLink!,
+          name: `Chat_${params.author}_${Date.now()}.txt`,
+        };
+      }
+    } catch (error) {
+      console.warn('Apps Script chat save failed, falling back to legacy:', error);
+    }
+  }
+  
+  // Legacy method
   const accessToken = await getAccessToken();
   const { folderId } = await resolveDriveContext();
   const date = isoDate();
@@ -176,6 +199,27 @@ function isNonEmptyId(id: string | null): id is string {
 // Notes saving (AMBARADAM/<OWNER>/Notes/Note-<OWNER>-YYYY-MM-DD.md)
 // ==========================
 export async function saveNote(ownerRaw: string, text: string, title?: string): Promise<{ id: string; name: string; webViewLink?: string }> {
+  // Try Apps Script first
+  if (process.env.APPS_SCRIPT_URL) {
+    try {
+      const result = await uploadNoteToAmbaradam({
+        owner: ownerRaw,
+        text,
+        title,
+      });
+      if (result.ok) {
+        return {
+          id: result.fileId!,
+          name: `Note_${ownerRaw}_${Date.now()}.txt`,
+          webViewLink: result.webViewLink!,
+        };
+      }
+    } catch (error) {
+      console.warn('Apps Script note save failed, falling back to legacy:', error);
+    }
+  }
+  
+  // Legacy method
   const accessToken = await getAccessToken();
   
   // ⏺ DEBUG: Logging per verifica
@@ -316,9 +360,127 @@ async function findFileByNameInParent(token: string, parentId: string, name: str
 }
 
 // ==========================
+// Apps Script integration helpers with automatic user extraction
+// ==========================
+
+/**
+ * Save chat with automatic user extraction from request
+ */
+export async function saveChatWithRequest(req: any, params: {
+  chatId: string;
+  text: string;
+  title?: string;
+}): Promise<{ id: string; webViewLink?: string; name: string }> {
+  const user = extractUserFromRequest(req);
+  
+  if (process.env.APPS_SCRIPT_URL) {
+    try {
+      const result = await uploadChatToAmbaradam({
+        ...params,
+        author: user,
+      });
+      if (result.ok) {
+        return {
+          id: result.fileId!,
+          webViewLink: result.webViewLink!,
+          name: `Chat_${user}_${Date.now()}.txt`,
+        };
+      }
+    } catch (error) {
+      console.warn('Apps Script chat save failed, falling back to legacy:', error);
+    }
+  }
+  
+  // Fallback to legacy method
+  return saveChatMessageToDrive({
+    ...params,
+    author: user,
+  });
+}
+
+/**
+ * Save note with automatic user extraction from request
+ */
+export async function saveNoteWithRequest(req: any, text: string, title?: string): Promise<{ id: string; name: string; webViewLink?: string }> {
+  const user = extractUserFromRequest(req);
+  
+  if (process.env.APPS_SCRIPT_URL) {
+    try {
+      const result = await uploadNoteToAmbaradam({
+        owner: user,
+        text,
+        title,
+      });
+      if (result.ok) {
+        return {
+          id: result.fileId!,
+          name: `Note_${user}_${Date.now()}.txt`,
+          webViewLink: result.webViewLink!,
+        };
+      }
+    } catch (error) {
+      console.warn('Apps Script note save failed, falling back to legacy:', error);
+    }
+  }
+  
+  // Fallback to legacy method
+  return saveNote(user, text, title);
+}
+
+/**
+ * Create brief with automatic user extraction from request
+ */
+export async function createBriefWithRequest(req: any, content: string, title?: string): Promise<{ id: string; name: string; webViewLink?: string }> {
+  const user = extractUserFromRequest(req);
+  
+  if (process.env.APPS_SCRIPT_URL) {
+    try {
+      const result = await uploadBriefToAmbaradam({
+        owner: user,
+        text: content,
+        title,
+      });
+      if (result.ok) {
+        return {
+          id: result.fileId!,
+          name: `Brief_${user}_${Date.now()}.txt`,
+          webViewLink: result.webViewLink!,
+        };
+      }
+    } catch (error) {
+      console.warn('Apps Script brief creation failed, falling back to legacy:', error);
+    }
+  }
+  
+  // Fallback to legacy method
+  return createBrief(user, content, title);
+}
+
+// ==========================
 // Brief creation (AMBARADAM/<OWNER>/Brief/Brief-<OWNER>-YYYY-MM-DD.docx)
 // ==========================
 export async function createBrief(ownerRaw: string, content: string, title?: string): Promise<{ id: string; name: string; webViewLink?: string }> {
+  // Try Apps Script first
+  if (process.env.APPS_SCRIPT_URL) {
+    try {
+      const result = await uploadBriefToAmbaradam({
+        owner: ownerRaw,
+        text: content,
+        title,
+      });
+      if (result.ok) {
+        return {
+          id: result.fileId!,
+          name: `Brief_${ownerRaw}_${Date.now()}.txt`,
+          webViewLink: result.webViewLink!,
+        };
+      }
+    } catch (error) {
+      console.warn('Apps Script brief creation failed, falling back to legacy:', error);
+    }
+  }
+  
+  // Legacy method
   const accessToken = await getAccessToken();
   const { folderId } = await resolveDriveContext();
   const owner = (ownerRaw || 'BOSS').replace(/_/g, ' ').trim();

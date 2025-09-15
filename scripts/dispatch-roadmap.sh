@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -e
-URL=$(gcloud run services describe zantara-chat-v3-1064094238013 --region asia-southeast2 --format='value(status.url)')
+URL=$(gcloud run services describe zantara-bridge-v2-prod --region asia-southeast2 --format='value(status.url)')
 API_KEY="TEST_KEY_123"
 
 echo "::1 calendar"; curl -s -X POST "$URL/actions/codex/dispatch" -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" -H "X-Idempotency-Key: cal-$(date +%s%N)" -d '{"event_type":"codex-task","payload":{"branch":"codex/calendar-real","repo":"Balizero1987/zantara_bridge","title":"feat(calendar): integrazione Google Calendar reale","body":"Usa SA_JSON_SECRET. Implementa create/get/list/update/delete/quickadd/freebusy; gestisci errori; aggiorna OpenAPI.","acceptance":{"curl_create":"POST /actions/calendar/create -> 201","curl_list":"GET /actions/calendar/list -> 200","openapi":"/.well-known/openapi.yaml include tutte le rotte calendar"},"prechecks":["no-main","run-tests:true","loc<=600"]}}'; echo

@@ -1,4 +1,12 @@
-node_modules
 .git
+node_modules
+dist
 .DS_Store
+.Trash
 *.log
+npm-debug.log*
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local

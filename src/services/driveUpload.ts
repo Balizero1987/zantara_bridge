@@ -1,8 +1,15 @@
 import { google } from 'googleapis';
 import { Buffer } from 'buffer';
 import * as fs from 'fs';
+import { 
+  AppsScriptDriveService, 
+  uploadChatToAmbaradam, 
+  uploadNoteToAmbaradam, 
+  uploadBriefToAmbaradam,
+  AMBARADAM_FOLDER_ID 
+} from './appsScriptDrive';
 
-const AMBARADAM_FOLDER_ID = process.env.DRIVE_FOLDER_ID || '1UGbm5er6Go351S57GQKUjmxMxHyT4QZb';
+const LEGACY_AMBARADAM_FOLDER_ID = process.env.DRIVE_FOLDER_ID || '1UGbm5er6Go351S57GQKUjmxMxHyT4QZb';
 
 export interface DriveUploadResult {
   fileId: string;
@@ -43,9 +50,7 @@ export async function uploadToDrive(
       throw new Error('Missing Google Service Account key');
     }
     
-    console.log('Service account key type:', typeof serviceAccountKey);
-    console.log('Service account key length:', serviceAccountKey.length);
-    console.log('Service account key first 50 chars:', serviceAccountKey.substring(0, 50));
+    // Avoid logging key material
     
     // Parse credentials - handle different formats
     let credentials;
@@ -150,9 +155,7 @@ export async function uploadTextAsDoc(
       throw new Error('Missing Google Service Account key');
     }
     
-    console.log('Service account key type:', typeof serviceAccountKey);
-    console.log('Service account key length:', serviceAccountKey.length);
-    console.log('Service account key first 50 chars:', serviceAccountKey.substring(0, 50));
+    // Avoid logging key material
     
     // Parse credentials - handle different formats
     let credentials;
@@ -251,9 +254,7 @@ export async function createDriveFolder(
       throw new Error('Missing Google Service Account key');
     }
     
-    console.log('Service account key type:', typeof serviceAccountKey);
-    console.log('Service account key length:', serviceAccountKey.length);
-    console.log('Service account key first 50 chars:', serviceAccountKey.substring(0, 50));
+    // Avoid logging key material
     
     // Parse credentials - handle different formats
     let credentials;
@@ -389,5 +390,55 @@ export async function listDriveFiles(
   } catch (error: any) {
     console.error('List files error:', error);
     throw new Error(`Failed to list files: ${error.message}`);
+  }
+}
+
+/**
+ * Ensure /AMBARADAM/COMPLIANCE_KNOWLEDGE structure with base folders.
+ * Returns IDs for root and children.
+ */
+export async function ensureComplianceKnowledgeStructure(): Promise<{ rootId: string; folders: Record<string,string> }>{
+  try {
+    let serviceAccountKey = process.env.GOOGLE_SERVICE_ACCOUNT_KEY || 
+                           process.env.GOOGLE_SERVICE_ACCOUNT_KEY_B64;
+    if (!serviceAccountKey || serviceAccountKey.length < 10) {
+      try { serviceAccountKey = fs.readFileSync('/secrets/GOOGLE_SERVICE_ACCOUNT_KEY', 'utf8'); } catch {}
+      if (!serviceAccountKey) try { serviceAccountKey = fs.readFileSync('/secrets/GOOGLE_SERVICE_ACCOUNT_KEY_B64', 'utf8'); } catch {}
+    }
+    if (!serviceAccountKey) throw new Error('Missing Google Service Account key');
+    let credentials: any;
+    try { credentials = JSON.parse(serviceAccountKey); } catch {
+      const decoded = Buffer.from(serviceAccountKey, 'base64').toString('utf-8');
+      credentials = JSON.parse(decoded);
+    }
+    const auth = new google.auth.GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/drive'] });
+    const drive = google.drive({ version: 'v3', auth });
+
+    const rootName = 'COMPLIANCE_KNOWLEDGE';
+    // Ensure root under AMBARADAM
+    const searchRoot = await drive.files.list({
+      q: `name='${rootName}' and '${AMBARADAM_FOLDER_ID}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+      fields: 'files(id,name)', supportsAllDrives: true, includeItemsFromAllDrives: true
+    } as any);
+    let rootId = searchRoot.data.files?.[0]?.id as string | undefined;
+    if (!rootId) {
+      const created = await drive.files.create({ requestBody: { name: rootName, mimeType: 'application/vnd.google-apps.folder', parents: [AMBARADAM_FOLDER_ID] }, fields: 'id' } as any);
+      rootId = created.data.id!;
+    }
+    const children = ['KITAS','KITAP','VOA','PT_PMA','TAX'];
+    const out: Record<string,string> = {};
+    for (const name of children) {
+      const list = await drive.files.list({ q: `name='${name}' and '${rootId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`, fields: 'files(id,name)', supportsAllDrives: true, includeItemsFromAllDrives: true } as any);
+      let id = list.data.files?.[0]?.id as string | undefined;
+      if (!id) {
+        const created = await drive.files.create({ requestBody: { name, mimeType: 'application/vnd.google-apps.folder', parents: [rootId] }, fields: 'id' } as any);
+        id = created.data.id!;
+      }
+      out[name] = id!;
+    }
+    return { rootId, folders: out };
+  } catch (e: any) {
+    console.error('Compliance structure error:', e);
+    throw e;
   }
 }

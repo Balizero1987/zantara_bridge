@@ -9,7 +9,7 @@ import { GoogleAuth } from 'google-auth-library';
 import { db } from '../../core/firestore';
 import { storeConversationContext } from '../../core/contextualMemory';
 import { updateLearningMetrics } from '../../core/learningEngine';
-import { saveChatMessageToDrive, writeBossLog, saveNote, createBrief } from '../../lib/driveSave';
+import { saveChatMessageToDrive, writeBossLog, saveNote, createBrief, saveChatWithRequest, saveNoteWithRequest, createBriefWithRequest } from '../../lib/driveSave';
 import { resolveDriveContext } from '../../core/drive';
 import { trackAnalytics, trackDocument } from '../analytics';
 function chooseProfileStore(){
@@ -121,17 +121,16 @@ export default function registerChat(r: Router) {
         const kind = String(saveAs || 'chat').toLowerCase();
         let saved: any = null;
         if (kind === 'note') {
-          saveNote(owner, text, title)
+          saveNoteWithRequest(req, text, title)
             .then((r) => { saved = r; (req as any).log?.info?.({ action: 'drive.note.ok', fileId: r.id }); })
             .catch((e) => { (req as any).log?.warn?.({ action: 'drive.note.err', error: e?.message }); });
         } else if (kind === 'brief') {
-          createBrief(owner, text, title)
+          createBriefWithRequest(req, text, title)
             .then((r) => { saved = r; (req as any).log?.info?.({ action: 'drive.brief.ok', fileId: r.id, link: r.webViewLink }); })
             .catch((e) => { (req as any).log?.warn?.({ action: 'drive.brief.err', error: e?.message }); });
         } else {
-          saveChatMessageToDrive({
+          saveChatWithRequest(req, {
             chatId: sessionId || String(Date.now()),
-            author: owner,
             text,
             title: title || 'Chat Zantara',
           })

@@ -1,0 +1,403 @@
+import { openai } from '../core/openai';
+import { getDrive } from '../core/drive';
+import { cacheService } from './cache';
+import fs from 'fs/promises';
+import path from 'path';
+
+interface DocumentMetadata {
+  id: string;
+  name: string;
+  category: 'KITAS' | 'PT_PMA' | 'TAX' | 'GENERAL';
+  language: string;
+  lastUpdated: Date;
+  vectorStoreId?: string;
+}
+
+interface AssistantConfig {
+  assistantId: string;
+  vectorStoreId: string;
+  documents: DocumentMetadata[];
+}
+
+class AssistantKnowledgeBase {
+  private assistantId: string | null = null;
+  private vectorStoreId: string | null = null;
+  private documents: Map<string, DocumentMetadata> = new Map();
+  private initialized = false;
+
+  async initialize(): Promise<void> {
+    if (this.initialized) return;
+
+    try {
+      // Check if assistant exists in cache
+      const cachedConfig = await cacheService.get('assistant_config', 'system');
+      
+      if (cachedConfig && typeof cachedConfig === 'string') {
+        const config = JSON.parse(cachedConfig) as AssistantConfig;
+        this.assistantId = config.assistantId;
+        this.vectorStoreId = config.vectorStoreId;
+        config.documents.forEach(doc => this.documents.set(doc.id, doc));
+        console.log('Loaded assistant from cache:', this.assistantId);
+      } else {
+        // Create new assistant
+        await this.createAssistant();
+      }
+
+      this.initialized = true;
+    } catch (error) {
+      console.error('Failed to initialize assistant:', error);
+      throw error;
+    }
+  }
+
+  private async createAssistant(): Promise<void> {
+    try {
+      // Create vector store for documents
+      const vectorStore = await openai.vectorStores.create({
+        name: 'ZANTARA Knowledge Base',
+        metadata: {
+          created: new Date().toISOString(),
+          categories: 'KITAS,PT_PMA,TAX'
+        }
+      });
+
+      this.vectorStoreId = vectorStore.id;
+
+      // Create assistant with function calling and file search
+      const assistant = await openai.beta.assistants.create({
+        name: 'ZANTARA Compliance Assistant',
+        instructions: `You are ZANTARA, an expert AI assistant for Indonesia business compliance and immigration.
+        
+Your expertise includes:
+- KITAS (Limited Stay Permit) and KITAP (Permanent Stay Permit) applications and requirements
+- PT PMA (Foreign Investment Company) setup and regulations
+- Indonesian tax obligations and filing requirements
+- Business licensing and permits
+- Employment regulations for foreign workers
+- Property ownership rules for foreigners
+- Banking and financial regulations
+
+You have access to official government documents and regulations. Always provide accurate, up-to-date information based on Indonesian law.
+When answering:
+1. Cite specific regulations when relevant
+2. Provide step-by-step guidance for processes
+3. Mention required documents and timelines
+4. Highlight important deadlines and penalties
+5. Suggest consulting with legal professionals for complex cases
+
+Be concise but thorough. If information is not in your knowledge base, clearly state that and suggest official sources.`,
+        model: 'gpt-4o-mini',
+        tools: [
+          { type: 'file_search' },
+          { type: 'code_interpreter' }
+        ],
+        tool_resources: {
+          file_search: {
+            vector_store_ids: [this.vectorStoreId]
+          }
+        },
+        temperature: 0.3,
+        metadata: {
+          version: '1.0',
+          created: new Date().toISOString()
+        }
+      });
+
+      this.assistantId = assistant.id;
+
+      // Save configuration
+      await this.saveConfig();
+
+      console.log('Created new assistant:', this.assistantId);
+    } catch (error) {
+      console.error('Failed to create assistant:', error);
+      throw error;
+    }
+  }
+
+  private async saveConfig(): Promise<void> {
+    if (!this.assistantId || !this.vectorStoreId) return;
+
+    const config: AssistantConfig = {
+      assistantId: this.assistantId,
+      vectorStoreId: this.vectorStoreId,
+      documents: Array.from(this.documents.values())
+    };
+
+    await cacheService.set(
+      'assistant_config',
+      JSON.stringify(config),
+      86400 * 30, // 30 days
+      'system'
+    );
+  }
+
+  async uploadDocument(
+    filePath: string,
+    category: DocumentMetadata['category'],
+    language: string = 'en'
+  ): Promise<DocumentMetadata> {
+    await this.initialize();
+
+    if (!this.vectorStoreId) {
+      throw new Error('Vector store not initialized');
+    }
+
+    try {
+      // Read file
+      const fileContent = await fs.readFile(filePath);
+      const fileName = path.basename(filePath);
+
+      // Upload to OpenAI
+      const file = await openai.files.create({
+        file: new File([new Uint8Array(fileContent)], fileName, { type: 'application/pdf' }),
+        purpose: 'assistants'
+      });
+
+      // Add to vector store
+      await openai.vectorStores.files.create(this.vectorStoreId, {
+        file_id: file.id
+      });
+
+      // Create metadata
+      const metadata: DocumentMetadata = {
+        id: file.id,
+        name: fileName,
+        category,
+        language,
+        lastUpdated: new Date()
+      };
+
+      this.documents.set(file.id, metadata);
+      await this.saveConfig();
+
+      console.log(`Uploaded document: ${fileName} (${category})`);
+      return metadata;
+    } catch (error) {
+      console.error('Failed to upload document:', error);
+      throw error;
+    }
+  }
+
+  async uploadFromDrive(
+    driveFileId: string,
+    category: DocumentMetadata['category'],
+    language: string = 'en'
+  ): Promise<DocumentMetadata> {
+    await this.initialize();
+
+    try {
+      // Get file from Drive
+      const drive = await getDrive();
+      const fileMetadata = await drive.files.get({
+        fileId: driveFileId,
+        fields: 'name, mimeType, size'
+      });
+
+      const response = await drive.files.get({
+        fileId: driveFileId,
+        alt: 'media'
+      }, { responseType: 'arraybuffer' });
+
+      // Upload to OpenAI
+      const file = await openai.files.create({
+        file: new File(
+          [response.data as ArrayBuffer],
+          fileMetadata.data.name || 'document.pdf',
+          { type: fileMetadata.data.mimeType || 'application/pdf' }
+        ),
+        purpose: 'assistants'
+      });
+
+      // Add to vector store
+      if (this.vectorStoreId) {
+        await openai.vectorStores.files.create(this.vectorStoreId, {
+          file_id: file.id
+        });
+      }
+
+      // Create metadata
+      const metadata: DocumentMetadata = {
+        id: file.id,
+        name: fileMetadata.data.name || 'Unknown',
+        category,
+        language,
+        lastUpdated: new Date(),
+        vectorStoreId: this.vectorStoreId || undefined
+      };
+
+      this.documents.set(file.id, metadata);
+      await this.saveConfig();
+
+      console.log(`Uploaded from Drive: ${metadata.name} (${category})`);
+      return metadata;
+    } catch (error) {
+      console.error('Failed to upload from Drive:', error);
+      throw error;
+    }
+  }
+
+  async query(
+    userMessage: string,
+    userId: string = 'anonymous',
+    context?: string
+  ): Promise<{ response: string; sources: string[] }> {
+    await this.initialize();
+
+    if (!this.assistantId) {
+      throw new Error('Assistant not initialized');
+    }
+
+    try {
+      // Create thread
+      const thread = await openai.beta.threads.create({
+        metadata: {
+          userId,
+          timestamp: new Date().toISOString()
+        }
+      });
+
+      // Add context if provided
+      if (context) {
+        await openai.beta.threads.messages.create(thread.id, {
+          role: 'assistant',
+          content: `Context: ${context}`
+        });
+      }
+
+      // Add user message
+      await openai.beta.threads.messages.create(thread.id, {
+        role: 'user',
+        content: userMessage
+      });
+
+      // Run assistant
+      const run = await openai.beta.threads.runs.create(thread.id, {
+        assistant_id: this.assistantId,
+        temperature: 0.3,
+        max_prompt_tokens: 2000,
+        max_completion_tokens: 1500
+      });
+
+      // Wait for completion
+      let runStatus = await openai.beta.threads.runs.retrieve(run.id, { thread_id: thread.id });
+      let attempts = 0;
+      const maxAttempts = 30;
+
+      while (runStatus.status !== 'completed' && attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        runStatus = await openai.beta.threads.runs.retrieve(run.id, { thread_id: thread.id });
+        attempts++;
+
+        if (runStatus.status === 'failed' || runStatus.status === 'cancelled') {
+          throw new Error(`Assistant run ${runStatus.status}: ${runStatus.last_error?.message}`);
+        }
+      }
+
+      if (runStatus.status !== 'completed') {
+        throw new Error('Assistant run timed out');
+      }
+
+      // Get messages
+      const messages = await openai.beta.threads.messages.list(thread.id);
+      const assistantMessage = messages.data.find(m => m.role === 'assistant');
+
+      if (!assistantMessage) {
+        throw new Error('No assistant response');
+      }
+
+      // Extract text and sources
+      let responseText = '';
+      const sources: string[] = [];
+
+      for (const content of assistantMessage.content) {
+        if (content.type === 'text') {
+          responseText += content.text.value;
+
+          // Extract file citations
+          if (content.text.annotations) {
+            for (const annotation of content.text.annotations) {
+              if (annotation.type === 'file_citation') {
+                const fileId = annotation.file_citation.file_id;
+                const doc = this.documents.get(fileId);
+                if (doc) {
+                  sources.push(`${doc.name} (${doc.category})`);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Clean up thread
+      await openai.beta.threads.delete(thread.id);
+
+      return {
+        response: responseText,
+        sources: [...new Set(sources)] // Remove duplicates
+      };
+    } catch (error) {
+      console.error('Assistant query failed:', error);
+      throw error;
+    }
+  }
+
+  async listDocuments(): Promise<DocumentMetadata[]> {
+    await this.initialize();
+    return Array.from(this.documents.values());
+  }
+
+  async removeDocument(fileId: string): Promise<void> {
+    await this.initialize();
+
+    if (!this.vectorStoreId) {
+      throw new Error('Vector store not initialized');
+    }
+
+    try {
+      // Remove from vector store
+      await openai.vectorStores.files.delete(fileId, { vector_store_id: this.vectorStoreId });
+
+      // Delete file
+      await openai.files.delete({ file_id: fileId });
+
+      // Remove from local storage
+      this.documents.delete(fileId);
+      await this.saveConfig();
+
+      console.log(`Removed document: ${fileId}`);
+    } catch (error) {
+      console.error('Failed to remove document:', error);
+      throw error;
+    }
+  }
+
+  async updateAssistantInstructions(instructions: string): Promise<void> {
+    await this.initialize();
+
+    if (!this.assistantId) {
+      throw new Error('Assistant not initialized');
+    }
+
+    try {
+      await openai.beta.assistants.update(this.assistantId, {
+        instructions
+      });
+
+      console.log('Updated assistant instructions');
+    } catch (error) {
+      console.error('Failed to update instructions:', error);
+      throw error;
+    }
+  }
+
+  getAssistantId(): string | null {
+    return this.assistantId;
+  }
+
+  getVectorStoreId(): string | null {
+    return this.vectorStoreId;
+  }
+}
+
+export const assistantKnowledgeBase = new AssistantKnowledgeBase();

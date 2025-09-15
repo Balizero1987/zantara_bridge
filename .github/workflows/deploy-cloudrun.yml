@@ -28,7 +28,7 @@ jobs:
 
     env:
       REGION: asia-southeast2
-      SERVICE: zantara-chat-v3-1064094238013
+      SERVICE: zantara-bridge-v2-prod
       AR_REPO: zantara-repo
 
     steps:
@@ -119,7 +119,7 @@ jobs:
         run: |
           PROJECT_ID=$(printf '%s' "${{ secrets.GCP_PROJECT_ID }}" | tr -d '\r\n' | xargs)
           RUNTIME_SA=$(printf '%s' "${{ secrets.GCP_RUNTIME_SA_EMAIL }}" | tr -d '\r\n' | xargs)
-          gcloud run deploy zantara-chat-v3-1064094238013 \
+          gcloud run deploy zantara-bridge-v2-prod \
             --project "$PROJECT_ID" \
             --region asia-southeast2 \
             --image "$IMAGE_URI" \
@@ -131,7 +131,7 @@ jobs:
       - name: Resolve Cloud Run URL
         run: |
           PROJECT_ID=$(printf '%s' "${{ secrets.GCP_PROJECT_ID }}" | tr -d '\r\n' | xargs)
-          URL=$(gcloud run services describe zantara-chat-v3-1064094238013 --project "$PROJECT_ID" --region asia-southeast2 --format='value(status.url)')
+          URL=$(gcloud run services describe zantara-bridge-v2-prod --project "$PROJECT_ID" --region asia-southeast2 --format='value(status.url)')
           echo "SERVICE_URL=$URL" >> "$GITHUB_ENV"
           echo "Resolved URL: $URL"
 
@@ -295,7 +295,7 @@ jobs:
         if: ${{ success() }}
         run: |
           PROJECT_ID=$(printf '%s' "${{ secrets.GCP_PROJECT_ID }}" | tr -d '\r\n' | xargs)
-          gcloud run services update zantara-chat-v3-1064094238013 \
+          gcloud run services update zantara-bridge-v2-prod \
             --project "$PROJECT_ID" \
             --region asia-southeast2 \
             --set-env-vars "ENABLE_DIAG=false"

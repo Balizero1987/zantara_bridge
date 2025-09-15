@@ -1,6 +1,6 @@
 import type { Router, Request, Response } from 'express';
 import { db, NoteEntry } from '../../core/firestore';
-import { saveNote } from '../../lib/driveSave';
+import { saveNote, saveNoteWithRequest } from '../../lib/driveSave';
 
 export default function registerNotes(r: Router) {
   // 📌 POST: salva nota su Drive in AMBARADAM/<OWNER>/Notes/
@@ -11,7 +11,7 @@ export default function registerNotes(r: Router) {
       const content = String(req.body?.content || '').trim();
       if (!content) return res.status(400).json({ ok: false, error: 'content required' });
 
-      const out = await saveNote(owner, content, title);
+      const out = await saveNoteWithRequest(req, content, title);
       return res.json({ ok: true, file: out });
     } catch (e: any) {
       return res.status(500).json({ ok: false, error: e?.message || 'save_note_failed' });

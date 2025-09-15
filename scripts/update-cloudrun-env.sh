@@ -4,7 +4,7 @@ set -euo pipefail
 # Update Cloud Run service with required Drive secrets and env vars.
 # Usage:
 #   PROJ=involuted-box-469105-r0 REGION=asia-southeast2 \
-#   SERVICE=zantara-chat-v3-1064094238013 \
+#   SERVICE=zantara-bridge-v2-prod \
 #   FOLDER_ID=1UGbm5er6Go351S57GQKUjmxMxHyT4QZb \
 #   IMP_USER=zero@balizero.com \
 #   ENABLE_DIAG=true \
@@ -12,7 +12,7 @@ set -euo pipefail
 
 PROJ="${PROJ:-}"
 REGION="${REGION:-asia-southeast2}"
-SERVICE="${SERVICE:-zantara-chat-v3-1064094238013}"
+SERVICE="${SERVICE:-zantara-bridge-v2-prod}"
 FOLDER_ID="${FOLDER_ID:-}"
 IMP_USER="${IMP_USER:-}"
 ENABLE_DIAG="${ENABLE_DIAG:-true}"

@@ -11,7 +11,7 @@ Questa guida verifica e abilita l’impersonation del Service Account per Google
 ```bash
 export PROJ="involuted-box-469105-r0"
 export REGION="asia-southeast2"
-export SERVICE="zantara-chat-v3-1064094238013"
+export SERVICE="zantara-bridge-v2-prod"
 
 RUNTIME_SA=$(gcloud run services describe "$SERVICE" \
   --region "$REGION" --project "$PROJ" \

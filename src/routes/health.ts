@@ -346,18 +346,39 @@ async function checkGoogleAPIs(): Promise<HealthCheck> {
 
 async function checkRedis(): Promise<HealthCheck> {
   const startTime = Date.now();
-  
-  // Redis is not currently configured, so mark as degraded
-  return {
-    service: 'redis',
-    status: 'degraded',
-    responseTime: Date.now() - startTime,
-    details: {
-      configured: false,
-      message: 'Redis not configured - using in-memory storage'
-    },
-    lastChecked: new Date().toISOString()
-  };
+  try {
+    const url = process.env.REDIS_URL || '';
+    if (!url) {
+      return {
+        service: 'redis',
+        status: 'degraded',
+        responseTime: Date.now() - startTime,
+        details: { configured: false, message: 'REDIS_URL not set - using in-memory' },
+        lastChecked: new Date().toISOString(),
+      };
+    }
+    const Redis = require('ioredis');
+    const client = new Redis(url, { lazyConnect: true, maxRetriesPerRequest: 1, connectTimeout: 1500 });
+    await client.connect();
+    const pong = await client.ping();
+    await client.quit();
+    const ok = String(pong || '').toUpperCase().includes('PONG');
+    return {
+      service: 'redis',
+      status: ok ? 'healthy' : 'degraded',
+      responseTime: Date.now() - startTime,
+      details: { configured: true, ping: pong },
+      lastChecked: new Date().toISOString(),
+    };
+  } catch (e: any) {
+    return {
+      service: 'redis',
+      status: 'unhealthy',
+      responseTime: Date.now() - startTime,
+      details: { error: e?.message || String(e) },
+      lastChecked: new Date().toISOString(),
+    };
+  }
 }
 
 async function checkDatabase(): Promise<HealthCheck> {

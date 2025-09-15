@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://zantara-chat-v3-1064094238013.asia-southeast2.run.app"
+      "url": "https://zantara-bridge-v2-prod-1064094238013.asia-southeast2.run.app"
     }
   ],
   "paths": {

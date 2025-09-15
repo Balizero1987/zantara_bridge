@@ -358,4 +358,4 @@ function getEventDescription(event: WebhookEvent): string {
   return descriptions[event] || 'No description available';
 }
 
-export { router as webhooksRouter, WebhookEvent };
+export { router as webhooksRouter };

@@ -10,7 +10,7 @@ env:
   PROJECT_ID: involuted-box-469105-r0
   REGION: asia-southeast2
   AR_REPO: zantara
-  SERVICE: zantara-chat-v3-1064094238013
+  SERVICE: zantara-bridge-v2-prod
 
 jobs:
   build-and-deploy:

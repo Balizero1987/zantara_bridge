@@ -42,7 +42,7 @@ jobs:
         run: |
           PROJECT_ID=$(printf '%s' "${{ secrets.GCP_PROJECT_ID }}" | tr -d '\r\n' | xargs)
           RUNTIME_SA=$(printf '%s' "${{ secrets.GCP_RUNTIME_SA_EMAIL }}" | tr -d '\r\n' | xargs)
-          gcloud run deploy zantara-chat-v3-1064094238013 \
+          gcloud run deploy zantara-bridge-v2-prod \
             --project "$PROJECT_ID" \
             --region asia-southeast2 \
             --image "$IMAGE_URI" \
@@ -55,11 +55,11 @@ jobs:
         run: |
           set -euo pipefail
           : > sa_access.txt
-          URL=$(gcloud run services describe zantara-chat-v3-1064094238013 --project "${{ secrets.GCP_PROJECT_ID }}" --region asia-southeast2 --format='value(status.url)')
+          URL=$(gcloud run services describe zantara-bridge-v2-prod --project "${{ secrets.GCP_PROJECT_ID }}" --region asia-southeast2 --format='value(status.url)')
           echo "SA access check — $(date -u --iso-8601=seconds)" | tee -a sa_access.txt
           if [[ -f scripts/smoke-drive.sh ]]; then
             echo "Running scripts/smoke-drive.sh" | tee -a sa_access.txt
-            PROJ="${{ secrets.GCP_PROJECT_ID }}" REGION="asia-southeast2" SERVICE="zantara-chat-v3-1064094238013" bash scripts/smoke-drive.sh 2>&1 | tee -a sa_access.txt
+            PROJ="${{ secrets.GCP_PROJECT_ID }}" REGION="asia-southeast2" SERVICE="zantara-bridge-v2-prod" bash scripts/smoke-drive.sh 2>&1 | tee -a sa_access.txt
           else
             echo "Fallback: curl $URL/diag/drive" | tee -a sa_access.txt
             curl -sS "$URL/diag/drive" | tee -a sa_access.txt
@@ -77,17 +77,17 @@ jobs:
         run: |
           set +e
           : > test-output.log
-          URL=$(gcloud run services describe zantara-chat-v3-1064094238013 --project "${{ secrets.GCP_PROJECT_ID }}" --region asia-southeast2 --format='value(status.url)')
+          URL=$(gcloud run services describe zantara-bridge-v2-prod --project "${{ secrets.GCP_PROJECT_ID }}" --region asia-southeast2 --format='value(status.url)')
           KEY="$(gcloud secrets versions access latest --secret=ZANTARA_PLUGIN_API_KEY --project ${{ secrets.GCP_PROJECT_ID }} | tr -d '\n\r')"
           if [[ -f scripts/test_upload.sh ]]; then
             echo "Running scripts/test_upload.sh" | tee -a test-output.log
-            PROJ="${{ secrets.GCP_PROJECT_ID }}" REGION="asia-southeast2" SERVICE="zantara-chat-v3-1064094238013" SERVICE_URL="$URL" KEY="$KEY" FOLDER_ID="${{ secrets.DRIVE_FOLDER_AMBARADAM }}" bash scripts/test_upload.sh >> test-output.log 2>&1 || echo "test_upload.sh failed" | tee -a test-output.log
+            PROJ="${{ secrets.GCP_PROJECT_ID }}" REGION="asia-southeast2" SERVICE="zantara-bridge-v2-prod" SERVICE_URL="$URL" KEY="$KEY" FOLDER_ID="${{ secrets.DRIVE_FOLDER_AMBARADAM }}" bash scripts/test_upload.sh >> test-output.log 2>&1 || echo "test_upload.sh failed" | tee -a test-output.log
           else
             echo "scripts/test_upload.sh not found" | tee -a test-output.log
           fi
           if [[ -f scripts/test-sa-access.sh ]]; then
             echo "Running scripts/test-sa-access.sh" | tee -a test-output.log
-            PROJ="${{ secrets.GCP_PROJECT_ID }}" REGION="asia-southeast2" SERVICE="zantara-chat-v3-1064094238013" bash scripts/test-sa-access.sh >> test-output.log 2>&1 || echo "test-sa-access.sh failed" | tee -a test-output.log
+            PROJ="${{ secrets.GCP_PROJECT_ID }}" REGION="asia-southeast2" SERVICE="zantara-bridge-v2-prod" bash scripts/test-sa-access.sh >> test-output.log 2>&1 || echo "test-sa-access.sh failed" | tee -a test-output.log
           else
             echo "scripts/test-sa-access.sh not found" | tee -a test-output.log
           fi
@@ -106,7 +106,7 @@ jobs:
           : > test-sa-access.log
           if [[ -f scripts/test-sa-access.sh ]]; then
             echo "Running scripts/test-sa-access.sh" | tee -a test-sa-access.log
-            PROJ="${{ secrets.GCP_PROJECT_ID }}" REGION="asia-southeast2" SERVICE="zantara-chat-v3-1064094238013" bash scripts/test-sa-access.sh >> test-sa-access.log 2>&1 || echo "test-sa-access.sh failed" | tee -a test-sa-access.log
+            PROJ="${{ secrets.GCP_PROJECT_ID }}" REGION="asia-southeast2" SERVICE="zantara-bridge-v2-prod" bash scripts/test-sa-access.sh >> test-sa-access.log 2>&1 || echo "test-sa-access.sh failed" | tee -a test-sa-access.log
           else
             echo "scripts/test-sa-access.sh not found" | tee -a test-sa-access.log
           fi
@@ -152,7 +152,7 @@ jobs:
         if: ${{ success() }}
         run: |
           PROJECT_ID=$(printf '%s' "${{ secrets.GCP_PROJECT_ID }}" | tr -d '\r\n' | xargs)
-          gcloud run services update zantara-chat-v3-1064094238013 \
+          gcloud run services update zantara-bridge-v2-prod \
             --project "$PROJECT_ID" \
             --region asia-southeast2 \
             --set-env-vars "ENABLE_DIAG=false"

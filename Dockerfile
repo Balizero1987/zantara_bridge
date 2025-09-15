@@ -1,30 +1,20 @@
-# ---------- Builder ----------
-FROM node:20-slim AS builder
+# Builder
+FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Install deps
 COPY package*.json ./
-RUN npm ci || npm install
+RUN npm ci
 
-# Copy sources
-COPY tsconfig.json ./
-COPY src ./src
+COPY . .
+RUN npx tsc -p tsconfig.json
 
-# Build TypeScript → dist/
-RUN npm run build
-
-# ---------- Runtime ----------
-FROM node:20-slim
+# Runner  
+FROM node:20-alpine AS runner
 WORKDIR /app
 
-# Runtime-only deps
-COPY package*.json ./
-RUN npm ci --omit=dev || npm install --omit=dev
-
-# Copy built artifacts
 COPY --from=builder /app/dist ./dist
+COPY package*.json ./
 
-ENV NODE_ENV=production
+RUN npm ci --omit=dev
 
-# Entry
-CMD ["node","dist/index.js"]
+CMD ["node", "dist/index.js"]

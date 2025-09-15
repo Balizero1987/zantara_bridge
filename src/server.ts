@@ -3,6 +3,8 @@ import router from "./chatRouter";
 import identity from "./api/identity";
 import { apiKeyGuard } from "./middleware/authPlugin";
 import gmail from "./api/gmail";
+import calendar from "./api/calendar";
+import assistant from "./api/assistant";
 import drive, { driveDiagRouter } from "./api/drive";
 import chat from "./api/chat";
 import memory from "./api/memory";
@@ -24,6 +26,9 @@ app.use("/actions/gmail", apiKeyGuard, gmail);
 app.use("/actions/memory", apiKeyGuard, memory);
 app.use("/actions/drive", apiKeyGuard, drive);
 app.use("/actions/chat", apiKeyGuard, chat);
+// Calendar + Assistant APIs (protected)
+app.use("/", calendar);
+app.use("/actions/assistant", apiKeyGuard, assistant);
 
 // Diagnostica Drive (senza API key; usarla per setup/health)
 app.use("/diag/drive", driveDiagRouter);

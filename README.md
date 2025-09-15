@@ -51,7 +51,7 @@ curl -s -X POST "$SERVICE_URL/actions/drive/upload" \
 Esempio (placeholders):
 
 ```sh
-gcloud run services update zantara-chat-v3-1064094238013 \
+gcloud run services update zantara-bridge-v2-prod \
   --region asia-southeast2 --project $PROJ \
   --set-secrets "GOOGLE_SERVICE_ACCOUNT_KEY=GOOGLE_SERVICE_ACCOUNT_KEY:latest,ZANTARA_PLUGIN_API_KEY=ZANTARA_PLUGIN_API_KEY:latest" \
   --set-env-vars "DRIVE_FOLDER_AMBARADAM=1UGbm5er6Go351S57GQKUjmxMxHyT4QZb,\

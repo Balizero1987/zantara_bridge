@@ -3,7 +3,7 @@ set -euo pipefail
 
 PROJ="${PROJ:-involuted-box-469105-r0}"
 REGION="${REGION:-asia-southeast2}"
-SERVICE="${SERVICE:-zantara-chat-v3-1064094238013}"
+SERVICE="${SERVICE:-zantara-bridge-v2-prod}"
 
 URL=$(gcloud run services describe "$SERVICE" --region "$REGION" --project "$PROJ" --format='value(status.url)')
 KEY=$(gcloud secrets versions access latest --secret=ZANTARA_PLUGIN_API_KEY --project="$PROJ" | tr -d '\r\n')

@@ -1,61 +1,112 @@
 {
   "indexes": [
     {
-      "collectionGroup": "fileIndex",
+      "collectionGroup": "notes",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "canonicalOwner",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "kind",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "ts",
-          "order": "DESCENDING"
-        }
+        { "fieldPath": "owner", "order": "ASCENDING" },
+        { "fieldPath": "ts", "order": "DESCENDING" }
       ]
     },
     {
-      "collectionGroup": "fileIndex",
+      "collectionGroup": "notes", 
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "canonicalOwner",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "kind",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "dateKey",
-          "order": "DESCENDING"
-        },
-        {
-          "fieldPath": "ts",
-          "order": "DESCENDING"
-        }
+        { "fieldPath": "dateKey", "order": "ASCENDING" },
+        { "fieldPath": "ts", "order": "DESCENDING" }
       ]
     },
     {
       "collectionGroup": "notes",
+      "queryScope": "COLLECTION", 
+      "fields": [
+        { "fieldPath": "owner", "order": "ASCENDING" },
+        { "fieldPath": "dateKey", "order": "ASCENDING" },
+        { "fieldPath": "ts", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "entries",
       "queryScope": "COLLECTION",
       "fields": [
-        {
-          "fieldPath": "canonicalOwner",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "dateKey",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "ts",
-          "order": "ASCENDING"
-        }
+        { "fieldPath": "owner", "order": "ASCENDING" },
+        { "fieldPath": "ts", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "type", "order": "ASCENDING" },
+        { "fieldPath": "ts", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "entries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "owner", "order": "ASCENDING" },
+        { "fieldPath": "type", "order": "ASCENDING" },
+        { "fieldPath": "ts", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "chatSessions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "canonicalOwner", "order": "ASCENDING" },
+        { "fieldPath": "ts", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "conversationMemory",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "conversationMemory",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "sessionId", "order": "ASCENDING" },
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "learningMetrics",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "userProfiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId", "order": "ASCENDING" },
+        { "fieldPath": "lastUpdated", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": [
+    {
+      "collectionGroup": "notes",
+      "fieldPath": "tags",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION" }
+      ]
+    },
+    {
+      "collectionGroup": "entries", 
+      "fieldPath": "tags",
+      "indexes": [
+        { "order": "ASCENDING", "queryScope": "COLLECTION" },
+        { "arrayConfig": "CONTAINS", "queryScope": "COLLECTION" }
       ]
     }
   ]

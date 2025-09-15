@@ -1,6 +1,7 @@
 
 import { Request, Response } from 'express';
 import { Firestore } from '@google-cloud/firestore';
+import { handleFirestoreError } from '../../../core/firestore';
 
 export async function memoryWeeklySummaryHandler(req: Request, res: Response) {
   try {
@@ -16,6 +17,7 @@ export async function memoryWeeklySummaryHandler(req: Request, res: Response) {
     const summary = bullets.join('\n');
     return res.json({ ok: true, userId, count: items.length, summary });
   } catch (e: any) {
+    handleFirestoreError(e);
     return res.status(500).json({ ok: false, error: e?.message || 'memory.weeklySummary failed' });
   }
 }

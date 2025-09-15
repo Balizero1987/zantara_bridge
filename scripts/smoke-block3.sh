@@ -3,7 +3,7 @@ set -euo pipefail
 
 PROJ="${PROJ:-involuted-box-469105-r0}"
 REGION="${REGION:-asia-southeast2}"
-SERVICE="${SERVICE:-zantara-chat-v3-1064094238013}"
+SERVICE="${SERVICE:-zantara-bridge-v2-prod}"
 
 green() { printf "\033[32m%s\033[0m\n" "$1"; }
 red()   { printf "\033[31m%s\033[0m\n" "$1"; }

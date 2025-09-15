@@ -5,7 +5,7 @@ set -euo pipefail
 PROJ="${PROJ:-involuted-box-469105-r0}"
 REGION="${REGION:-asia-southeast2}"
 REPO="${REPO:-zantara-repo}"
-SERVICE="${SERVICE:-zantara-chat-v3-1064094238013}"
+SERVICE="${SERVICE:-zantara-bridge-v2-prod}"
 FOLDER_ID="${DRIVE_FOLDER_AMBARADAM:-}"  # required
 
 echo "Project: $PROJ"; echo "Region: $REGION"; echo "Service: $SERVICE"; echo "Repo: $REPO";

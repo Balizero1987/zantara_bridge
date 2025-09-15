@@ -11,9 +11,9 @@
   },
   "api": {
     "type": "openapi",
-    "url": "https://zantara-chat-v3-1064094238013.asia-southeast2.run.app/.well-known/openapi.json"
+    "url": "https://zantara-bridge-v2-prod-1064094238013.asia-southeast2.run.app/.well-known/openapi.json"
   },
-  "logo_url": "https://zantara-chat-v3-1064094238013.asia-southeast2.run.app/logo.png",
+  "logo_url": "https://zantara-bridge-v2-prod-1064094238013.asia-southeast2.run.app/logo.png",
   "contact_email": "ops@balizero.com",
-  "legal_info_url": "https://zantara-chat-v3-1064094238013.asia-southeast2.run.app/terms"
+  "legal_info_url": "https://zantara-bridge-v2-prod-1064094238013.asia-southeast2.run.app/terms"
 }

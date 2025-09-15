@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import registerPlugin from './routes/plugin';
 import registerDiag from './routes/diag';
@@ -9,7 +10,7 @@ import registerDriveBrief from './routes/api/driveBrief';
 import drive, { driveDiagRouter } from './api/drive';
 import registerGitHubBrief from './routes/api/githubBrief';
 import registerWebhooks from './routes/api/webhooks';
-import { saveNote } from './lib/driveSave';
+import { saveNote, saveNoteWithRequest } from './lib/driveSave';
 import registerChatEnhanced from './routes/api/chatEnhanced';
 import registerFileOperations from './routes/api/fileOperations';
 import registerTeamWorkspace from './routes/api/teamWorkspace';
@@ -20,6 +21,9 @@ import registerTeamAnalytics from './routes/api/teamAnalytics';
 import registerPersonalMemory from './routes/api/personalMemory';
 import registerRelationshipBuilder from './routes/api/relationshipBuilder';
 import registerEmotionalIntelligence from './routes/api/emotionalIntelligence';
+import registerDriveIntegration from './routes/api/driveIntegration';
+import registerAssistant from './routes/api/assistant';
+import registerCompliance from './routes/api/compliance';
 import { analyticsRouter } from './routes/analytics';
 import { usersRouter } from './routes/users';
 import { searchRouter } from './routes/search';
@@ -31,6 +35,16 @@ const app = express();
 app.set('trust proxy', true);
 app.disable('x-powered-by');
 app.use(express.json({ limit: '1mb' }));
+
+// Health check pubblico (per GCP e uptime probe)
+app.get('/health', (_req, res) => {
+  res.status(200).json({ ok: true, ts: Date.now() });
+});
+
+// Health check interno (protetto)
+app.get('/internal/health', apiKeyGuard as any, (_req, res) => {
+  res.status(200).json({ ok: true, service: "zantara-bridge", ts: Date.now() });
+});
 
 // Plugin pubblico
 registerPlugin(app);
@@ -58,6 +72,9 @@ registerTeamAnalytics(app); // Team analytics and dashboard
 registerPersonalMemory(app); // Personal memory and relationship tracking
 registerRelationshipBuilder(app); // Advanced relationship building
 registerEmotionalIntelligence(app); // Emotional intelligence and wellness
+registerDriveIntegration(app); // Google Drive integration endpoints
+registerAssistant(app); // OpenAI Assistant with persistent threads
+registerCompliance(app); // Compliance tools for KITAS, Gmail, Calendar
 registerDocgen(app);
 registerDriveBrief(app);
 registerGitHubBrief(app);
@@ -81,7 +98,7 @@ app.post('/actions/memory/save', async (req, res) => {
     const title = String(req.body?.title || '').trim() || undefined;
     const content = String(req.body?.content || '').trim();
     if (!content) return res.status(400).json({ ok: false, error: 'content required' });
-    const out = await saveNote(owner, content, title);
+    const out = await saveNoteWithRequest(req, content, title);
     return res.json({ ok: true, file: out });
   } catch (e: any) {
     return res.status(500).json({ ok: false, error: e?.message || 'save_note_failed' });
