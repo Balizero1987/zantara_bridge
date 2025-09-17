@@ -88,6 +88,10 @@ if (process.env.ENABLE_DIAG === 'true') {
 // Middleware protetti (API Key obbligatoria)
 app.use(apiKeyGuard as any);
 
+// User identification gate for Drive folder organization
+import { chatUserGate } from './middleware/chatUserGate';
+app.use('/api/chat', chatUserGate);
+
 // Memory optimization middleware for chat endpoints
 app.use('/api/chat', injectMemoryContext, saveToOptimizedMemory);
 app.use('/api/chat-enhanced', injectMemoryContext, saveToOptimizedMemory);

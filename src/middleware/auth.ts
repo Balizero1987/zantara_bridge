@@ -1,22 +1,16 @@
 import { Request, Response, NextFunction } from 'express';
-import { requireApiKeyEnhanced, requireApiKeyBasic } from './zantaraAuth';
+import { lightweightAuth } from './lightweightAuth';
 
 /**
- * API key guard with enhanced security features including:
- * - Timing-safe key comparison
- * - Rate limiting (100 req/min per key)
- * - Comprehensive logging
- * - Dual auth support (X-API-KEY + Bearer)
- * Falls back to basic auth if enhanced middleware fails.
+ * ZERO-COST API key guard with minimal overhead:
+ * - Basic timing-safe key comparison
+ * - Simple rate limiting
+ * - Minimal logging (errors only)
+ * - Optimized for cost efficiency
  */
 export function requireApiKey(req: Request, res: Response, next: NextFunction) {
-  // Use enhanced middleware with fallback
-  try {
-    return requireApiKeyEnhanced(req, res, next);
-  } catch (error) {
-    console.warn('Enhanced auth failed, falling back to basic auth:', error);
-    return requireApiKeyBasic(req, res, next);
-  }
+  // Use lightweight auth for zero-cost operation
+  return lightweightAuth(req, res, next);
 }
 
 /**

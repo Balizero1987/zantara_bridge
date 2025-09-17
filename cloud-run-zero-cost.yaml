@@ -1,0 +1,117 @@
+# Zantara Bridge - Zero-Cost Cloud Run Configuration
+# Optimized for scale-to-zero with minimal resource usage
+
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: zantara-bridge-v2-prod
+  annotations:
+    # Essential annotations only
+    run.googleapis.com/execution-environment: gen2
+    run.googleapis.com/ingress: "all"
+    
+spec:
+  template:
+    metadata:
+      annotations:
+        # ZERO-COST SCALING CONFIGURATION
+        autoscaling.knative.dev/minScale: "0"      # Scale to zero when idle
+        autoscaling.knative.dev/maxScale: "1"      # Single instance max for cost control
+        
+        # MINIMAL RESOURCE ALLOCATION
+        run.googleapis.com/memory: "512Mi"         # Reduced from 2Gi
+        run.googleapis.com/cpu: "1"                # Reduced from 2 vCPU
+        
+        # NO CPU BOOST (cost optimization)
+        run.googleapis.com/startup-cpu-boost: "false"
+        run.googleapis.com/cpu-throttling: "true"  # Allow throttling to save costs
+        
+    spec:
+      # HIGH CONCURRENCY (fewer instances needed)
+      containerConcurrency: 80
+      
+      # SHORTER TIMEOUT (reduce resource usage)
+      timeoutSeconds: 120  # 2 minutes max
+      
+      containers:
+      - image: asia-southeast2-docker.pkg.dev/involuted-box-469105-r0/zantara-repo/zantara-bridge:enhanced-auth-20250918-030734
+        
+        # MINIMAL RESOURCE LIMITS
+        resources:
+          limits:
+            memory: "512Mi"    # Minimal memory
+            cpu: "1000m"       # 1 vCPU max
+          requests:
+            memory: "256Mi"    # Even lower requests
+            cpu: "100m"        # Minimal CPU request
+            
+        # COST-OPTIMIZED ENVIRONMENT
+        env:
+        - name: NODE_ENV
+          value: "production"
+          
+        - name: PORT
+          value: "8080"
+          
+        # MINIMAL NODE.JS CONFIGURATION
+        - name: NODE_OPTIONS
+          value: "--max-old-space-size=256"  # Reduced heap size
+          
+        - name: UV_THREADPOOL_SIZE
+          value: "4"  # Minimal threads
+          
+        # DISABLE EXPENSIVE FEATURES
+        - name: ENABLE_DETAILED_LOGGING
+          value: "false"
+          
+        - name: ENABLE_AUDIT_LOGGING
+          value: "false"
+          
+        - name: ENABLE_PERFORMANCE_MONITORING
+          value: "false"
+          
+        # BASIC AUTH CONFIGURATION
+        - name: RATE_LIMIT_WINDOW_MS
+          value: "60000"
+          
+        - name: RATE_LIMIT_MAX_REQUESTS
+          value: "100"
+          
+        # MINIMAL OPENAI CONFIGURATION
+        - name: OPENAI_TIMEOUT_MS
+          value: "30000"  # 30 seconds timeout
+          
+        - name: OPENAI_MAX_RETRIES
+          value: "1"      # Minimal retries
+          
+        # SECRETS (only essential ones)
+        - name: ZANTARA_PLUGIN_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ZANTARA_PLUGIN_API_KEY
+              key: latest
+              
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: openai-api-key
+              key: latest
+        
+        # MINIMAL HEALTH CHECKS
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 300    # Check every 5 minutes (less frequent)
+          timeoutSeconds: 5
+          failureThreshold: 3
+          
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 60     # Less frequent checks
+          timeoutSeconds: 3
+          failureThreshold: 2
