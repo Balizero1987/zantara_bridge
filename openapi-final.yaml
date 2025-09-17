@@ -123,6 +123,14 @@ components:
         conversationId: { type: string }
     ChatResponse:
       type: object
+      properties:
+        ok: { type: boolean, default: true }
+        text: { type: string, description: "AI response text" }
+        responseTime: { type: number, description: "Response time in milliseconds" }
+        savedAs: { type: string, enum: [chat, note, brief], description: "How the conversation was saved" }
+        owner: { type: string, example: "BOSS", description: "Canonical owner" }
+        conversationId: { type: string, description: "Conversation identifier" }
+        error: { type: string, description: "Error message if any" }
       additionalProperties: true
 
     Note:
