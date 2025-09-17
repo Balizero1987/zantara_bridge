@@ -90,6 +90,11 @@ export async function uploadToDrive(
     const fullFileName = `${userId}_${timestamp}_${fileName}`;
     
     // Upload file
+    const { Readable } = require('stream');
+    const readable = new Readable();
+    readable.push(buffer);
+    readable.push(null);
+    
     const response = await drive.files.create({
       requestBody: {
         name: fullFileName,
@@ -98,7 +103,7 @@ export async function uploadToDrive(
       },
       media: {
         mimeType: mimeType,
-        body: buffer
+        body: readable
       },
       fields: 'id,name,webViewLink,webContentLink'
     });
@@ -190,6 +195,11 @@ export async function uploadTextAsDoc(
     const docName = `${userId}_${timestamp}_${title}`;
     
     // Create Google Doc
+    const { Readable } = require('stream');
+    const readable = new Readable();
+    readable.push(content);
+    readable.push(null);
+    
     const response = await drive.files.create({
       requestBody: {
         name: docName,
@@ -198,7 +208,7 @@ export async function uploadTextAsDoc(
       },
       media: {
         mimeType: 'text/plain',
-        body: content
+        body: readable
       },
       fields: 'id,name,webViewLink,webContentLink'
     });

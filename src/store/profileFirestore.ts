@@ -10,17 +10,29 @@ const profileFirestoreStore = {
       // Fallback to defaults and write-back
       const def = defaultProfiles[userId];
       if (def) {
+        // Auto-detect ID_slang for Indonesian users
+        let enhancedDef = { ...def };
+        if (def.locale === 'id-ID' && (!def.meta?.rawTone || def.meta.rawTone === 'collaborativo')) {
+          enhancedDef = {
+            ...def,
+            meta: {
+              ...def.meta,
+              rawTone: 'ID_slang'
+            }
+          };
+        }
+        
         await db.collection(COLL).doc(userId).set({
-          role: def.role || null,
-          seniority: def.seniority || null,
-          locale: def.locale || null,
-          timezone: def.timezone || null,
-          style: def.style || null,
-          meta: def.meta || null,
+          role: enhancedDef.role || null,
+          seniority: enhancedDef.seniority || null,
+          locale: enhancedDef.locale || null,
+          timezone: enhancedDef.timezone || null,
+          style: enhancedDef.style || null,
+          meta: enhancedDef.meta || null,
           updatedAt: Date.now(),
           seededFromDefault: true,
         }, { merge: true });
-        return def;
+        return enhancedDef;
       }
       return null;
     }

@@ -1,0 +1,79 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/ingress-status: all
+    run.googleapis.com/urls: '["https://zantara-bridge-v2-prod-1064094238013.asia-southeast2.run.app","https://zantara-bridge-v2-prod-himaadsxua-et.a.run.app"]'
+  labels:
+    cloud.googleapis.com/location: asia-southeast2
+    run.googleapis.com/satisfiesPzs: 'true'
+  name: zantara-bridge-v2-prod
+  namespace: '1064094238013'
+spec:
+  template:
+    metadata:
+      annotations:
+        autoscaling.knative.dev/maxScale: '10'
+        autoscaling.knative.dev/minScale: '1'
+        run.googleapis.com/client-name: gcloud
+        run.googleapis.com/client-version: 537.0.0
+        run.googleapis.com/cpu-throttling: 'false'
+        run.googleapis.com/startup-cpu-boost: 'true'
+      labels:
+        client.knative.dev/nonce: nopcbywzrp
+        run.googleapis.com/startupProbeType: Default
+    spec:
+      containerConcurrency: 80
+      containers:
+      - env:
+        - name: NODE_ENV
+          value: production
+        - name: OPENAI_PROJECT
+          value: proj_ORJSdYMFR5xC9OjzMgLfF8Iw
+        - name: ZANTARA_PLUGIN_API_KEY
+          value: 7a0adc0681bf7a5c6b6476f70a4581c85c49faeb66f7f61f20dc9b57ba86cfb3
+        - name: API_KEYS
+          value: 7a0adc0681bf7a5c6b6476f70a4581c85c49faeb66f7f61f20dc9b57ba86cfb3
+        - name: DRIVE_FOLDER_AMBARADAM
+          value: 1UGbm5er6Go351S57GQKUjmxMxHyT4QZb
+        - name: IMPERSONATE_USER
+          value: zero@balizero.com
+        - name: GMAIL_SENDER
+          value: zero@balizero.com
+        - name: ENABLE_DIAG
+          value: 'false'
+        - name: OPENAI_MODEL
+          value: gpt-4o-mini
+        - name: REDEPLOY_TRIGGER
+          value: '1757930364'
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: latest
+              name: OPENAI_API_KEY
+        - name: GOOGLE_SERVICE_ACCOUNT_KEY
+          valueFrom:
+            secretKeyRef:
+              key: latest
+              name: GOOGLE_SERVICE_ACCOUNT_KEY
+        image: asia-southeast2-docker.pkg.dev/involuted-box-469105-r0/zantara-repo/zantara-bridge-v2-prod:latest
+        name: zantara-bridge-v2-prod-1
+        ports:
+        - containerPort: 8080
+          name: http1
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        startupProbe:
+          failureThreshold: 1
+          periodSeconds: 240
+          tcpSocket:
+            port: 8080
+          timeoutSeconds: 240
+      serviceAccountName: zantara@involuted-box-469105-r0.iam.gserviceaccount.com
+      timeoutSeconds: 300
+  traffic:
+  - latestRevision: true
+    percent: 100

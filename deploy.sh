@@ -14,11 +14,6 @@ SERVICE_NAME="zantara-bridge-v2-prod"
 IMAGE_NAME="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
 
 # Check if required environment variables are set
-if [ -z "$OPENAI_API_KEY" ]; then
-    echo "❌ Error: OPENAI_API_KEY not set"
-    exit 1
-fi
-
 if [ -z "$ZANTARA_PLUGIN_API_KEY" ]; then
     echo "❌ Error: ZANTARA_PLUGIN_API_KEY not set"
     exit 1
@@ -42,8 +37,7 @@ gcloud run deploy ${SERVICE_NAME} \
   --max-instances 10 \
   --timeout 300 \
   --set-env-vars "NODE_ENV=production" \
-  --set-env-vars "OPENAI_API_KEY=${OPENAI_API_KEY}" \
-  --set-env-vars "OPENAI_PROJECT=${OPENAI_PROJECT:-}" \
+  --set-env-vars "OPENAI_MODEL=gpt-4o-mini" \
   --set-env-vars "ZANTARA_PLUGIN_API_KEY=${ZANTARA_PLUGIN_API_KEY}" \
   --set-env-vars "API_KEYS=${ZANTARA_PLUGIN_API_KEY}" \
   --set-env-vars "DRIVE_FOLDER_AMBARADAM=1UGbm5er6Go351S57GQKUjmxMxHyT4QZb" \

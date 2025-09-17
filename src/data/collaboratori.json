@@ -1,0 +1,142 @@
+{
+  "ADIT": {
+    "role": "Supervisor - Setup",
+    "badge": "⚡",
+    "tone": "ID_slang",
+    "ritual": "Problem solver veloce, ma ZANTARA lo invita a rallentare",
+    "quest": "Risolvi un problema e poi ripensalo con calma"
+  },
+  "ARI": {
+    "role": "Team Leader - Setup",
+    "badge": "💍",
+    "tone": "ID_slang",
+    "ritual": "Custode del Tempo: milestone personali e progetti",
+    "quest": "Segna un nuovo milestone personale e condividilo"
+  },
+  "SURYA": {
+    "role": "Team Leader - Setup",
+    "badge": "📚",
+    "tone": "ID_slang",
+    "ritual": "Il Professore: spiega in 3 step con ironia",
+    "quest": "Spiega un concetto in 3 passi"
+  },
+  "AMANDA": {
+    "role": "Executive - Setup",
+    "badge": "📒",
+    "tone": "ID_slang",
+    "ritual": "Cronista con agendina: ama emoji e chiarezza",
+    "quest": "Organizza una mini-agenda della giornata in 3 punti"
+  },
+  "KRISHNA": {
+    "role": "Executive - Setup",
+    "badge": "✅",
+    "tone": "ID_slang",
+    "ritual": "Mr. Checklist: non dimentica mai nulla",
+    "quest": "Completa una lista di 5 cose e spunta almeno 4"
+  },
+  "DEA": {
+    "role": "Executive - Setup",
+    "badge": "✨",
+    "tone": "ID_slang",
+    "ritual": "Energia positiva contagiosa",
+    "quest": "Fai sorridere 3 persone oggi"
+  },
+  "ANTON": {
+    "role": "Executive - Setup",
+    "badge": "🎯",
+    "tone": "ID_slang",
+    "ritual": "Serio e pragmatico, zero fronzoli",
+    "quest": "Prendi una decisione netta (sì/no)"
+  },
+  "VINO": {
+    "role": "Junior - Setup",
+    "badge": "🎨",
+    "tone": "ID_slang",
+    "ritual": "Creativo out-of-the-box",
+    "quest": "Proponi un'idea folle e raffinane una parte"
+  },
+  "MARTA": {
+    "role": "Advisory - Setup (🇺🇦)",
+    "badge": "🧐",
+    "tone": "UA",
+    "ritual": "Analitica e narrativa",
+    "quest": "Scrivi un'analisi con visione ampia"
+  },
+  "VERONIKA": {
+    "role": "Tax Manager",
+    "badge": "📊",
+    "tone": "ID_formale",
+    "ritual": "Guardiana istituzionale, precisa",
+    "quest": "Valida un documento con rigore"
+  },
+  "FAISHA": {
+    "role": "Take Care - Tax",
+    "badge": "🧾",
+    "tone": "ID_formale",
+    "ritual": "Specialista pajak, precisa nei dettagli",
+    "quest": "Trova una norma nuova e spiegala in 2 frasi"
+  },
+  "ANGEL": {
+    "role": "Tax Lead",
+    "badge": "🔎",
+    "tone": "ID_formale",
+    "ritual": "Approccio tecnico step-by-step",
+    "quest": "Spiega un processo in 3 step"
+  },
+  "KADEK": {
+    "role": "Tax Lead",
+    "badge": "📐",
+    "tone": "ID_formale",
+    "ritual": "Logico e metodico",
+    "quest": "Organizza un problema in sequenza logica"
+  },
+  "DEWA_AYU": {
+    "role": "Tax Lead",
+    "badge": "🗂️",
+    "tone": "ID_formale",
+    "ritual": "Concisa e organizzata",
+    "quest": "Sintetizza una risposta in meno di 3 frasi"
+  },
+  "OLENA": {
+    "role": "Advisory - Tax (🇺🇦)",
+    "badge": "🌐",
+    "tone": "UA",
+    "ritual": "Visione strategica, consulenziale",
+    "quest": "Offri una visione a lungo termine"
+  },
+  "NINA": {
+    "role": "Supervisor - Marketing",
+    "badge": "🎤",
+    "tone": "ID_formale",
+    "ritual": "Narrativa ispirazionale",
+    "quest": "Scrivi una mini-storia che motivi il team"
+  },
+  "SAHIRA": {
+    "role": "Junior - Marketing",
+    "badge": "🌟",
+    "tone": "ID_slang",
+    "ritual": "Ha bisogno di supporto emotivo",
+    "quest": "Scrivi un messaggio positivo a un collega"
+  },
+  "RINA": {
+    "role": "Reception",
+    "badge": "🌸",
+    "tone": "ID_slang",
+    "ritual": "Accoglienza calorosa e friendly",
+    "quest": "Scrivi un saluto accogliente a un ospite"
+  },
+  "RUSLANA": {
+    "role": "Regina - Ukraine",
+    "badge": "👑",
+    "tone": "UA",
+    "ritual": "Epica, solenne, orgogliosa",
+    "quest": "Scrivi un messaggio epico per motivare il team"
+  },
+  "BOSS": {
+    "role": "The Bridge - Leadership",
+    "badge": "🌀",
+    "tone": "IT_epico",
+    "ritual": "Visionario, filosofico",
+    "quest": "Scrivi una riflessione epica sul futuro"
+  }
+}

@@ -11,9 +11,13 @@ export default function registerNotes(r: Router) {
       const content = String(req.body?.content || '').trim();
       if (!content) return res.status(400).json({ ok: false, error: 'content required' });
 
-      const out = await saveNoteWithRequest(req, content, title);
+      // Use working drive upload method instead of problematic legacy method
+      const { uploadTextAsDoc } = require('../../services/driveUpload');
+      const fileName = title || `Note_${owner}_${Date.now()}`;
+      const out = await uploadTextAsDoc(content, fileName, owner);
       return res.json({ ok: true, file: out });
     } catch (e: any) {
+      console.error('Save note error:', e);
       return res.status(500).json({ ok: false, error: e?.message || 'save_note_failed' });
     }
   });

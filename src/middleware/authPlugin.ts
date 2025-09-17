@@ -5,6 +5,7 @@ const CSV=(process.env.API_KEYS||'')
   .split(',').map(s=>s.trim()).filter(Boolean);
 
 export function apiKeyGuard(req:Request,res:Response,next:NextFunction){
+  console.log("Headers ricevuti:", req.headers);
   const got=(req.header('X-API-KEY')||req.header('x-api-key')||'').trim();
   console.log('AUTH DEBUG:', { SINGLE: SINGLE.slice(0,10)+'...', CSV: CSV.length, got: got.slice(0,10)+'...' });
   if(!got) return res.status(401).json({ error:'missing X-API-KEY' });

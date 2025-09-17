@@ -1,5 +1,12 @@
 import 'dotenv/config';
 import express from 'express';
+import cron from 'node-cron';
+import { summarizeConversations } from './jobs/cronConversationSummarizer';
+import { generateMonthlyReport } from './jobs/cronMonthlyReport';
+import { generateWeeklyDigest } from './jobs/cronWeeklyDigest';
+import { startGmailMonitorJob } from './jobs/cronGmailMonitor';
+import { startCalendarDeadlinesJob } from './jobs/cronCalendarDeadlines';
+import { startMonitoringCron } from './jobs/cronMonitoring';
 import registerPlugin from './routes/plugin';
 import registerDiag from './routes/diag';
 import { apiKeyGuard } from './middleware/authPlugin';
@@ -24,17 +31,34 @@ import registerEmotionalIntelligence from './routes/api/emotionalIntelligence';
 import registerDriveIntegration from './routes/api/driveIntegration';
 import registerAssistant from './routes/api/assistant';
 import registerCompliance from './routes/api/compliance';
+import registerGmailMonitor from './routes/api/gmailMonitor';
+import registerCalendarDeadlines from './routes/api/calendarDeadlines';
+import registerCron from './routes/api/cron';
+import registerSaveMemory from './routes/api/saveMemory';
 import { analyticsRouter } from './routes/analytics';
 import { usersRouter } from './routes/users';
 import { searchRouter } from './routes/search';
 import { dashboardRouter } from './routes/dashboard';
 import { webhooksRouter } from './routes/webhooks';
 import { aiRouter } from './routes/ai';
+import stats from './api/stats';
+import conversationRouter from './routes/conversationRouter';
+import conversationStats from './api/conversationStats';
+import monitoring from './api/monitoring';
 
 const app = express();
 app.set('trust proxy', true);
 app.disable('x-powered-by');
 app.use(express.json({ limit: '1mb' }));
+
+// 🔧 Global middleware: Force X-BZ-USER = BOSS se mancante
+app.use((req, res, next) => {
+  if (!req.headers['x-bz-user']) {
+    req.headers['x-bz-user'] = 'BOSS';  // fallback hardcoded
+    console.log('🛠️ Forced X-BZ-USER = BOSS for path:', req.path);
+  }
+  next();
+});
 
 // Health check pubblico (per GCP e uptime probe)
 app.get('/health', (_req, res) => {
@@ -74,7 +98,11 @@ registerRelationshipBuilder(app); // Advanced relationship building
 registerEmotionalIntelligence(app); // Emotional intelligence and wellness
 registerDriveIntegration(app); // Google Drive integration endpoints
 registerAssistant(app); // OpenAI Assistant with persistent threads
-registerCompliance(app); // Compliance tools for KITAS, Gmail, Calendar
+registerCompliance(app);
+registerGmailMonitor(app); // Gmail monitoring for government emails
+registerCalendarDeadlines(app); // Calendar deadlines and reminders
+registerCron(app); // Cron job triggers and manual endpoints
+registerSaveMemory(app); // Apps Script direct integration endpoint
 registerDocgen(app);
 registerDriveBrief(app);
 registerGitHubBrief(app);
@@ -87,6 +115,10 @@ app.use('/api/search', searchRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/webhooks', webhooksRouter);
 app.use('/api/ai', aiRouter);
+app.use('/api/stats', stats);
+app.use('/api/conversations', conversationRouter);
+app.use('/api/conversations/stats', conversationStats);
+app.use('/api/monitoring', monitoring);
 
 // Actions: Drive upload (requires API key guard)
 app.use('/actions/drive', drive as any);
@@ -104,6 +136,33 @@ app.post('/actions/memory/save', async (req, res) => {
     return res.status(500).json({ ok: false, error: e?.message || 'save_note_failed' });
   }
 });
+
+// Cron job: Conversation Summarizer ogni giorno alle 23:55
+cron.schedule("55 23 * * *", async () => {
+  console.log("⏰ Job programmato: Conversation Summarizer");
+  await summarizeConversations();
+});
+
+// Cron job: Monthly Report ogni primo del mese alle 08:00
+cron.schedule("0 8 1 * *", async () => {
+  console.log("⏰ Job programmato: Monthly Report");
+  await generateMonthlyReport();
+});
+
+// Cron job: Weekly Digest ogni lunedì alle 08:00
+cron.schedule("0 8 * * 1", async () => {
+  console.log("⏰ Job programmato: Weekly Digest");
+  await generateWeeklyDigest();
+});
+
+// Start Gmail monitoring job
+startGmailMonitorJob();
+
+// Start Calendar deadlines monitoring job
+startCalendarDeadlinesJob();
+
+// Start system monitoring heartbeat
+startMonitoringCron();
 
 const port = process.env.PORT || 8080;
 app.listen(port, () => {

@@ -1,13 +1,13 @@
 import type { Router, Request, Response } from 'express';
 import { client } from '../../core/openai';
 
-export default function registerAssistant(r: Router) {
+export default function registerAssistant(app: any) {
   
   /**
    * GET /api/assistant/status
    * Get assistant status and info  
    */
-  r.get('/api/assistant/status', async (req: Request, res: Response) => {
+  app.get('/api/assistant/status', async (req: Request, res: Response) => {
     try {
       res.json({
         success: true,
@@ -35,7 +35,7 @@ export default function registerAssistant(r: Router) {
   /**
    * GET /api/assistant/status (simplified)
    */
-  r.get('/status', async (_req: Request, res: Response) => {
+  app.get('/assistant/status', async (_req: Request, res: Response) => {
     res.json({
       ok: true,
       services: ["KITAS", "PT PMA", "Tax"],
@@ -47,7 +47,7 @@ export default function registerAssistant(r: Router) {
    * POST /api/assistant/ask
    * Endpoint semplificato per domande dirette
    */
-  r.post('/ask', async (req: Request, res: Response) => {
+  app.post('/api/assistant/ask', async (req: Request, res: Response) => {
     const { question, userId } = req.body;
 
     if (!question) {
@@ -102,7 +102,7 @@ export default function registerAssistant(r: Router) {
    * POST /api/assistant/compliance/ask
    * Quick compliance query endpoint
    */
-  r.post('/compliance/ask', async (req: Request, res: Response) => {
+  app.post('/api/assistant/compliance/ask', async (req: Request, res: Response) => {
     const { question, userId, language = 'en' } = req.body;
 
     if (!question || !userId) {

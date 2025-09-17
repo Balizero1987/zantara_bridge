@@ -1,6 +1,8 @@
 import type { Router, Request, Response } from 'express';
 import { GoogleAuth } from 'google-auth-library';
 import { Document, Packer, Paragraph, HeadingLevel } from 'docx';
+import { triggerGmailMonitorNow } from '../../jobs/cronGmailMonitor';
+import { triggerDeadlineCheckNow, setupStandardComplianceDeadlines } from '../../jobs/cronCalendarDeadlines';
 
 type WeeklyResult = {
   user: string;
@@ -14,6 +16,33 @@ export default function registerCron(r: Router) {
     try {
       const out = await weeklyMerge();
       return res.json(out);
+    } catch (e: any) {
+      return res.status(500).json({ status: 'error', error: e?.message || String(e) });
+    }
+  });
+
+  r.post('/api/cron/gmail-monitor', async (_req: Request, res: Response) => {
+    try {
+      const result = await triggerGmailMonitorNow();
+      return res.json(result);
+    } catch (e: any) {
+      return res.status(500).json({ status: 'error', error: e?.message || String(e) });
+    }
+  });
+
+  r.post('/api/cron/deadline-check', async (_req: Request, res: Response) => {
+    try {
+      const result = await triggerDeadlineCheckNow();
+      return res.json(result);
+    } catch (e: any) {
+      return res.status(500).json({ status: 'error', error: e?.message || String(e) });
+    }
+  });
+
+  r.post('/api/cron/setup-deadlines', async (_req: Request, res: Response) => {
+    try {
+      const result = await setupStandardComplianceDeadlines();
+      return res.json(result);
     } catch (e: any) {
       return res.status(500).json({ status: 'error', error: e?.message || String(e) });
     }

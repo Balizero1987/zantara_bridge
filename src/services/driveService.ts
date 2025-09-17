@@ -227,6 +227,32 @@ class DriveService {
       throw error;
     }
   }
+
+  async generateDoc(owner: string, title: string, content: string): Promise<any> {
+    await this.initialize();
+    
+    try {
+      const timestamp = new Date().toISOString().split('T')[0];
+      const fileName = `Report_AMBARADAM_${title}_${timestamp}.txt`;
+      
+      const result = await this.uploadFile(fileName, content, 'text/plain', 'documents');
+      
+      console.log(`✅ Document generated: ${fileName}`);
+      return {
+        id: result,
+        webViewLink: result,
+        fileName: fileName
+      };
+    } catch (error) {
+      console.error('Error generating document:', error);
+      throw error;
+    }
+  }
 }
 
 export const driveService = new DriveService();
+
+// Export convenience function for backwards compatibility
+export async function generateDoc(owner: string, title: string, content: string): Promise<any> {
+  return await driveService.generateDoc(owner, title, content);
+}
