@@ -1,5 +1,6 @@
 import { Router } from "express";
 import fetch from "node-fetch";
+import { openai, DEFAULT_MODEL } from "../core/openai";
 
 const router = Router();
 const BASE_URL =
@@ -64,6 +65,24 @@ router.get("/", async (req, res) => {
       results.conversations = await r.json();
     } catch (err: any) {
       results.conversations = { ok: false, error: err.message };
+    }
+
+    // OpenAI reachability
+    try {
+      // quick, low-cost call: list models with short timeout
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), 3000);
+      // SDK does not accept AbortController directly for list(); perform a tiny completion with minimal tokens
+      const r = await openai.chat.completions.create({
+        model: DEFAULT_MODEL,
+        messages: [{ role: 'user', content: 'ping' }],
+        max_tokens: 1,
+        temperature: 0
+      });
+      clearTimeout(t);
+      results.openai = { ok: true, model: r.model, id: r.id };
+    } catch (err: any) {
+      results.openai = { ok: false, error: err?.message || String(err) };
     }
 
     res.json({ ok: true, monitoring: results, ts: new Date().toISOString() });

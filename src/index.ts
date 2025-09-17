@@ -47,11 +47,16 @@ import stats from './api/stats';
 import conversationRouter from './routes/conversationRouter';
 import conversationStats from './api/conversationStats';
 import monitoring from './api/monitoring';
+import { monitoringMiddleware } from './utils/monitoring';
+import { monitoringRouter } from './routes/monitoring';
 
 const app = express();
 app.set('trust proxy', true);
 app.disable('x-powered-by');
 app.use(express.json({ limit: '1mb' }));
+
+// Add monitoring middleware
+app.use(monitoringMiddleware);
 
 // 🔧 Global middleware: Force X-BZ-USER = BOSS se mancante
 app.use((req, res, next) => {
@@ -62,10 +67,8 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check pubblico (per GCP e uptime probe)
-app.get('/health', (_req, res) => {
-  res.status(200).json({ ok: true, ts: Date.now() });
-});
+// Monitoring routes (health, stats, metrics)
+app.use(monitoringRouter);
 
 // Health check interno (protetto)
 app.get('/internal/health', apiKeyGuard as any, (_req, res) => {

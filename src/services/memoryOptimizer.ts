@@ -11,7 +11,7 @@ const gunzip = promisify(zlib.gunzip);
 
 export class MemoryOptimizer {
   private firestore: Firestore;
-  private cache: NodeCache;
+  private cache: any;
   private readonly COLLECTION = 'optimized_memory';
   private readonly EMBEDDINGS_COLLECTION = 'memory_embeddings';
   
@@ -164,7 +164,7 @@ export class MemoryOptimizer {
    */
   async searchMemory(options: MemorySearchOptions): Promise<MemoryEntry[]> {
     const cacheKey = `search_${JSON.stringify(options)}`;
-    const cached = this.cache.get<MemoryEntry[]>(cacheKey);
+    const cached = this.cache.get(cacheKey) as MemoryEntry[];
     if (cached) return cached;
 
     let query = this.firestore

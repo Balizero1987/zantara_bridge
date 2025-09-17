@@ -1,14 +1,33 @@
 import { Request, Response, NextFunction } from 'express';
+import { requireApiKeyEnhanced, requireApiKeyBasic } from './zantaraAuth';
 
 /**
- * API key guard with broad compatibility and safe debug logs.
+ * API key guard with enhanced security features including:
+ * - Timing-safe key comparison
+ * - Rate limiting (100 req/min per key)
+ * - Comprehensive logging
+ * - Dual auth support (X-API-KEY + Bearer)
+ * Falls back to basic auth if enhanced middleware fails.
+ */
+export function requireApiKey(req: Request, res: Response, next: NextFunction) {
+  // Use enhanced middleware with fallback
+  try {
+    return requireApiKeyEnhanced(req, res, next);
+  } catch (error) {
+    console.warn('Enhanced auth failed, falling back to basic auth:', error);
+    return requireApiKeyBasic(req, res, next);
+  }
+}
+
+/**
+ * Legacy API key guard (kept for compatibility)
  * Accepts key via:
  *  - Header: X-Api-Key
  *  - Header: Authorization: Bearer <key>
  *  - Query: ?api_key=<key> or ?apikey=<key>
  * Supports multiple keys via env `API_KEYS` (comma-separated) in addition to `API_KEY` and `CODEX_DISPATCH_TOKEN`.
  */
-export function requireApiKey(req: Request, res: Response, next: NextFunction) {
+export function requireApiKeyLegacy(req: Request, res: Response, next: NextFunction) {
   const envKeys: string[] = [];
 
   // Primary API key
