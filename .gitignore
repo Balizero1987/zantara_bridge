@@ -7,12 +7,14 @@ dist/
 *.env
 .env.local
 .env.production
+*-key.json
 sa-key.json
 zantara_bridge-main/service-account.json
 credentials.json
 oauth_client.json
 
 # Logs
+logs/
 *.log
 post_deploy_results.txt
 
