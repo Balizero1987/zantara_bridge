@@ -35,6 +35,8 @@ import registerGmailMonitor from './routes/api/gmailMonitor';
 import registerCalendarDeadlines from './routes/api/calendarDeadlines';
 import registerCron from './routes/api/cron';
 import registerSaveMemory from './routes/api/saveMemory';
+import registerMemoryOptimized from './routes/api/memoryOptimized';
+import { injectMemoryContext, saveToOptimizedMemory } from './middleware/memoryMiddleware';
 import { analyticsRouter } from './routes/analytics';
 import { usersRouter } from './routes/users';
 import { searchRouter } from './routes/search';
@@ -83,10 +85,15 @@ if (process.env.ENABLE_DIAG === 'true') {
 // Middleware protetti (API Key obbligatoria)
 app.use(apiKeyGuard as any);
 
+// Memory optimization middleware for chat endpoints
+app.use('/api/chat', injectMemoryContext, saveToOptimizedMemory);
+app.use('/api/chat-enhanced', injectMemoryContext, saveToOptimizedMemory);
+
 // API protette
 registerNotes(app);
 registerChat(app);
 registerChatEnhanced(app); // Enhanced chat with Drive integration
+registerMemoryOptimized(app); // Optimized memory system with semantic search
 registerFileOperations(app); // File operations: delete, summarize, analyze
 registerTeamWorkspace(app); // Team workspace setup and management
 registerTemplates(app); // Business templates system

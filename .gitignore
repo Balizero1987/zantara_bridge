@@ -17,6 +17,8 @@ oauth_client.json
 logs/
 *.log
 post_deploy_results.txt
+deploy.log
+out.json
 
 # Archives
 *.tgz
