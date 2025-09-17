@@ -1,0 +1,498 @@
+openapi: 3.1.0
+info:
+  title: Zantara Bridge API
+  version: "2.1.1"
+  description: >
+    Zantara Bridge — versione stabile con Domain‑Wide Delegation (DWD) attiva.
+    Tutti gli endpoint Drive che scrivono usano impersonation (IMPERSONATE_USER).
+  contact:
+    name: Bali Zero HQ
+    email: zero@balizero.com
+
+servers:
+  - url: https://zantara-bridge-v2-prod-1064094238013.asia-southeast2.run.app
+    description: Production
+
+tags:
+  - name: System
+    description: Health and monitoring
+  - name: AI
+    description: Chat and AI operations
+  - name: Notes
+    description: Note management
+  - name: Drive
+    description: Google Drive operations (with DWD)
+  - name: Memory
+    description: Memory management (Shared Drive)
+  - name: Documents
+    description: Document generation
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+      description: API key required for all protected endpoints
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid X-API-KEY
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error: { type: string, example: "invalid api key" }
+    Forbidden:
+      description: Insufficient permissions / Drive policy denied
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error: { type: string, example: "insufficientFilePermissions" }
+    InternalError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error: { type: string }
+
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status: { type: string, example: "OK" }
+        uptime: { type: integer, description: "Uptime in seconds" }
+        requests: { type: integer }
+        errorRate: { type: string, example: "0%" }
+        avgResponseTime: { type: string, example: "12526ms" }
+        timestamp: { type: string, format: date-time }
+
+    MonitoringResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        monitoring:
+          type: object
+          properties:
+            openai:
+              type: object
+              properties:
+                ok: { type: boolean }
+                model: { type: string }
+                id: { type: string }
+                error: { type: string }
+            drive:
+              type: object
+              properties:
+                ok: { type: boolean }
+                user:
+                  type: object
+                  properties:
+                    emailAddress: { type: string, example: "zero@balizero.com" }
+                    displayName: { type: string }
+                quota:
+                  type: object
+                  additionalProperties: true
+                isImpersonated: { type: boolean, example: true, description: "True = DWD active" }
+                impersonateUser: { type: string, example: "zero@balizero.com" }
+                error: { type: string }
+        ts: { type: string, format: date-time }
+      example:
+        ok: true
+        monitoring:
+          openai: { ok: true, model: "gpt-4o-mini", id: "cmpl-xyz" }
+          drive:
+            ok: true
+            user: { emailAddress: "zero@balizero.com", displayName: "Bali Zero HQ" }
+            quota: { limit: "676457349120", usage: "33827270606" }
+            isImpersonated: true
+            impersonateUser: "zero@balizero.com"
+        ts: "2025-09-17T21:52:11Z"
+
+    ChatRequest:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+        mode: { type: string, enum: [RIRI] }
+        conversationId: { type: string }
+    ChatResponse:
+      type: object
+      additionalProperties: true
+
+    Note:
+      type: object
+      properties:
+        id: { type: string }
+        canonicalOwner: { type: string, example: "BOSS" }
+        title: { type: string }
+        content: { type: string }
+        ts: { type: integer, description: "epoch ms" }
+        dateKey: { type: string, description: "YYYY-MM-DD" }
+        tags:
+          type: array
+          items: { type: string }
+    NoteCreate:
+      type: object
+      required: [title, content]
+      properties:
+        title: { type: string }
+        content: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+    NoteListResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        count: { type: integer }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/Note' }
+
+    DriveFile:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        mimeType: { type: string }
+        webViewLink: { type: string, format: uri }
+        createdTime: { type: string, format: date-time }
+        parents:
+          type: array
+          items: { type: string }
+
+    UploadRequest:
+      type: object
+      required: [filename, content]
+      properties:
+        filename: { type: string }
+        # Content: text (raw) or base64 for binary
+        content:
+          oneOf:
+            - type: string
+              description: Raw text content (e.g., text/plain)
+            - type: string
+              description: Base64 for binary (e.g., .docx)
+              contentEncoding: base64
+              contentMediaType: application/octet-stream
+        mimeType: { type: string, example: "text/plain", description: "Optional MIME type" }
+        folderId: { type: string, description: "Target parent folder ID" }
+        driveId: { type: string, description: "Shared Drive ID if targeting a shared drive" }
+        supportsAllDrives: { type: boolean, default: true }
+
+    SearchDriveRequest:
+      type: object
+      properties:
+        query: { type: string, description: "Name contains. Empty lists all children when folderId is provided." }
+        fileType: { type: string, description: "Filter by mimeType" }
+        modifiedAfter: { type: string, format: date-time }
+        folderId: { type: string, description: "If set, list within this folder" }
+        includeFiles: { type: boolean, default: true }
+        includeFolders: { type: boolean, default: true }
+        driveId: { type: string, description: "Optional Shared Drive context (uses corpora=drive)" }
+    SearchDriveResponse:
+      type: object
+      properties:
+        files:
+          type: array
+          items: { $ref: '#/components/schemas/DriveFile' }
+        count: { type: integer }
+        query: { type: string }
+        userId: { type: string, example: "zero@balizero.com" }
+        folderId: { type: string }
+        error: { type: string }
+
+    MemorySaveRequest:
+      type: object
+      required: [title, content]
+      properties:
+        title: { type: string }
+        content: { type: string }
+        tags:
+          type: array
+          items: { type: string }
+        folderId: { type: string, description: "Optional folder inside Shared Drive (defaults to MEMORY)" }
+        driveId: { type: string, description: "Shared Drive ID; defaults to SHARED_DRIVE_MEMORY_ID" }
+        supportsAllDrives: { type: boolean, default: true }
+    MemorySaveResponse:
+      type: object
+      properties:
+        ok: { type: boolean, default: true }
+        id: { type: string }
+        name: { type: string }
+        webViewLink: { type: string, format: uri }
+        error: { type: string }
+
+    DocgenRequest:
+      type: object
+      required: [title, content]
+      properties:
+        title: { type: string }
+        content: { type: string }
+        format: { type: string, enum: [docx], default: docx }
+    DocgenResponse:
+      type: object
+      properties:
+        owner: { type: string, example: "BOSS" }
+        dateKey: { type: string, description: "YYYY-MM-DD" }
+        fileName: { type: string, example: "Brief-2025-09-17.docx" }
+        docxBase64: { type: string, description: "Base64-encoded .docx" }
+        size: { type: integer }
+        error: { type: string }
+
+    BriefRequest:
+      type: object
+      required: [topic, details]
+      properties:
+        topic: { type: string }
+        details: { type: string }
+        template: { type: string, enum: [business, technical, creative], default: business }
+        folderId: { type: string, description: "Optional override; defaults to DRIVE_FOLDER_AMBARADAM" }
+    BriefResponse:
+      type: object
+      properties:
+        ok: { type: boolean }
+        fileId: { type: string }
+        fileName: { type: string }
+        webViewLink: { type: string, format: uri }
+        error: { type: string }
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Public health check
+      tags: [System]
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /api/monitoring:
+    get:
+      operationId: getMonitoring
+      summary: Internal monitoring (OpenAI + Drive impersonation)
+      tags: [System]
+      responses:
+        "200":
+          description: Monitoring payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonitoringResponse'
+        "401": { $ref: '#/components/responses/Unauthorized' }
+
+  /api/chat:
+    post:
+      operationId: chatWithAI
+      summary: Main chat endpoint with contextual AI
+      tags: [AI]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        "200":
+          description: AI response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "500": { $ref: '#/components/responses/InternalError' }
+
+  /api/notes:
+    get:
+      operationId: listNotes
+      summary: Retrieve user notes
+      tags: [Notes]
+      parameters:
+        - in: query
+          name: owner
+          schema: { type: string }
+        - in: query
+          name: limit
+          schema: { type: integer, default: 20 }
+        - in: query
+          name: offset
+          schema: { type: integer, default: 0 }
+      responses:
+        "200":
+          description: Notes list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteListResponse'
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "500": { $ref: '#/components/responses/InternalError' }
+    post:
+      operationId: createNote
+      summary: Create a new note
+      tags: [Notes]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NoteCreate'
+      responses:
+        "200":
+          description: Note created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "500": { $ref: '#/components/responses/InternalError' }
+
+  /actions/drive/upload:
+    post:
+      operationId: uploadDriveFile
+      summary: Upload file to Drive (uses DWD)
+      tags: [Drive]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadRequest'
+      responses:
+        "200":
+          description: File uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriveFile'
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "500": { $ref: '#/components/responses/InternalError' }
+
+  /api/search/drive:
+    post:
+      operationId: searchDriveFiles
+      summary: Search/list files in Drive (uses DWD)
+      tags: [Drive]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchDriveRequest'
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchDriveResponse'
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "500": { $ref: '#/components/responses/InternalError' }
+
+  /api/files/{fileId}:
+    delete:
+      operationId: deleteDriveFile
+      summary: Delete file from Drive (uses DWD)
+      tags: [Drive]
+      parameters:
+        - in: path
+          name: fileId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: supportsAllDrives
+          schema: { type: boolean, default: true }
+      responses:
+        "200": { description: File deleted }
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "404": { description: File not found }
+        "500": { $ref: '#/components/responses/InternalError' }
+
+  /actions/memory/save:
+    post:
+      operationId: saveMemory
+      summary: Save memory to Shared Drive (uses DWD)
+      tags: [Memory]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemorySaveRequest'
+      responses:
+        "200":
+          description: Memory saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemorySaveResponse'
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "500": { $ref: '#/components/responses/InternalError' }
+
+  /api/docgen:
+    post:
+      operationId: generateDocument
+      summary: Generate a DOCX document
+      tags: [Documents]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocgenRequest'
+      responses:
+        "200":
+          description: Document generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocgenResponse'
+        "400":
+          description: Unsupported format (only 'docx' is supported)
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "500": { $ref: '#/components/responses/InternalError' }
+
+  /api/drive/brief:
+    post:
+      operationId: generateBrief
+      summary: Generate and upload brief to Drive (uses DWD)
+      tags: [Documents]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BriefRequest'
+      responses:
+        "200":
+          description: Brief uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BriefResponse'
+        "401": { $ref: '#/components/responses/Unauthorized' }
+        "403": { $ref: '#/components/responses/Forbidden' }
+        "500": { description: Missing folderId or DRIVE_FOLDER_AMBARADAM }
+
+x-dwd-configuration:
+  service-account: zantara-bridge@involuted-box-469105-r0.iam.gserviceaccount.com
+  impersonates: zero@balizero.com
+  env-variable: IMPERSONATE_USER
+  scope: https://www.googleapis.com/auth/drive
+  status: ACTIVE
