@@ -1,0 +1,857 @@
+openapi: 3.1.0
+info:
+  title: ZANTARA Actions API
+  version: 1.2.1
+  description: |
+    API for Zantara Bridge actions including Codex integration, chat recaps, 
+    calendar management, Drive operations, and email services.
+  contact:
+    name: Bali Zero HQ
+    email: zero@balizero.com
+
+servers:
+  - url: https://{host}
+    variables:
+      host:
+        default: zantara-bridge-v2-prod-1064094238013.asia-southeast2.run.app
+        description: Production Cloud Run service
+
+security:
+  - bearerAuth: []
+  - apiKeyAuth: []
+
+paths:
+  /health:
+    get:
+      operationId: get_health
+      summary: Health check
+      security: []
+      tags: [System]
+      responses:
+        "200":
+          description: Service health status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkEnvelope'
+
+  /actions/codex/dispatch:
+    post:
+      operationId: post_actions_codex_dispatch
+      summary: Dispatch a task to Codex
+      tags: [Codex]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: X-Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string }
+          description: Unique key to prevent duplicate requests
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CodexDispatchRequest'
+      responses:
+        "202":
+          description: Task accepted for processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodexDispatchResponse'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "401":
+          $ref: '#/components/responses/Unauthorized'
+
+  /actions/codex/status/{request_id}:
+    get:
+      operationId: get_codex_status
+      summary: Get Codex task status
+      tags: [Codex]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: request_id
+          in: path
+          required: true
+          schema: { type: string }
+          description: Request ID from dispatch response
+      responses:
+        "200":
+          description: Current task status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CodexStatusResponse'
+        "404":
+          $ref: '#/components/responses/NotFound'
+
+  /actions/chat/recap:
+    post:
+      operationId: post_actions_chat_recap
+      summary: Save chat recap to Drive and Firestore
+      tags: [Chat]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: X-Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecapCreateRequest'
+      responses:
+        "201":
+          description: Recap saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecapCreateResponse'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+
+  /actions/chat/recaps:
+    get:
+      operationId: get_actions_chat_recaps
+      summary: List user recaps
+      tags: [Chat]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: userId
+          in: query
+          required: false
+          schema: { type: string }
+          description: Filter by user ID
+        - name: limit
+          in: query
+          required: false
+          schema: 
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        "200":
+          description: List of recaps
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecapListResponse'
+
+  /actions/calendar/create:
+    post:
+      operationId: post_actions_calendar_create
+      summary: Create calendar event
+      tags: [Calendar]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarCreateRequest'
+      responses:
+        "201":
+          description: Event created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarCreateResponse'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+
+  /actions/calendar/events:
+    get:
+      operationId: get_calendar_events
+      summary: List calendar events
+      tags: [Calendar]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: calendarId
+          in: query
+          schema:
+            type: string
+            default: primary
+      responses:
+        "200":
+          description: List of events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CalendarEventsResponse'
+
+  /actions/drive/upload:
+    post:
+      operationId: post_drive_upload
+      summary: Upload file to Google Drive
+      tags: [Drive]
+      security: [{ apiKeyAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DriveUploadRequest'
+      responses:
+        "200":
+          description: File uploaded successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DriveUploadResponse'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+        "403":
+          $ref: '#/components/responses/Forbidden'
+
+  /actions/memory/save:
+    post:
+      operationId: post_memory_save
+      summary: Save memory to Drive
+      tags: [Memory]
+      security: [{ apiKeyAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemorySaveRequest'
+      responses:
+        "200":
+          description: Memory saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemorySaveResponse'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+
+  /actions/email/send:
+    post:
+      operationId: post_email_send
+      summary: Send email via Gmail
+      tags: [Email]
+      security: [{ apiKeyAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailSendRequest'
+      responses:
+        "200":
+          description: Email sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailSendResponse'
+        "400":
+          $ref: '#/components/responses/BadRequest'
+
+  /actions/email/draft:
+    post:
+      operationId: post_email_draft
+      summary: Create email draft
+      tags: [Email]
+      security: [{ apiKeyAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailDraftRequest'
+      responses:
+        "200":
+          description: Draft created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EmailDraftResponse'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+      description: API key for service authentication
+
+  schemas:
+    OkEnvelope:
+      type: object
+      required: [ok, timestamp]
+      properties:
+        ok:
+          type: boolean
+          example: true
+        status:
+          type: string
+          example: OK
+        uptime:
+          type: number
+          description: Uptime in seconds
+        timestamp:
+          type: string
+          format: date-time
+
+    ErrorEnvelope:
+      type: object
+      required: [ok, error]
+      properties:
+        ok:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Error message
+        details:
+          type: string
+          description: Additional error details
+        code:
+          type: string
+          description: Error code
+
+    CodexDispatchRequest:
+      type: object
+      required: [task_type, payload]
+      properties:
+        task_type:
+          type: string
+          enum: [analyze, summarize, translate, extract]
+          description: Type of task to dispatch
+        payload:
+          type: object
+          description: Task-specific payload
+          properties:
+            text:
+              type: string
+              description: Text to process
+            options:
+              type: object
+              description: Processing options
+        priority:
+          type: string
+          enum: [low, medium, high]
+          default: medium
+        callback_url:
+          type: string
+          format: uri
+          description: Optional webhook for completion notification
+
+    CodexDispatchResponse:
+      type: object
+      required: [ok, request_id]
+      properties:
+        ok:
+          type: boolean
+        request_id:
+          type: string
+          description: Unique request identifier
+        estimated_completion:
+          type: string
+          format: date-time
+          description: Estimated completion time
+        status_url:
+          type: string
+          format: uri
+          description: URL to check task status
+
+    CodexStatusResponse:
+      type: object
+      required: [request_id, status]
+      properties:
+        request_id:
+          type: string
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+        progress:
+          type: number
+          minimum: 0
+          maximum: 100
+          description: Progress percentage
+        result:
+          type: object
+          description: Result data (when completed)
+        error:
+          type: string
+          description: Error message (when failed)
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        completed_at:
+          type: string
+          format: date-time
+
+    RecapCreateRequest:
+      type: object
+      required: [title, content]
+      properties:
+        title:
+          type: string
+          description: Recap title
+        content:
+          type: string
+          description: Recap content (markdown supported)
+        userId:
+          type: string
+          description: User identifier
+        conversationId:
+          type: string
+          description: Related conversation ID
+        tags:
+          type: array
+          items:
+            type: string
+          description: Tags for categorization
+        metadata:
+          type: object
+          description: Additional metadata
+
+    RecapCreateResponse:
+      type: object
+      required: [ok, data]
+      properties:
+        ok:
+          type: boolean
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+              description: Recap ID
+            driveFileId:
+              type: string
+              description: Google Drive file ID
+            webViewLink:
+              type: string
+              format: uri
+              description: Web link to view file
+            firestoreId:
+              type: string
+              description: Firestore document ID
+            created_at:
+              type: string
+              format: date-time
+
+    RecapSummary:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        userId:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        driveFileId:
+          type: string
+        webViewLink:
+          type: string
+          format: uri
+
+    RecapListResponse:
+      type: object
+      required: [ok, data]
+      properties:
+        ok:
+          type: boolean
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/RecapSummary'
+            total:
+              type: integer
+              description: Total number of recaps
+            limit:
+              type: integer
+            offset:
+              type: integer
+
+    CalendarCreateRequest:
+      type: object
+      required: [summary, start, end]
+      properties:
+        summary:
+          type: string
+          description: Event title
+        description:
+          type: string
+          description: Event description
+        start:
+          type: object
+          properties:
+            dateTime:
+              type: string
+              format: date-time
+            timeZone:
+              type: string
+              default: UTC
+        end:
+          type: object
+          properties:
+            dateTime:
+              type: string
+              format: date-time
+            timeZone:
+              type: string
+              default: UTC
+        location:
+          type: string
+          description: Event location
+        attendees:
+          type: array
+          items:
+            type: object
+            properties:
+              email:
+                type: string
+                format: email
+              displayName:
+                type: string
+              optional:
+                type: boolean
+                default: false
+        reminders:
+          type: object
+          properties:
+            useDefault:
+              type: boolean
+              default: true
+            overrides:
+              type: array
+              items:
+                type: object
+                properties:
+                  method:
+                    type: string
+                    enum: [email, popup]
+                  minutes:
+                    type: integer
+                    minimum: 0
+        recurrence:
+          type: array
+          items:
+            type: string
+          description: RRULE strings for recurring events
+
+    CalendarCreateResponse:
+      type: object
+      required: [ok, data]
+      properties:
+        ok:
+          type: boolean
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+              description: Calendar event ID
+            htmlLink:
+              type: string
+              format: uri
+              description: Web link to event
+            summary:
+              type: string
+            start:
+              type: string
+              format: date-time
+            end:
+              type: string
+              format: date-time
+            created:
+              type: string
+              format: date-time
+
+    CalendarEventsResponse:
+      type: object
+      required: [ok, data]
+      properties:
+        ok:
+          type: boolean
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  summary:
+                    type: string
+                  description:
+                    type: string
+                  start:
+                    type: object
+                  end:
+                    type: object
+                  htmlLink:
+                    type: string
+                    format: uri
+            nextPageToken:
+              type: string
+            nextSyncToken:
+              type: string
+
+    DriveUploadRequest:
+      type: object
+      required: [filename, content]
+      properties:
+        filename:
+          type: string
+          description: File name
+        content:
+          type: string
+          description: File content (base64 encoded for binary)
+        mimeType:
+          type: string
+          description: MIME type of the file
+        folderId:
+          type: string
+          description: Parent folder ID
+        driveId:
+          type: string
+          description: Shared Drive ID
+
+    DriveUploadResponse:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          description: File ID
+        name:
+          type: string
+          description: File name
+        webViewLink:
+          type: string
+          format: uri
+          description: Web link to view file
+        size:
+          type: integer
+          description: File size in bytes
+        mimeType:
+          type: string
+
+    MemorySaveRequest:
+      type: object
+      required: [title, content]
+      properties:
+        title:
+          type: string
+          description: Memory title
+        content:
+          type: string
+          description: Memory content
+        tags:
+          type: array
+          items:
+            type: string
+          description: Tags for categorization
+        folderId:
+          type: string
+          description: Target folder ID
+        driveId:
+          type: string
+          description: Shared Drive ID
+
+    MemorySaveResponse:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+          description: File ID
+        name:
+          type: string
+          description: File name
+        webViewLink:
+          type: string
+          format: uri
+        ok:
+          type: boolean
+          default: true
+
+    EmailSendRequest:
+      type: object
+      required: [to, subject, body]
+      properties:
+        to:
+          type: string
+          format: email
+          description: Recipient email
+        subject:
+          type: string
+          description: Email subject
+        body:
+          type: string
+          description: Email body (HTML supported)
+        cc:
+          type: array
+          items:
+            type: string
+            format: email
+        bcc:
+          type: array
+          items:
+            type: string
+            format: email
+        attachments:
+          type: array
+          items:
+            type: object
+            properties:
+              filename:
+                type: string
+              content:
+                type: string
+                description: Base64 encoded content
+              mimeType:
+                type: string
+
+    EmailSendResponse:
+      type: object
+      required: [ok, messageId]
+      properties:
+        ok:
+          type: boolean
+        messageId:
+          type: string
+          description: Gmail message ID
+        threadId:
+          type: string
+          description: Gmail thread ID
+
+    EmailDraftRequest:
+      type: object
+      required: [to, subject, body]
+      properties:
+        to:
+          type: string
+          format: email
+        subject:
+          type: string
+        body:
+          type: string
+        cc:
+          type: array
+          items:
+            type: string
+            format: email
+
+    EmailDraftResponse:
+      type: object
+      required: [ok, draftId]
+      properties:
+        ok:
+          type: boolean
+        draftId:
+          type: string
+          description: Gmail draft ID
+        message:
+          type: string
+          description: Success message
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            ok: false
+            error: "Invalid request parameters"
+            code: "BAD_REQUEST"
+    
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            ok: false
+            error: "Invalid or missing authentication"
+            code: "UNAUTHORIZED"
+    
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            ok: false
+            error: "Insufficient permissions"
+            code: "FORBIDDEN"
+    
+    NotFound:
+      description: Not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+          example:
+            ok: false
+            error: "Resource not found"
+            code: "NOT_FOUND"
+
+tags:
+  - name: System
+    description: System health and status
+  - name: Codex
+    description: Codex AI task management
+  - name: Chat
+    description: Chat and conversation management
+  - name: Calendar
+    description: Google Calendar operations
+  - name: Drive
+    description: Google Drive operations
+  - name: Memory
+    description: Memory and knowledge management
+  - name: Email
+    description: Gmail operations

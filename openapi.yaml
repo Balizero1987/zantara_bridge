@@ -1,0 +1,904 @@
+openapi: 3.1.0
+info:
+  title: Zantara Bridge API
+  description: |
+    Comprehensive API for Google Workspace integration, AI-powered chat, and productivity tools.
+    The API provides secure endpoints for Drive, Gmail, Calendar operations, AI analytics, and conversation management.
+  version: 1.0.0
+  contact:
+    name: Bali Zero HQ
+    email: zero@balizero.com
+  license:
+    name: Proprietary
+    
+servers:
+  - url: https://zantara-bridge-v2-prod-1064094238013.asia-southeast2.run.app
+    description: Production server (Cloud Run)
+  - url: http://localhost:8080
+    description: Development server
+
+security:
+  - ApiKeyAuth: []
+  - UserIdentification: []
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-KEY
+      description: API key for authentication (required for most endpoints)
+    UserIdentification:
+      type: apiKey
+      in: header
+      name: X-BZ-USER
+      description: User identification header (defaults to 'BOSS' if not provided)
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          default: false
+        error:
+          type: string
+          description: Error message
+        details:
+          type: string
+          description: Additional error details
+      required:
+        - error
+
+    SuccessResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          default: true
+        message:
+          type: string
+
+    ChatRequest:
+      type: object
+      properties:
+        message:
+          type: string
+          description: The chat message to process
+        ririMode:
+          type: boolean
+          description: Enable RIRI mode for special processing
+        sessionId:
+          type: string
+          description: Session ID for conversation continuity
+        saveAs:
+          type: string
+          enum: [chat, note, brief]
+          description: How to save the conversation
+        title:
+          type: string
+          description: Title for saved conversation
+      required:
+        - message
+
+    ChatResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        text:
+          type: string
+          description: AI response text
+        responseTime:
+          type: number
+          description: Response time in milliseconds
+        savedAs:
+          type: string
+          description: How the conversation was saved
+        owner:
+          type: string
+          description: Owner of the conversation
+
+    DriveFile:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        mimeType:
+          type: string
+        webViewLink:
+          type: string
+        createdTime:
+          type: string
+          format: date-time
+        parents:
+          type: array
+          items:
+            type: string
+
+    DriveSearchRequest:
+      type: object
+      properties:
+        query:
+          type: string
+          description: Search query
+        fileType:
+          type: string
+          description: MIME type filter
+        modifiedAfter:
+          type: string
+          format: date-time
+        folderId:
+          type: string
+          description: Parent folder ID
+        includeFiles:
+          type: boolean
+          default: true
+        includeFolders:
+          type: boolean
+          default: true
+        driveId:
+          type: string
+          description: Shared Drive ID
+
+    MemorySaveRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        folderId:
+          type: string
+        driveId:
+          type: string
+      required:
+        - title
+        - content
+
+    CalendarEventRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        startDateTime:
+          type: string
+          format: date-time
+        endDateTime:
+          type: string
+          format: date-time
+        location:
+          type: string
+        attendees:
+          type: array
+          items:
+            type: string
+            format: email
+      required:
+        - title
+        - startDateTime
+
+    EmailRequest:
+      type: object
+      properties:
+        to:
+          type: string
+          format: email
+        subject:
+          type: string
+        body:
+          type: string
+        cc:
+          type: array
+          items:
+            type: string
+            format: email
+        bcc:
+          type: array
+          items:
+            type: string
+            format: email
+        attachments:
+          type: array
+          items:
+            type: object
+            properties:
+              filename:
+                type: string
+              content:
+                type: string
+                format: byte
+      required:
+        - to
+        - subject
+        - body
+
+    UserProfile:
+      type: object
+      properties:
+        userId:
+          type: string
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        createdAt:
+          type: string
+          format: date-time
+        lastActive:
+          type: string
+          format: date-time
+
+    MonitoringStatus:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        monitoring:
+          type: object
+          properties:
+            health:
+              type: object
+            stats:
+              type: object
+            drive:
+              type: object
+              properties:
+                ok:
+                  type: boolean
+                user:
+                  type: object
+                  properties:
+                    displayName:
+                      type: string
+                    emailAddress:
+                      type: string
+                quota:
+                  type: object
+                isImpersonated:
+                  type: boolean
+                impersonateUser:
+                  type: string
+            openai:
+              type: object
+            gmail:
+              type: object
+            calendar:
+              type: object
+        ts:
+          type: string
+          format: date-time
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Basic health check
+      description: Returns the health status of the service
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: OK
+                  uptime:
+                    type: number
+                  timestamp:
+                    type: string
+                    format: date-time
+
+  /api/monitoring:
+    get:
+      tags: [Monitoring]
+      summary: Comprehensive monitoring status
+      description: Returns detailed monitoring information including Drive impersonation status
+      responses:
+        '200':
+          description: Monitoring status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MonitoringStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/chat:
+    post:
+      tags: [AI & Chat]
+      summary: Main chat endpoint
+      description: Process chat messages with AI and optionally save to Drive
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatRequest'
+      responses:
+        '200':
+          description: Chat response generated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/search/drive:
+    post:
+      tags: [Search & Discovery]
+      summary: Search Google Drive files
+      description: Search files in Google Drive with various filters using impersonation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DriveSearchRequest'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  files:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DriveFile'
+                  count:
+                    type: integer
+                  query:
+                    type: string
+                  userId:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/search/recent:
+    get:
+      tags: [Search & Discovery]
+      summary: Get recent files
+      description: Retrieve recently modified files from Drive
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of files to return
+          schema:
+            type: integer
+            default: 5
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Recent files retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recentFiles:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/DriveFile'
+                  count:
+                    type: integer
+
+  /actions/memory/save:
+    post:
+      tags: [Memory]
+      summary: Save memory entry
+      description: Save a memory entry to Google Drive with impersonation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemorySaveRequest'
+      responses:
+        '200':
+          description: Memory saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  webViewLink:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /actions/drive/upload:
+    post:
+      tags: [Drive]
+      summary: Upload file to Drive
+      description: Upload a file to Google Drive with impersonation support
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                filename:
+                  type: string
+                content:
+                  type: string
+                folderId:
+                  type: string
+                mimeType:
+                  type: string
+              required:
+                - filename
+                - content
+      responses:
+        '200':
+          description: File uploaded successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  webViewLink:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/calendar/deadline:
+    post:
+      tags: [Calendar]
+      summary: Create calendar deadline
+      description: Create a deadline event in Google Calendar
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CalendarEventRequest'
+      responses:
+        '200':
+          description: Calendar event created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  eventId:
+                    type: string
+                  htmlLink:
+                    type: string
+                  summary:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /actions/email/send:
+    post:
+      tags: [Email]
+      summary: Send email
+      description: Send an email via Gmail
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmailRequest'
+      responses:
+        '200':
+          description: Email sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messageId:
+                    type: string
+                  threadId:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/drive/brief:
+    post:
+      tags: [Drive]
+      summary: Generate and upload brief document
+      description: Generate a Word document brief and upload it to Drive
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                topic:
+                  type: string
+                details:
+                  type: string
+                template:
+                  type: string
+                  enum: [business, technical, marketing]
+                  default: business
+                folderId:
+                  type: string
+              required:
+                - topic
+                - details
+      responses:
+        '200':
+          description: Brief generated and uploaded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  fileId:
+                    type: string
+                  fileName:
+                    type: string
+                  webViewLink:
+                    type: string
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/ai/analyze-document:
+    post:
+      tags: [AI & Analytics]
+      summary: Analyze document with AI
+      description: Perform advanced document analysis using AI
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                document:
+                  type: string
+                fileName:
+                  type: string
+                analysisType:
+                  type: string
+                  enum: [summary, sentiment, entities, keywords]
+              required:
+                - document
+      responses:
+        '200':
+          description: Document analyzed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  fileName:
+                    type: string
+                  analysis:
+                    type: object
+                  processedAt:
+                    type: string
+                    format: date-time
+
+  /api/analytics:
+    get:
+      tags: [Analytics]
+      summary: Get system analytics
+      description: Retrieve comprehensive system analytics and usage statistics
+      responses:
+        '200':
+          description: Analytics data retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  totalChats:
+                    type: integer
+                  uniqueUsers:
+                    type: integer
+                  documentsProcessed:
+                    type: integer
+                  apiCalls:
+                    type: object
+                  last24h:
+                    type: integer
+                  uptime:
+                    type: number
+                  version:
+                    type: string
+
+  /api/users:
+    get:
+      tags: [User Management]
+      summary: List all users
+      description: Retrieve a list of all registered users
+      responses:
+        '200':
+          description: Users retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/UserProfile'
+                  total:
+                    type: integer
+    
+    post:
+      tags: [User Management]
+      summary: Register new user
+      description: Register a new user and generate API key
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                email:
+                  type: string
+                  format: email
+              required:
+                - username
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userId:
+                    type: string
+                  apiKey:
+                    type: string
+                  username:
+                    type: string
+                  message:
+                    type: string
+
+  /api/conversations:
+    get:
+      tags: [Conversations]
+      summary: List all conversations
+      description: Retrieve all conversations with filtering options
+      parameters:
+        - name: collab
+          in: query
+          description: Filter by collaborator
+          schema:
+            type: string
+        - name: status
+          in: query
+          description: Filter by status
+          schema:
+            type: string
+            enum: [active, closed, archived]
+      responses:
+        '200':
+          description: Conversations retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  conversations:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+
+  /api/dashboard:
+    get:
+      tags: [Dashboard]
+      summary: Get dashboard data
+      description: Retrieve comprehensive dashboard metrics
+      responses:
+        '200':
+          description: Dashboard data retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  overview:
+                    type: object
+                  activity:
+                    type: object
+                  topEndpoints:
+                    type: array
+                    items:
+                      type: object
+                  userActivity:
+                    type: array
+                    items:
+                      type: object
+                  systemHealth:
+                    type: object
+
+  /api/webhooks:
+    get:
+      tags: [Webhooks]
+      summary: List webhooks
+      description: Retrieve all configured webhooks
+      responses:
+        '200':
+          description: Webhooks retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  webhooks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        url:
+                          type: string
+                        events:
+                          type: array
+                          items:
+                            type: string
+                        active:
+                          type: boolean
+                        created:
+                          type: string
+                          format: date-time
+                  total:
+                    type: integer
+    
+    post:
+      tags: [Webhooks]
+      summary: Create webhook
+      description: Register a new webhook endpoint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url:
+                  type: string
+                  format: uri
+                events:
+                  type: array
+                  items:
+                    type: string
+              required:
+                - url
+                - events
+      responses:
+        '201':
+          description: Webhook created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  url:
+                    type: string
+                  events:
+                    type: array
+                    items:
+                      type: string
+                  secret:
+                    type: string
+                  active:
+                    type: boolean
+                  created:
+                    type: string
+                    format: date-time
+
+  components:
+    responses:
+      BadRequest:
+        description: Bad request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+      
+      Unauthorized:
+        description: Unauthorized - Invalid or missing API key
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+      
+      Forbidden:
+        description: Forbidden - Insufficient permissions
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+      
+      NotFound:
+        description: Resource not found
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+      
+      ServerError:
+        description: Internal server error
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Error'
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Monitoring
+    description: System monitoring and diagnostics
+  - name: AI & Chat
+    description: AI-powered chat and conversation management
+  - name: Search & Discovery
+    description: Search functionality across Google services
+  - name: Analytics
+    description: System analytics and usage statistics
+  - name: Dashboard
+    description: Dashboard and visualization endpoints
+  - name: User Management
+    description: User registration and management
+  - name: Conversations
+    description: Conversation management and history
+  - name: Webhooks
+    description: Webhook management for event notifications
+  - name: Memory
+    description: Memory and knowledge management
+  - name: Drive
+    description: Google Drive operations
+  - name: Calendar
+    description: Google Calendar operations
+  - name: Email
+    description: Gmail operations
+  - name: AI & Analytics
+    description: Advanced AI analysis capabilities
