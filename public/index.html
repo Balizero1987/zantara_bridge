@@ -239,10 +239,10 @@
         }
 
         .service-widget {
-            background: var(--soft-white);
-            border-radius: 50%;
-            width: 280px;
-            height: 280px;
+            background: var(--pure-white);
+            border-radius: 20px;
+            width: 350px;
+            height: 300px;
             margin: 0 auto;
             display: flex;
             flex-direction: column;
@@ -251,9 +251,10 @@
             text-align: center;
             transition: all 0.4s ease;
             cursor: pointer;
-            border: 3px solid transparent;
+            border: 2px solid var(--light-gold);
             position: relative;
             overflow: hidden;
+            box-shadow: 0 15px 40px var(--shadow-dark);
         }
 
         .service-widget::before {
@@ -290,22 +291,24 @@
         }
 
         .service-icon {
-            font-size: 3rem;
-            margin-bottom: 20px;
-            color: var(--primary-gold);
+            width: 280px;
+            height: 200px;
+            margin-bottom: 15px;
+            object-fit: cover;
+            border-radius: 10px;
         }
 
         .service-title {
-            font-size: 1.3rem;
+            font-size: 1.1rem;
             font-weight: 600;
             color: var(--elegant-black);
-            margin-bottom: 10px;
+            margin-bottom: 5px;
             text-transform: uppercase;
             letter-spacing: 1px;
         }
 
         .service-subtitle {
-            font-size: 0.9rem;
+            font-size: 0.8rem;
             color: var(--warm-gray);
             font-weight: 400;
         }
@@ -497,8 +500,13 @@
             }
 
             .service-widget {
+                width: 300px;
+                height: 250px;
+            }
+
+            .service-icon {
                 width: 240px;
-                height: 240px;
+                height: 160px;
             }
 
             .team-scroll {
@@ -579,7 +587,7 @@
             <div class="services-grid">
                 <div class="service-widget fade-in" onclick="openService('visas')">
                     <div class="service-content">
-                        <div class="service-icon">🛂</div>
+                        <img src="/images/visa-passport-3d.svg" alt="Visa Services" class="service-icon">
                         <h3 class="service-title">Visas</h3>
                         <p class="service-subtitle">All visa types & permits</p>
                     </div>
@@ -587,7 +595,7 @@
                 
                 <div class="service-widget fade-in" onclick="openService('company')">
                     <div class="service-content">
-                        <div class="service-icon">🏢</div>
+                        <img src="/images/company-documents-3d.svg" alt="Company & Licenses" class="service-icon">
                         <h3 class="service-title">Company & Licenses</h3>
                         <p class="service-subtitle">Business setup & KBLI</p>
                     </div>
@@ -595,7 +603,7 @@
                 
                 <div class="service-widget fade-in" onclick="openService('tax')">
                     <div class="service-content">
-                        <div class="service-icon">💼</div>
+                        <img src="/images/tax-calculator-3d.svg" alt="Tax Consultant" class="service-icon">
                         <h3 class="service-title">Tax Consultant</h3>
                         <p class="service-subtitle">Complete tax services</p>
                     </div>
@@ -603,7 +611,7 @@
                 
                 <div class="service-widget fade-in" onclick="openService('legal')">
                     <div class="service-content">
-                        <div class="service-icon">🏡</div>
+                        <img src="/images/real-estate-3d.svg" alt="Legal Real Estate" class="service-icon">
                         <h3 class="service-title">Legal Real Estate</h3>
                         <p class="service-subtitle">Property legal services</p>
                     </div>

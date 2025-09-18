@@ -1,0 +1,242 @@
+<svg width="400" height="300" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Premium gradients -->
+    <linearGradient id="documentStack" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F8F8FF;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#F0F8FF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#E6E6FA;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="businessCard" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1E3A8A;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#3B82F6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1E40AF;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="seal" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#DC2626;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#EF4444;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#B91C1C;stop-opacity:1" />
+    </linearGradient>
+    
+    <radialGradient id="hologram" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#00FFD4;stop-opacity:0.8" />
+      <stop offset="30%" style="stop-color:#FF00FF;stop-opacity:0.6" />
+      <stop offset="60%" style="stop-color:#FFD700;stop-opacity:0.4" />
+      <stop offset="100%" style="stop-color:#00FFD4;stop-opacity:0.2" />
+    </radialGradient>
+    
+    <!-- Professional shadows -->
+    <filter id="dropShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="5" dy="8" stdDeviation="4" flood-color="#00000030"/>
+    </filter>
+    
+    <filter id="emboss" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1"/>
+      <feSpecularLighting result="specOut" specularConstant="1.2" specularExponent="15" lighting-color="#FFFFFF">
+        <fePointLight x="-5" y="-10" z="15"/>
+      </feSpecularLighting>
+      <feComposite in="SourceGraphic" in2="specOut" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"/>
+    </filter>
+    
+    <!-- Animations -->
+    <animateTransform id="paperFloat" 
+                      attributeName="transform"
+                      type="translate"
+                      values="0,0; 2,-3; 0,0"
+                      dur="4s"
+                      repeatCount="indefinite"/>
+  </defs>
+  
+  <!-- Office background -->
+  <rect width="400" height="300" fill="linear-gradient(135deg, #F8FAFC 0%, #E2E8F0 100%)"/>
+  
+  <!-- Document stack (3D layered) -->
+  <g transform="translate(50, 80)" filter="url(#dropShadow)">
+    <!-- Bottom document -->
+    <rect x="5" y="5" width="120" height="160" 
+          fill="url(#documentStack)" 
+          stroke="#D1D5DB" 
+          stroke-width="0.5" 
+          rx="3"/>
+    
+    <!-- Middle document -->
+    <rect x="2" y="2" width="120" height="160" 
+          fill="url(#documentStack)" 
+          stroke="#D1D5DB" 
+          stroke-width="0.5" 
+          rx="3">
+      <animateTransform attributeName="transform"
+                        type="translate"
+                        values="0,0; 1,-1; 0,0"
+                        dur="5s"
+                        repeatCount="indefinite"/>
+    </rect>
+    
+    <!-- Top document -->
+    <rect x="0" y="0" width="120" height="160" 
+          fill="url(#documentStack)" 
+          stroke="#D1D5DB" 
+          stroke-width="0.5" 
+          rx="3" 
+          filter="url(#emboss)">
+      <animateTransform attributeName="transform"
+                        type="translate"
+                        values="0,0; -1,-2; 0,0"
+                        dur="6s"
+                        repeatCount="indefinite"/>
+    </rect>
+    
+    <!-- Company header -->
+    <rect x="10" y="10" width="100" height="25" 
+          fill="url(#businessCard)" 
+          rx="2"/>
+    
+    <text x="60" y="20" text-anchor="middle" 
+          font-family="Arial, sans-serif" font-size="6" font-weight="bold" 
+          fill="white">PT. BALI ZERO</text>
+    <text x="60" y="28" text-anchor="middle" 
+          font-family="Arial, sans-serif" font-size="4" 
+          fill="white">BUSINESS LICENSE</text>
+    
+    <!-- Form fields -->
+    <line x1="15" y1="50" x2="105" y2="50" stroke="#374151" stroke-width="0.3"/>
+    <line x1="15" y1="60" x2="90" y2="60" stroke="#374151" stroke-width="0.3"/>
+    <line x1="15" y1="70" x2="95" y2="70" stroke="#374151" stroke-width="0.3"/>
+    
+    <!-- KBLI section -->
+    <rect x="15" y="80" width="90" height="30" 
+          fill="#F3F4F6" 
+          stroke="#9CA3AF" 
+          stroke-width="0.5" 
+          rx="2"/>
+    
+    <text x="20" y="88" 
+          font-family="Arial, sans-serif" font-size="4" font-weight="bold" 
+          fill="#1F2937">KBLI CODE:</text>
+    <text x="20" y="96" 
+          font-family="monospace" font-size="6" font-weight="bold" 
+          fill="#DC2626">62013</text>
+    <text x="20" y="103" 
+          font-family="Arial, sans-serif" font-size="3" 
+          fill="#6B7280">Software Development</text>
+    
+    <!-- Official seal -->
+    <circle cx="90" cy="135" r="12" 
+            fill="url(#seal)" 
+            opacity="0.8">
+      <animateTransform attributeName="transform"
+                        type="rotate"
+                        values="0 90 135; 5 90 135; 0 90 135"
+                        dur="8s"
+                        repeatCount="indefinite"/>
+    </circle>
+    
+    <text x="90" y="132" text-anchor="middle" 
+          font-family="serif" font-size="2.5" font-weight="bold" 
+          fill="white">OFFICIAL</text>
+    <text x="90" y="138" text-anchor="middle" 
+          font-family="serif" font-size="2.5" font-weight="bold" 
+          fill="white">SEAL</text>
+  </g>
+  
+  <!-- Holographic security features -->
+  <g transform="translate(220, 100)" opacity="0.7">
+    <rect x="0" y="0" width="100" height="120" 
+          fill="url(#hologram)" 
+          rx="5" 
+          filter="url(#dropShadow)">
+      <animateTransform attributeName="transform"
+                        type="rotate"
+                        values="0 50 60; 2 50 60; 0 50 60"
+                        dur="3s"
+                        repeatCount="indefinite"/>
+      <animate attributeName="opacity" 
+               values="0.3; 0.8; 0.3" 
+               dur="4s" 
+               repeatCount="indefinite"/>
+    </rect>
+    
+    <!-- Security patterns -->
+    <g stroke="white" stroke-width="0.5" fill="none" opacity="0.8">
+      <circle cx="25" cy="30" r="8"/>
+      <circle cx="75" cy="30" r="8"/>
+      <circle cx="50" cy="60" r="12"/>
+      <circle cx="30" cy="90" r="6"/>
+      <circle cx="70" cy="90" r="6"/>
+    </g>
+    
+    <text x="50" y="110" text-anchor="middle" 
+          font-family="Arial, sans-serif" font-size="6" font-weight="bold" 
+          fill="white">VERIFIED</text>
+  </g>
+  
+  <!-- Floating business icons -->
+  <g opacity="0.6">
+    <!-- Building icon -->
+    <g transform="translate(340, 60)">
+      <rect x="0" y="10" width="30" height="40" 
+            fill="#6B7280" 
+            stroke="#374151" 
+            stroke-width="0.5">
+        <animateTransform attributeName="transform"
+                          type="translate"
+                          values="0,0; 0,-2; 0,0"
+                          dur="3s"
+                          repeatCount="indefinite"/>
+      </rect>
+      <rect x="5" y="15" width="4" height="4" fill="#FBBF24"/>
+      <rect x="12" y="15" width="4" height="4" fill="#FBBF24"/>
+      <rect x="19" y="15" width="4" height="4" fill="#FBBF24"/>
+      <rect x="5" y="25" width="4" height="4" fill="#FBBF24"/>
+      <rect x="12" y="25" width="4" height="4" fill="#FBBF24"/>
+      <rect x="19" y="25" width="4" height="4" fill="#FBBF24"/>
+    </g>
+    
+    <!-- Briefcase icon -->
+    <g transform="translate(330, 150)">
+      <rect x="0" y="5" width="25" height="15" 
+            fill="#8B5CF6" 
+            rx="2">
+        <animateTransform attributeName="transform"
+                          type="scale"
+                          values="1; 1.1; 1"
+                          dur="4s"
+                          repeatCount="indefinite"/>
+      </rect>
+      <rect x="10" y="0" width="5" height="5" fill="#8B5CF6"/>
+    </g>
+  </g>
+  
+  <!-- Progress indicators -->
+  <g transform="translate(70, 260)">
+    <rect x="0" y="0" width="80" height="4" fill="#E5E7EB" rx="2"/>
+    <rect x="0" y="0" width="64" height="4" fill="#10B981" rx="2">
+      <animate attributeName="width" 
+               values="0; 64; 0" 
+               dur="8s" 
+               repeatCount="indefinite"/>
+    </rect>
+    <text x="40" y="15" text-anchor="middle" 
+          font-family="Arial, sans-serif" font-size="6" 
+          fill="#6B7280">Processing: 80%</text>
+  </g>
+  
+  <!-- Service title -->
+  <text x="200" y="285" text-anchor="middle" 
+        font-family="Arial, sans-serif" font-size="16" font-weight="bold" 
+        fill="#1E40AF">COMPANY & LICENSES</text>
+  
+  <!-- Sparkle effects -->
+  <g opacity="0.8">
+    <circle cx="120" cy="60" r="1" fill="#FBBF24">
+      <animate attributeName="opacity" values="0; 1; 0" dur="2s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="280" cy="180" r="1.5" fill="#10B981">
+      <animate attributeName="opacity" values="1; 0; 1" dur="3s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="350" cy="200" r="0.8" fill="#8B5CF6">
+      <animate attributeName="opacity" values="0; 1; 0" dur="2.5s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+</svg>

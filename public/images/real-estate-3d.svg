@@ -1,0 +1,412 @@
+<svg width="400" height="300" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Luxury gradients -->
+    <linearGradient id="villa" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FEF3C7;stop-opacity:1" />
+      <stop offset="30%" style="stop-color:#FDE68A;stop-opacity:1" />
+      <stop offset="70%" style="stop-color:#F59E0B;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#D97706;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="roof" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7C2D12;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#991B1B;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7C2D12;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="pool" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0EA5E9;stop-opacity:0.9" />
+      <stop offset="50%" style="stop-color:#0284C7;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0369A1;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="tropicalSky" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#DBEAFE;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#93C5FD;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3B82F6;stop-opacity:1" />
+    </linearGradient>
+    
+    <radialGradient id="palmShadow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#000000;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#000000;stop-opacity:0" />
+    </radialGradient>
+    
+    <!-- Professional 3D effects -->
+    <filter id="luxury3D" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="8" dy="12" stdDeviation="6" flood-color="#00000050"/>
+    </filter>
+    
+    <filter id="waterReflection" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1"/>
+      <feOffset dx="0" dy="2" result="offset"/>
+      <feFlood flood-color="#FFFFFF" flood-opacity="0.2"/>
+      <feComposite in2="offset" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <filter id="tropicalGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- Animations -->
+    <animateTransform id="palmSway" 
+                      attributeName="transform"
+                      type="rotate"
+                      values="0; 3; -2; 0"
+                      dur="6s"
+                      repeatCount="indefinite"/>
+  </defs>
+  
+  <!-- Tropical sky background -->
+  <rect width="400" height="300" fill="url(#tropicalSky)"/>
+  
+  <!-- Clouds -->
+  <g opacity="0.6">
+    <ellipse cx="80" cy="40" rx="15" ry="8" fill="white">
+      <animateTransform attributeName="transform"
+                        type="translate"
+                        values="0,0; 20,0; 0,0"
+                        dur="20s"
+                        repeatCount="indefinite"/>
+    </ellipse>
+    <ellipse cx="300" cy="30" rx="20" ry="10" fill="white">
+      <animateTransform attributeName="transform"
+                        type="translate"
+                        values="0,0; -15,0; 0,0"
+                        dur="25s"
+                        repeatCount="indefinite"/>
+    </ellipse>
+  </g>
+  
+  <!-- Luxury villa (main focus) -->
+  <g transform="translate(120, 100)" filter="url(#luxury3D)">
+    <!-- Villa main structure -->
+    <rect x="0" y="40" width="80" height="60" 
+          fill="url(#villa)" 
+          stroke="#D97706" 
+          stroke-width="0.5">
+      <animateTransform attributeName="transform"
+                        type="translate"
+                        values="0,0; 0,-1; 0,0"
+                        dur="8s"
+                        repeatCount="indefinite"/>
+    </rect>
+    
+    <!-- Villa roof -->
+    <path d="M -5 40 L 40 15 L 85 40 Z" 
+          fill="url(#roof)" 
+          stroke="#7C2D12" 
+          stroke-width="0.5"/>
+    
+    <!-- Villa front detail -->
+    <rect x="10" y="50" width="60" height="50" 
+          fill="#FEF3C7" 
+          stroke="#F59E0B" 
+          stroke-width="0.3"/>
+    
+    <!-- Windows -->
+    <rect x="15" y="55" width="12" height="15" 
+          fill="#0EA5E9" 
+          stroke="#0369A1" 
+          stroke-width="0.3" 
+          opacity="0.8">
+      <animate attributeName="opacity" 
+               values="0.8; 1; 0.8" 
+               dur="4s" 
+               repeatCount="indefinite"/>
+    </rect>
+    
+    <rect x="53" y="55" width="12" height="15" 
+          fill="#0EA5E9" 
+          stroke="#0369A1" 
+          stroke-width="0.3" 
+          opacity="0.8">
+      <animate attributeName="opacity" 
+               values="1; 0.8; 1" 
+               dur="4s" 
+               repeatCount="indefinite"/>
+    </rect>
+    
+    <!-- Door -->
+    <rect x="32" y="75" width="16" height="25" 
+          fill="#92400E" 
+          stroke="#7C2D12" 
+          stroke-width="0.3" 
+          rx="2"/>
+    
+    <!-- Door handle -->
+    <circle cx="44" cy="87" r="1" fill="#FBBF24"/>
+    
+    <!-- Villa extension -->
+    <rect x="80" y="60" width="40" height="40" 
+          fill="url(#villa)" 
+          stroke="#D97706" 
+          stroke-width="0.5"/>
+    
+    <!-- Extension roof -->
+    <path d="M 75 60 L 100 45 L 125 60 Z" 
+          fill="url(#roof)" 
+          stroke="#7C2D12" 
+          stroke-width="0.5"/>
+    
+    <!-- Balcony -->
+    <rect x="12" y="45" width="56" height="5" 
+          fill="#F59E0B" 
+          stroke="#D97706" 
+          stroke-width="0.3"/>
+    
+    <!-- Balcony railings -->
+    <line x1="15" y1="45" x2="15" y2="50" stroke="#D97706" stroke-width="0.5"/>
+    <line x1="25" y1="45" x2="25" y2="50" stroke="#D97706" stroke-width="0.5"/>
+    <line x1="35" y1="45" x2="35" y2="50" stroke="#D97706" stroke-width="0.5"/>
+    <line x1="45" y1="45" x2="45" y2="50" stroke="#D97706" stroke-width="0.5"/>
+    <line x1="55" y1="45" x2="55" y2="50" stroke="#D97706" stroke-width="0.5"/>
+    <line x1="65" y1="45" x2="65" y2="50" stroke="#D97706" stroke-width="0.5"/>
+  </g>
+  
+  <!-- Swimming pool -->
+  <g transform="translate(80, 200)" filter="url(#waterReflection)">
+    <ellipse cx="60" cy="15" rx="50" ry="20" 
+             fill="url(#pool)" 
+             stroke="#0369A1" 
+             stroke-width="0.5">
+      <animate attributeName="rx" 
+               values="50; 52; 50" 
+               dur="3s" 
+               repeatCount="indefinite"/>
+    </ellipse>
+    
+    <!-- Pool reflection -->
+    <ellipse cx="60" cy="15" rx="45" ry="15" 
+             fill="white" 
+             opacity="0.2">
+      <animate attributeName="opacity" 
+               values="0.2; 0.4; 0.2" 
+               dur="4s" 
+               repeatCount="indefinite"/>
+    </ellipse>
+    
+    <!-- Water ripples -->
+    <circle cx="40" cy="12" r="3" 
+            fill="none" 
+            stroke="white" 
+            stroke-width="0.5" 
+            opacity="0.6">
+      <animate attributeName="r" 
+               values="0; 5; 0" 
+               dur="2s" 
+               repeatCount="indefinite"/>
+      <animate attributeName="opacity" 
+               values="0.6; 0; 0.6" 
+               dur="2s" 
+               repeatCount="indefinite"/>
+    </circle>
+  </g>
+  
+  <!-- Palm trees -->
+  <g transform="translate(50, 150)" filter="url(#tropicalGlow)">
+    <!-- Palm trunk -->
+    <rect x="0" y="0" width="4" height="60" 
+          fill="#8B4513" 
+          rx="2">
+      <animateTransform attributeName="transform"
+                        type="rotate"
+                        values="0 2 30; 2 2 30; 0 2 30"
+                        dur="6s"
+                        repeatCount="indefinite"/>
+    </rect>
+    
+    <!-- Palm fronds -->
+    <g transform="translate(2, 0)">
+      <path d="M 0 0 Q -15 -10 -25 -5" 
+            stroke="#22C55E" 
+            stroke-width="2" 
+            fill="none">
+        <animateTransform attributeName="transform"
+                          type="rotate"
+                          values="0 0 0; -5 0 0; 0 0 0"
+                          dur="6s"
+                          repeatCount="indefinite"/>
+      </path>
+      <path d="M 0 0 Q 15 -10 25 -5" 
+            stroke="#22C55E" 
+            stroke-width="2" 
+            fill="none">
+        <animateTransform attributeName="transform"
+                          type="rotate"
+                          values="0 0 0; 5 0 0; 0 0 0"
+                          dur="6s"
+                          repeatCount="indefinite"/>
+      </path>
+      <path d="M 0 0 Q -5 -20 -8 -30" 
+            stroke="#16A34A" 
+            stroke-width="2" 
+            fill="none">
+        <animateTransform attributeName="transform"
+                          type="rotate"
+                          values="0 0 0; -3 0 0; 0 0 0"
+                          dur="6s"
+                          repeatCount="indefinite"/>
+      </path>
+      <path d="M 0 0 Q 5 -20 8 -30" 
+            stroke="#16A34A" 
+            stroke-width="2" 
+            fill="none">
+        <animateTransform attributeName="transform"
+                          type="rotate"
+                          values="0 0 0; 3 0 0; 0 0 0"
+                          dur="6s"
+                          repeatCount="indefinite"/>
+      </path>
+    </g>
+    
+    <!-- Palm shadow -->
+    <ellipse cx="2" cy="65" rx="8" ry="3" fill="url(#palmShadow)"/>
+  </g>
+  
+  <!-- Second palm tree -->
+  <g transform="translate(320, 140)" filter="url(#tropicalGlow)">
+    <rect x="0" y="0" width="3" height="50" 
+          fill="#8B4513" 
+          rx="1.5">
+      <animateTransform attributeName="transform"
+                        type="rotate"
+                        values="0 1.5 25; -2 1.5 25; 0 1.5 25"
+                        dur="7s"
+                        repeatCount="indefinite"/>
+    </rect>
+    
+    <g transform="translate(1.5, 0)">
+      <path d="M 0 0 Q -12 -8 -20 -4" 
+            stroke="#22C55E" 
+            stroke-width="1.5" 
+            fill="none">
+        <animateTransform attributeName="transform"
+                          type="rotate"
+                          values="0 0 0; -4 0 0; 0 0 0"
+                          dur="7s"
+                          repeatCount="indefinite"/>
+      </path>
+      <path d="M 0 0 Q 12 -8 20 -4" 
+            stroke="#22C55E" 
+            stroke-width="1.5" 
+            fill="none">
+        <animateTransform attributeName="transform"
+                          type="rotate"
+                          values="0 0 0; 4 0 0; 0 0 0"
+                          dur="7s"
+                          repeatCount="indefinite"/>
+      </path>
+    </g>
+    
+    <ellipse cx="1.5" cy="55" rx="6" ry="2" fill="url(#palmShadow)"/>
+  </g>
+  
+  <!-- Legal documents overlay -->
+  <g transform="translate(280, 80)" opacity="0.9" filter="url(#luxury3D)">
+    <!-- Contract document -->
+    <rect x="0" y="0" width="60" height="80" 
+          fill="#FFFBEB" 
+          stroke="#D97706" 
+          stroke-width="0.5" 
+          rx="2">
+      <animateTransform attributeName="transform"
+                        type="translate"
+                        values="0,0; 1,-1; 0,0"
+                        dur="5s"
+                        repeatCount="indefinite"/>
+    </rect>
+    
+    <!-- Document header -->
+    <rect x="5" y="5" width="50" height="12" 
+          fill="#DC2626" 
+          rx="1"/>
+    <text x="30" y="12" text-anchor="middle" 
+          font-family="Arial" font-size="5" font-weight="bold" 
+          fill="white">PROPERTY DEED</text>
+    
+    <!-- Document content -->
+    <line x1="8" y1="25" x2="52" y2="25" stroke="#92400E" stroke-width="0.2"/>
+    <line x1="8" y1="30" x2="45" y2="30" stroke="#92400E" stroke-width="0.2"/>
+    <line x1="8" y1="35" x2="50" y2="35" stroke="#92400E" stroke-width="0.2"/>
+    <line x1="8" y1="40" x2="40" y2="40" stroke="#92400E" stroke-width="0.2"/>
+    
+    <!-- Property details -->
+    <text x="10" y="50" font-family="Arial" font-size="4" fill="#92400E">Location: Bali</text>
+    <text x="10" y="55" font-family="Arial" font-size="4" fill="#92400E">Type: Villa</text>
+    <text x="10" y="60" font-family="Arial" font-size="4" fill="#92400E">Area: 500m²</text>
+    
+    <!-- Legal seal -->
+    <circle cx="45" cy="65" r="8" 
+            fill="#DC2626" 
+            opacity="0.8">
+      <animate attributeName="fill" 
+               values="#DC2626; #EF4444; #DC2626" 
+               dur="3s" 
+               repeatCount="indefinite"/>
+    </circle>
+    <text x="45" y="63" text-anchor="middle" 
+          font-family="serif" font-size="2" font-weight="bold" 
+          fill="white">LEGAL</text>
+    <text x="45" y="68" text-anchor="middle" 
+          font-family="serif" font-size="2" font-weight="bold" 
+          fill="white">SEAL</text>
+  </g>
+  
+  <!-- Property value indicator -->
+  <g transform="translate(30, 60)" opacity="0.8">
+    <rect x="0" y="0" width="40" height="20" 
+          fill="#DCFCE7" 
+          stroke="#16A34A" 
+          stroke-width="0.5" 
+          rx="3" 
+          filter="url(#luxury3D)"/>
+    
+    <text x="20" y="8" text-anchor="middle" 
+          font-family="Arial" font-size="4" font-weight="bold" 
+          fill="#166534">PROPERTY VALUE</text>
+    <text x="20" y="15" text-anchor="middle" 
+          font-family="monospace" font-size="5" font-weight="bold" 
+          fill="#16A34A">$2.5M USD</text>
+  </g>
+  
+  <!-- Floating currency symbols -->
+  <g opacity="0.6">
+    <text x="370" y="100" 
+          font-family="Arial" font-size="12" font-weight="bold" 
+          fill="#FBBF24">$</text>
+    
+    <text x="20" y="120" 
+          font-family="Arial" font-size="10" font-weight="bold" 
+          fill="#16A34A">€</text>
+    
+    <text x="350" y="180" 
+          font-family="Arial" font-size="8" font-weight="bold" 
+          fill="#DC2626">₹</text>
+  </g>
+  
+  <!-- Service title -->
+  <text x="200" y="285" text-anchor="middle" 
+        font-family="Arial, sans-serif" font-size="16" font-weight="bold" 
+        fill="#0369A1">LEGAL REAL ESTATE</text>
+  
+  <!-- Tropical sparkles -->
+  <g opacity="0.7">
+    <circle cx="100" cy="80" r="1" fill="#FBBF24">
+      <animate attributeName="opacity" values="0; 1; 0" dur="2s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="250" cy="50" r="1.5" fill="#22C55E">
+      <animate attributeName="opacity" values="1; 0; 1" dur="3s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="360" cy="220" r="0.8" fill="#0EA5E9">
+      <animate attributeName="opacity" values="0; 1; 0" dur="2.5s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+</svg>

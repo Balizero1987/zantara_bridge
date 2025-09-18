@@ -1,0 +1,292 @@
+<svg width="400" height="300" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Professional gradients -->
+    <linearGradient id="calculatorBody" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1F2937;stop-opacity:1" />
+      <stop offset="30%" style="stop-color:#374151;stop-opacity:1" />
+      <stop offset="70%" style="stop-color:#4B5563;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1F2937;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="screen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#065F46;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#047857;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#064E3B;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="buttonGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F3F4F6;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#E5E7EB;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#D1D5DB;stop-opacity:1" />
+    </linearGradient>
+    
+    <linearGradient id="taxForm" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFFBEB;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FEF3C7;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- 3D Effects -->
+    <filter id="depth3D" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="6" dy="10" stdDeviation="5" flood-color="#00000040"/>
+    </filter>
+    
+    <filter id="inset" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="1"/>
+      <feOffset dx="1" dy="1" result="offset"/>
+      <feFlood flood-color="#FFFFFF" flood-opacity="0.3"/>
+      <feComposite in2="offset" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- Digital display effect -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Office desk background -->
+  <rect width="400" height="300" fill="linear-gradient(135deg, #F9FAFB 0%, #F3F4F6 100%)"/>
+  
+  <!-- Calculator (main focus) -->
+  <g transform="translate(80, 60)" filter="url(#depth3D)">
+    <!-- Calculator body -->
+    <rect x="0" y="0" width="120" height="180" 
+          fill="url(#calculatorBody)" 
+          rx="8" 
+          filter="url(#inset)">
+      <animateTransform attributeName="transform"
+                        type="translate"
+                        values="0,0; 0,-2; 0,0"
+                        dur="5s"
+                        repeatCount="indefinite"/>
+    </rect>
+    
+    <!-- Screen -->
+    <rect x="10" y="15" width="100" height="25" 
+          fill="url(#screen)" 
+          rx="3" 
+          filter="url(#glow)"/>
+    
+    <!-- Screen content (animated numbers) -->
+    <text x="100" y="32" text-anchor="end" 
+          font-family="monospace" font-size="12" font-weight="bold" 
+          fill="#00FF88" filter="url(#glow)">
+      <animate attributeName="fill" 
+               values="#00FF88; #00FFFF; #00FF88" 
+               dur="3s" 
+               repeatCount="indefinite"/>
+      <textPath>125,500</textPath>
+    </text>
+    
+    <!-- Button grid -->
+    <!-- Row 1 -->
+    <rect x="15" y="50" width="20" height="15" fill="url(#buttonGradient)" rx="2" filter="url(#inset)"/>
+    <text x="25" y="60" text-anchor="middle" font-family="Arial" font-size="8" fill="#1F2937">%</text>
+    
+    <rect x="40" y="50" width="20" height="15" fill="url(#buttonGradient)" rx="2" filter="url(#inset)"/>
+    <text x="50" y="60" text-anchor="middle" font-family="Arial" font-size="8" fill="#1F2937">CE</text>
+    
+    <rect x="65" y="50" width="20" height="15" fill="url(#buttonGradient)" rx="2" filter="url(#inset)"/>
+    <text x="75" y="60" text-anchor="middle" font-family="Arial" font-size="8" fill="#1F2937">C</text>
+    
+    <rect x="90" y="50" width="20" height="15" fill="#EF4444" rx="2" filter="url(#inset)"/>
+    <text x="100" y="60" text-anchor="middle" font-family="Arial" font-size="8" fill="white">⌫</text>
+    
+    <!-- Row 2 -->
+    <rect x="15" y="70" width="20" height="15" fill="url(#buttonGradient)" rx="2" filter="url(#inset)"/>
+    <text x="25" y="80" text-anchor="middle" font-family="Arial" font-size="10" fill="#1F2937">7</text>
+    
+    <rect x="40" y="70" width="20" height="15" fill="url(#buttonGradient)" rx="2" filter="url(#inset)"/>
+    <text x="50" y="80" text-anchor="middle" font-family="Arial" font-size="10" fill="#1F2937">8</text>
+    
+    <rect x="65" y="70" width="20" height="15" fill="url(#buttonGradient)" rx="2" filter="url(#inset)"/>
+    <text x="75" y="80" text-anchor="middle" font-family="Arial" font-size="10" fill="#1F2937">9</text>
+    
+    <rect x="90" y="70" width="20" height="15" fill="#3B82F6" rx="2" filter="url(#inset)"/>
+    <text x="100" y="80" text-anchor="middle" font-family="Arial" font-size="10" fill="white">÷</text>
+    
+    <!-- Row 3 -->
+    <rect x="15" y="90" width="20" height="15" fill="url(#buttonGradient)" rx="2" filter="url(#inset)"/>
+    <text x="25" y="100" text-anchor="middle" font-family="Arial" font-size="10" fill="#1F2937">4</text>
+    
+    <rect x="40" y="90" width="20" height="15" fill="url(#buttonGradient)" rx="2" filter="url(#inset)"/>
+    <text x="50" y="100" text-anchor="middle" font-family="Arial" font-size="10" fill="#1F2937">5</text>
+    
+    <rect x="65" y="90" width="20" height="15" fill="url(#buttonGradient)" rx="2" filter="url(#inset)"/>
+    <text x="75" y="100" text-anchor="middle" font-family="Arial" font-size="10" fill="#1F2937">6</text>
+    
+    <rect x="90" y="90" width="20" height="15" fill="#3B82F6" rx="2" filter="url(#inset)"/>
+    <text x="100" y="100" text-anchor="middle" font-family="Arial" font-size="10" fill="white">×</text>
+    
+    <!-- Row 4 -->
+    <rect x="15" y="110" width="20" height="15" fill="url(#buttonGradient)" rx="2" filter="url(#inset)"/>
+    <text x="25" y="120" text-anchor="middle" font-family="Arial" font-size="10" fill="#1F2937">1</text>
+    
+    <rect x="40" y="110" width="20" height="15" fill="url(#buttonGradient)" rx="2" filter="url(#inset)"/>
+    <text x="50" y="120" text-anchor="middle" font-family="Arial" font-size="10" fill="#1F2937">2</text>
+    
+    <rect x="65" y="110" width="20" height="15" fill="url(#buttonGradient)" rx="2" filter="url(#inset)"/>
+    <text x="75" y="120" text-anchor="middle" font-family="Arial" font-size="10" fill="#1F2937">3</text>
+    
+    <rect x="90" y="110" width="20" height="35" fill="#10B981" rx="2" filter="url(#inset)">
+      <animate attributeName="fill" 
+               values="#10B981; #059669; #10B981" 
+               dur="2s" 
+               repeatCount="indefinite"/>
+    </rect>
+    <text x="100" y="135" text-anchor="middle" font-family="Arial" font-size="12" fill="white">=</text>
+    
+    <!-- Row 5 -->
+    <rect x="15" y="130" width="45" height="15" fill="url(#buttonGradient)" rx="2" filter="url(#inset)"/>
+    <text x="37.5" y="140" text-anchor="middle" font-family="Arial" font-size="10" fill="#1F2937">0</text>
+    
+    <rect x="65" y="130" width="20" height="15" fill="url(#buttonGradient)" rx="2" filter="url(#inset)"/>
+    <text x="75" y="140" text-anchor="middle" font-family="Arial" font-size="10" fill="#1F2937">.</text>
+    
+    <!-- Tax calculation indicator -->
+    <text x="60" y="165" text-anchor="middle" 
+          font-family="Arial" font-size="6" 
+          fill="#FBBF24">TAX CALC</text>
+  </g>
+  
+  <!-- Tax form document -->
+  <g transform="translate(220, 80)" filter="url(#depth3D)">
+    <!-- Form background -->
+    <rect x="0" y="0" width="90" height="120" 
+          fill="url(#taxForm)" 
+          stroke="#D97706" 
+          stroke-width="0.5" 
+          rx="3">
+      <animateTransform attributeName="transform"
+                        type="translate"
+                        values="0,0; 1,-1; 0,0"
+                        dur="4s"
+                        repeatCount="indefinite"/>
+    </rect>
+    
+    <!-- Form header -->
+    <rect x="5" y="5" width="80" height="15" 
+          fill="#DC2626" 
+          rx="1"/>
+    <text x="45" y="12" text-anchor="middle" 
+          font-family="Arial" font-size="6" font-weight="bold" 
+          fill="white">TAX CALCULATION</text>
+    
+    <!-- Form fields -->
+    <text x="10" y="30" font-family="Arial" font-size="5" fill="#92400E">Income:</text>
+    <line x1="25" y1="30" x2="80" y2="30" stroke="#92400E" stroke-width="0.3"/>
+    <text x="82" y="29" font-family="monospace" font-size="4" fill="#1F2937">125,500</text>
+    
+    <text x="10" y="40" font-family="Arial" font-size="5" fill="#92400E">Deductions:</text>
+    <line x1="35" y1="40" x2="80" y2="40" stroke="#92400E" stroke-width="0.3"/>
+    <text x="82" y="39" font-family="monospace" font-size="4" fill="#1F2937">15,000</text>
+    
+    <text x="10" y="50" font-family="Arial" font-size="5" fill="#92400E">Taxable:</text>
+    <line x1="30" y1="50" x2="80" y2="50" stroke="#92400E" stroke-width="0.3"/>
+    <text x="82" y="49" font-family="monospace" font-size="4" fill="#1F2937">110,500</text>
+    
+    <!-- Tax brackets visualization -->
+    <rect x="10" y="60" width="70" height="8" fill="#FEE2E2" stroke="#DC2626" stroke-width="0.3"/>
+    <rect x="10" y="60" width="35" height="8" fill="#FECACA"/>
+    <rect x="45" y="60" width="20" height="8" fill="#FCA5A5"/>
+    <rect x="65" y="60" width="15" height="8" fill="#F87171"/>
+    
+    <text x="45" y="76" text-anchor="middle" font-family="Arial" font-size="4" fill="#92400E">Tax Brackets</text>
+    
+    <!-- Final calculation -->
+    <rect x="10" y="85" width="70" height="25" fill="#DCFCE7" stroke="#16A34A" stroke-width="0.5" rx="2"/>
+    <text x="45" y="92" text-anchor="middle" font-family="Arial" font-size="5" font-weight="bold" fill="#166534">TOTAL TAX</text>
+    <text x="45" y="102" text-anchor="middle" font-family="monospace" font-size="8" font-weight="bold" fill="#16A34A">
+      <animate attributeName="fill" 
+               values="#16A34A; #22C55E; #16A34A" 
+               dur="2s" 
+               repeatCount="indefinite"/>
+      IDR 18,750
+    </text>
+  </g>
+  
+  <!-- Floating percentage indicators -->
+  <g opacity="0.7">
+    <g transform="translate(50, 150)">
+      <circle cx="0" cy="0" r="12" fill="#FBBF24" opacity="0.3">
+        <animateTransform attributeName="transform"
+                          type="scale"
+                          values="1; 1.2; 1"
+                          dur="3s"
+                          repeatCount="indefinite"/>
+      </circle>
+      <text x="0" y="2" text-anchor="middle" font-family="Arial" font-size="6" font-weight="bold" fill="#92400E">5%</text>
+    </g>
+    
+    <g transform="translate(330, 140)">
+      <circle cx="0" cy="0" r="10" fill="#EF4444" opacity="0.3">
+        <animateTransform attributeName="transform"
+                          type="scale"
+                          values="1; 1.1; 1"
+                          dur="2.5s"
+                          repeatCount="indefinite"/>
+      </circle>
+      <text x="0" y="2" text-anchor="middle" font-family="Arial" font-size="5" font-weight="bold" fill="#7F1D1D">17%</text>
+    </g>
+    
+    <g transform="translate(350, 200)">
+      <circle cx="0" cy="0" r="8" fill="#16A34A" opacity="0.3">
+        <animateTransform attributeName="transform"
+                          type="scale"
+                          values="1; 1.15; 1"
+                          dur="2s"
+                          repeatCount="indefinite"/>
+      </circle>
+      <text x="0" y="2" text-anchor="middle" font-family="Arial" font-size="4" font-weight="bold" fill="#14532D">25%</text>
+    </g>
+  </g>
+  
+  <!-- Progress chart -->
+  <g transform="translate(20, 220)">
+    <text x="0" y="0" font-family="Arial" font-size="8" font-weight="bold" fill="#374151">Tax Filing Progress</text>
+    
+    <!-- Progress bars -->
+    <rect x="0" y="10" width="60" height="6" fill="#E5E7EB" rx="3"/>
+    <rect x="0" y="10" width="48" height="6" fill="#16A34A" rx="3">
+      <animate attributeName="width" 
+               values="0; 48; 0" 
+               dur="6s" 
+               repeatCount="indefinite"/>
+    </rect>
+    <text x="65" y="15" font-family="Arial" font-size="5" fill="#374151">80%</text>
+    
+    <rect x="0" y="22" width="60" height="6" fill="#E5E7EB" rx="3"/>
+    <rect x="0" y="22" width="36" height="6" fill="#FBBF24" rx="3">
+      <animate attributeName="width" 
+               values="0; 36; 0" 
+               dur="5s" 
+               repeatCount="indefinite"/>
+    </rect>
+    <text x="65" y="27" font-family="Arial" font-size="5" fill="#374151">60%</text>
+  </g>
+  
+  <!-- Service title -->
+  <text x="200" y="285" text-anchor="middle" 
+        font-family="Arial, sans-serif" font-size="16" font-weight="bold" 
+        fill="#DC2626">TAX CONSULTANT</text>
+  
+  <!-- Floating sparkles -->
+  <g opacity="0.6">
+    <circle cx="60" cy="40" r="1" fill="#FBBF24">
+      <animate attributeName="opacity" values="0; 1; 0" dur="2s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="320" cy="60" r="1.5" fill="#16A34A">
+      <animate attributeName="opacity" values="1; 0; 1" dur="3s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="370" cy="170" r="0.8" fill="#EF4444">
+      <animate attributeName="opacity" values="0; 1; 0" dur="2.5s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+</svg>
