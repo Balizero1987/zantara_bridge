@@ -120,6 +120,20 @@
             margin-left: 20px;
         }
 
+        .bali-zero-logo {
+            width: 80px;
+            height: 60px;
+            margin: 0 20px;
+            vertical-align: middle;
+            opacity: 0.8;
+            transition: all 0.3s ease;
+        }
+
+        .bali-zero-logo:hover {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
         .slogan {
             font-size: clamp(1.2rem, 3vw, 1.8rem);
             color: var(--warm-gray);
@@ -142,9 +156,18 @@
             border-radius: 20px;
             padding: 40px;
             box-shadow: 0 20px 60px var(--shadow-dark);
-            max-width: 400px;
+            max-width: 450px;
             margin: 0 auto;
             border: 1px solid var(--light-gold);
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .zantara-widget:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 30px 80px var(--shadow-gold);
+            border-color: var(--primary-gold);
         }
 
         .zantara-logo {
@@ -162,6 +185,36 @@
             font-weight: 500;
             letter-spacing: 2px;
             text-transform: uppercase;
+        }
+
+        .zantara-portrait {
+            width: 120px;
+            height: 120px;
+            margin: 20px auto;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 3px solid var(--primary-gold);
+            box-shadow: 0 0 30px var(--shadow-gold);
+            position: relative;
+        }
+
+        .zantara-portrait img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .zantara-glow {
+            position: absolute;
+            top: -20px;
+            left: -20px;
+            right: -20px;
+            bottom: -20px;
+            background: conic-gradient(from 0deg, transparent, var(--primary-gold), transparent, transparent);
+            border-radius: 50%;
+            animation: rotate 8s linear infinite;
+            opacity: 0.3;
+            z-index: -1;
         }
 
         /* SERVICES SECTION */
@@ -500,12 +553,18 @@
     <section id="home" class="section home-section">
         <div class="container fade-in">
             <h1 class="logo-main">
-                <span class="logo-bali">BALI</span><span class="logo-zero">ZERO</span>
+                <span class="logo-bali">BALI</span>
+                <img src="/images/bali-zero-logo.svg" alt="Bali Zero" class="bali-zero-logo">
+                <span class="logo-zero">ZERO</span>
             </h1>
             <p class="slogan">Your Gateway to Paradise</p>
             <p class="mission">The Bureaucratic Hub for Your Indonesian Dreams</p>
             
             <div class="zantara-widget">
+                <div class="zantara-portrait">
+                    <div class="zantara-glow"></div>
+                    <img src="/images/zantara-portrait.svg" alt="ZANTARA AI Assistant">
+                </div>
                 <div class="zantara-logo">ZANTARA</div>
                 <div class="coming-soon">Coming Soon</div>
             </div>

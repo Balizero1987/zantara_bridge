@@ -1,0 +1,156 @@
+<svg width="400" height="400" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Golden spiral gradient -->
+    <linearGradient id="goldenSpiral" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFD700;stop-opacity:1" />
+      <stop offset="30%" style="stop-color:#FFA500;stop-opacity:0.8" />
+      <stop offset="70%" style="stop-color:#FF8C00;stop-opacity:0.6" />
+      <stop offset="100%" style="stop-color:#FF4500;stop-opacity:0.3" />
+    </linearGradient>
+    
+    <!-- Face gradient -->
+    <radialGradient id="faceGradient" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" style="stop-color:#FDBCB4;stop-opacity:1" />
+      <stop offset="70%" style="stop-color:#E8967B;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#D2691E;stop-opacity:1" />
+    </radialGradient>
+    
+    <!-- Hair gradient -->
+    <linearGradient id="hairGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4A2C2A;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#654321;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2F1B14;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Glow filter -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- Spiral animation -->
+    <animateTransform id="spiralRotation" 
+                      attributeName="transform"
+                      attributeType="XML"
+                      type="rotate"
+                      from="0 200 200"
+                      to="360 200 200"
+                      dur="20s"
+                      repeatCount="indefinite"/>
+  </defs>
+  
+  <!-- Dark cosmic background -->
+  <rect width="400" height="400" fill="#0A0A0A"/>
+  
+  <!-- Starfield -->
+  <circle cx="50" cy="50" r="1" fill="#FFFFFF" opacity="0.8"/>
+  <circle cx="150" cy="30" r="0.5" fill="#FFFFFF" opacity="0.6"/>
+  <circle cx="300" cy="70" r="1" fill="#FFFFFF" opacity="0.7"/>
+  <circle cx="350" cy="150" r="0.5" fill="#FFFFFF" opacity="0.5"/>
+  <circle cx="80" cy="300" r="1" fill="#FFFFFF" opacity="0.9"/>
+  <circle cx="320" cy="330" r="0.5" fill="#FFFFFF" opacity="0.4"/>
+  <circle cx="30" cy="200" r="0.8" fill="#FFFFFF" opacity="0.7"/>
+  <circle cx="370" cy="250" r="0.5" fill="#FFFFFF" opacity="0.6"/>
+  
+  <!-- Outer golden spirals -->
+  <g filter="url(#glow)">
+    <path d="M 200 50 Q 300 100 250 200 Q 200 300 100 250 Q 50 150 150 100 Q 250 50 200 150" 
+          stroke="url(#goldenSpiral)" 
+          stroke-width="3" 
+          fill="none" 
+          opacity="0.4">
+      <animateTransform attributeName="transform"
+                        attributeType="XML"
+                        type="rotate"
+                        from="0 200 200"
+                        to="360 200 200"
+                        dur="25s"
+                        repeatCount="indefinite"/>
+    </path>
+    
+    <path d="M 200 70 Q 280 120 230 200 Q 180 280 120 230 Q 70 170 170 120 Q 230 70 200 170" 
+          stroke="url(#goldenSpiral)" 
+          stroke-width="2" 
+          fill="none" 
+          opacity="0.3">
+      <animateTransform attributeName="transform"
+                        attributeType="XML"
+                        type="rotate"
+                        from="360 200 200"
+                        to="0 200 200"
+                        dur="30s"
+                        repeatCount="indefinite"/>
+    </path>
+    
+    <path d="M 200 90 Q 260 140 210 200 Q 160 260 140 210 Q 90 190 190 140 Q 210 90 200 190" 
+          stroke="url(#goldenSpiral)" 
+          stroke-width="2" 
+          fill="none" 
+          opacity="0.5">
+      <animateTransform attributeName="transform"
+                        attributeType="XML"
+                        type="rotate"
+                        from="0 200 200"
+                        to="360 200 200"
+                        dur="20s"
+                        repeatCount="indefinite"/>
+    </path>
+  </g>
+  
+  <!-- Portrait silhouette -->
+  <g transform="translate(200, 200)">
+    <!-- Face -->
+    <ellipse cx="0" cy="-20" rx="45" ry="55" fill="url(#faceGradient)" opacity="0.9"/>
+    
+    <!-- Hair -->
+    <path d="M -45 -40 Q -50 -70 -30 -75 Q 0 -80 30 -75 Q 50 -70 45 -40 Q 40 -10 30 0 L -30 0 Q -40 -10 -45 -40" 
+          fill="url(#hairGradient)" opacity="0.8"/>
+    
+    <!-- Eyes -->
+    <ellipse cx="-12" cy="-25" rx="3" ry="4" fill="#2C1810"/>
+    <ellipse cx="12" cy="-25" rx="3" ry="4" fill="#2C1810"/>
+    <circle cx="-12" cy="-26" r="1" fill="#FFFFFF" opacity="0.8"/>
+    <circle cx="12" cy="-26" r="1" fill="#FFFFFF" opacity="0.8"/>
+    
+    <!-- Nose -->
+    <path d="M 0 -15 L -2 -5 L 0 -3 L 2 -5 Z" fill="#E8967B" opacity="0.6"/>
+    
+    <!-- Mouth -->
+    <path d="M -8 5 Q 0 12 8 5" stroke="#B8665A" stroke-width="2" fill="none" opacity="0.7"/>
+    
+    <!-- Neck/shoulders -->
+    <ellipse cx="0" cy="40" rx="35" ry="20" fill="url(#faceGradient)" opacity="0.7"/>
+    
+    <!-- Subtle clothing -->
+    <path d="M -35 50 Q 0 55 35 50 L 35 80 L -35 80 Z" fill="#1A1A1A" opacity="0.8"/>
+  </g>
+  
+  <!-- Inner energy spirals -->
+  <g filter="url(#glow)">
+    <circle cx="200" cy="200" r="80" stroke="url(#goldenSpiral)" stroke-width="1" fill="none" opacity="0.2">
+      <animateTransform attributeName="transform"
+                        attributeType="XML"
+                        type="rotate"
+                        from="0 200 200"
+                        to="360 200 200"
+                        dur="15s"
+                        repeatCount="indefinite"/>
+    </circle>
+    
+    <circle cx="200" cy="200" r="100" stroke="url(#goldenSpiral)" stroke-width="1" fill="none" opacity="0.15">
+      <animateTransform attributeName="transform"
+                        attributeType="XML"
+                        type="rotate"
+                        from="360 200 200"
+                        to="0 200 200"
+                        dur="18s"
+                        repeatCount="indefinite"/>
+    </circle>
+  </g>
+  
+  <!-- Central glow -->
+  <circle cx="200" cy="200" r="120" fill="none" stroke="url(#goldenSpiral)" stroke-width="0.5" opacity="0.1"/>
+</svg>
