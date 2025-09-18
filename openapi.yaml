@@ -14,6 +14,8 @@ info:
 servers:
   - url: https://zantara-bridge-v2-prod-1064094238013.asia-southeast2.run.app
     description: Production server (Cloud Run)
+  - url: https://zantara-light-bridge-1064094238013.asia-southeast2.run.app
+    description: AMBARADAM Light Bridge (Cloud Run)
   - url: http://localhost:8080
     description: Development server
 
@@ -279,6 +281,157 @@ components:
           format: date-time
 
 paths:
+  /:
+    get:
+      tags: [Status]
+      summary: Service status page
+      description: Returns service status information for browser access
+      security: []
+      responses:
+        '200':
+          description: Service status page
+          content:
+            text/html:
+              schema:
+                type: string
+                example: "🌉 Zantara Bridge v3 - RUNNING<br/>Shared Drive: AMBARADAM (0AJC3-SJL03OOUk9PVA)<br/>Service Account: zantara@involuted-box-469105-r0.iam.gserviceaccount.com"
+
+  /bridge/status:
+    get:
+      tags: [Status]
+      summary: Bridge service status
+      description: Returns detailed service status including environment and metrics
+      security: []
+      responses:
+        '200':
+          description: Service status information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  service:
+                    type: string
+                    example: "zantara-light-bridge"
+                  startedAt:
+                    type: number
+                    description: Timestamp when service started
+                  uptimeMs:
+                    type: number
+                    description: Service uptime in milliseconds
+                  calls:
+                    type: number
+                    description: Total number of calls processed
+                  dedupHits:
+                    type: number
+                    description: Number of deduplication hits
+                  sharedDrive:
+                    type: string
+                    example: "0AJC3-SJL03OOUk9PVA"
+                    description: AMBARADAM Shared Drive ID
+
+  /call:
+    post:
+      tags: [AI & Chat]
+      summary: AI assistant call with AMBARADAM integration
+      description: Process AI assistant requests with automatic saving to AMBARADAM Shared Drive
+      parameters:
+        - name: X-BZ-USER
+          in: header
+          schema:
+            type: string
+          description: User identifier for logging
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                key:
+                  type: string
+                  description: Action key (e.g., 'drive.upload', 'memory.save')
+                params:
+                  type: object
+                  description: Action parameters
+                message:
+                  type: string
+                  description: User message
+                model:
+                  type: string
+                  description: AI model to use
+      responses:
+        '200':
+          description: AI response with AMBARADAM integration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response:
+                    type: string
+                  sharedDrive:
+                    type: string
+                    example: "0AJC3-SJL03OOUk9PVA"
+                    description: Confirms save to AMBARADAM
+                  fileId:
+                    type: string
+                    description: Google Drive file ID if uploaded
+        '400':
+          description: Bad request
+        '500':
+          description: Internal server error
+
+  /dispatch/{agent}:
+    post:
+      tags: [Agents]
+      summary: Dispatch to specific agent
+      description: Route request to a specific AI agent with AMBARADAM integration
+      parameters:
+        - name: agent
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Agent identifier
+        - name: X-BZ-USER
+          in: header
+          schema:
+            type: string
+          description: User identifier for logging
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                payload:
+                  type: object
+      responses:
+        '200':
+          description: Agent response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agent:
+                    type: string
+                  response:
+                    type: string
+                  sharedDrive:
+                    type: string
+                    example: "0AJC3-SJL03OOUk9PVA"
+        '404':
+          description: Agent not found
+        '500':
+          description: Internal server error
+
   /health:
     get:
       tags: [Health]
@@ -642,6 +795,66 @@ paths:
                   version:
                     type: string
 
+  /api/gemini/generate:
+    post:
+      tags: [AI & Analytics]
+      summary: Generate content with Google Gemini AI
+      description: Generate AI content using Google's Gemini Pro model
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [prompt]
+              properties:
+                prompt:
+                  type: string
+                  description: Text prompt for content generation
+                  example: "Write a professional email about project updates"
+      responses:
+        '200':
+          description: Content generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  text:
+                    type: string
+                    description: Generated content
+                  model:
+                    type: string
+                    example: "gemini-pro"
+        '400':
+          description: Missing or invalid prompt
+        '500':
+          description: Gemini service error
+
+  /api/gemini/status:
+    get:
+      tags: [AI & Analytics]
+      summary: Check Gemini AI service status
+      description: Check if Google Gemini AI service is available
+      responses:
+        '200':
+          description: Service status retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  available:
+                    type: boolean
+                  model:
+                    type: string
+                    example: "gemini-pro"
+                  service:
+                    type: string
+                    example: "Google Gemini AI"
+        '500':
+          description: Service check failed
+
   /api/users:
     get:
       tags: [User Management]
@@ -874,12 +1087,16 @@ paths:
               $ref: '#/components/schemas/Error'
 
 tags:
+  - name: Status
+    description: Service status and health endpoints
   - name: Health
     description: Health check endpoints
   - name: Monitoring
     description: System monitoring and diagnostics
   - name: AI & Chat
-    description: AI-powered chat and conversation management
+    description: AI-powered chat and conversation management with AMBARADAM integration
+  - name: Agents
+    description: AI agent dispatch system with shared drive integration
   - name: Search & Discovery
     description: Search functionality across Google services
   - name: Analytics

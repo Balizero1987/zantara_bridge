@@ -2,6 +2,7 @@ import { google } from "googleapis";
 import { GoogleAuth } from "google-auth-library";
 import { Document, Packer, Paragraph, HeadingLevel } from 'docx';
 import { resolveDriveContext } from "../core/drive";
+import { buildJwt } from '../core/impersonation';
 import { 
   uploadChatToAmbaradam, 
   uploadNoteToAmbaradam, 
@@ -13,12 +14,10 @@ import {
 const DRIVE_SCOPES = ["https://www.googleapis.com/auth/drive"];
 
 async function getAccessToken(): Promise<string> {
-  const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY;
-  if (!raw) throw new Error("GOOGLE_SERVICE_ACCOUNT_KEY mancante");
-  const credentials = JSON.parse(raw);
-  const auth = new GoogleAuth({ credentials, scopes: DRIVE_SCOPES });
-  const client = await auth.getClient();
-  const token = await (client as any).getAccessToken();
+  // Use centralized impersonation with Domain-Wide Delegation
+  const jwt = buildJwt(DRIVE_SCOPES);
+  await jwt.authorize();
+  const token = await jwt.getAccessToken();
   const t = typeof token === "string" ? token : token?.token;
   if (!t) throw new Error("Impossibile ottenere access token");
   return t as string;

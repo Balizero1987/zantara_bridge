@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import path from 'path';
 import cron from 'node-cron';
 import { summarizeConversations } from './jobs/cronConversationSummarizer';
 import { generateMonthlyReport } from './jobs/cronMonthlyReport';
@@ -48,6 +49,9 @@ import stats from './api/stats';
 import conversationRouter from './routes/conversationRouter';
 import conversationStats from './api/conversationStats';
 import monitoring from './api/monitoring';
+import geminiRouter from './api/gemini';
+import folderAccessRouter from './api/folderAccess';
+import waitlistRouter from './api/waitlist';
 import { monitoringMiddleware } from './utils/monitoring';
 import { monitoringRouter } from './routes/monitoring';
 
@@ -130,10 +134,21 @@ app.use('/api/search', searchRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/webhooks', webhooksRouter);
 app.use('/api/ai', aiRouter);
+app.use('/api/gemini', geminiRouter);
+app.use('/api/folder-access', folderAccessRouter);
+app.use('/api/waitlist', waitlistRouter);
 app.use('/api/stats', stats);
 app.use('/api/conversations', conversationRouter);
 app.use('/api/conversations/stats', conversationStats);
 app.use('/api/monitoring', monitoring);
+
+// Static files for landing page
+app.use(express.static(path.join(__dirname, '../public')));
+
+// Landing page route
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '../public/index.html'));
+});
 
 // Actions: Drive upload (requires API key guard)
 app.use('/actions/drive', drive as any);

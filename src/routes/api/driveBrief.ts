@@ -38,9 +38,16 @@ export default function registerDriveBrief(r: Router) {
     try {
       const owner = (req as any).canonicalOwner || 'UNKNOWN';
       const dateKey = String(req.body?.dateKey || new Date().toISOString().slice(0, 10));
-      const ambaradamFolder = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim();
-      if (!ambaradamFolder && !process.env.DRIVE_FOLDER_AMBARADAM) {
-        return res.status(500).json({ ok: false, error: 'Missing DRIVE_FOLDER_AMBARADAM' });
+      
+      // Support for topic/details/template from patch
+      const { topic, details, template = 'business', folderId: folderIdFromBody } = req.body || {};
+      
+      // Fallback logic: body folderId -> env DRIVE_FOLDER_AMBARADAM
+      const envFolder = process.env.DRIVE_FOLDER_AMBARADAM || '';
+      const ambaradamFolder = folderIdFromBody || envFolder.trim();
+      
+      if (!ambaradamFolder) {
+        return res.status(500).json({ ok: false, error: 'Missing folderId or DRIVE_FOLDER_AMBARADAM' });
       }
 
       // Leggi note da Firestore (senza pretendere campi title/content forti)
@@ -70,93 +77,46 @@ export default function registerDriveBrief(r: Router) {
 
       const buffer = await Packer.toBuffer(doc);
 
-      // ===== Preparazione token SA =====
-      const raw = process.env.GOOGLE_SERVICE_ACCOUNT_KEY || '';
-      const credentials = JSON.parse(raw);
-      const auth = new GoogleAuth({ credentials, scopes: ['https://www.googleapis.com/auth/drive'] });
-      const client: any = await auth.getClient();
-      const tok: any = await client.getAccessToken();
-      const token = typeof tok === 'string' ? tok : (tok?.token || tok?.access_token || '');
-
-      // ===== Helpers Drive REST =====
-      async function uploadDocx(metadata: any, fileBuffer: Buffer): Promise<any> {
-        const boundary = `boundary_${Date.now()}`;
-        const delimiter = `--${boundary}\r\n`;
-        const closeDelim = `--${boundary}--`;
-        const bodyParts = [
-          delimiter,
-          'Content-Type: application/json; charset=UTF-8\r\n\r\n',
-          JSON.stringify(metadata),
-          '\r\n',
-          delimiter,
-          'Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document\r\n\r\n',
-          fileBuffer,
-          '\r\n',
-          closeDelim,
-        ].map((p) => (Buffer.isBuffer(p) ? p : Buffer.from(p, 'utf8')));
-        const combined = Buffer.concat(bodyParts as any);
-
-        const resp = await fetch(
-          'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id,name,webViewLink',
-          {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${token}`,
-              'Content-Type': `multipart/related; boundary=${boundary}`,
-              'Content-Length': String(combined.length),
-            },
-            body: combined as any,
-          }
-        );
-        if (!resp.ok) {
-          const errText = await resp.text();
-          throw new Error(errText || `HTTP ${resp.status}`);
-        }
-        return resp.json();
-      }
-
-      async function findFolderByName(tokenStr: string, parentId: string, name: string): Promise<string | null> {
-        const url = new URL('https://www.googleapis.com/drive/v3/files');
-        url.searchParams.set('q', `name='${name.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.folder' and '${parentId}' in parents and trashed=false`);
-        url.searchParams.set('fields', 'files(id,name)');
-        url.searchParams.set('supportsAllDrives', 'true');
-        url.searchParams.set('includeItemsFromAllDrives', 'true');
-        // corpora/driveId non necessario se si restringe a parents
-        const r = await fetch(url, { headers: { Authorization: `Bearer ${tokenStr}` } });
-        if (!r.ok) return null;
-        const d: any = await r.json();
-        return d?.files?.[0]?.id || null;
-      }
-
-      async function ensureFolder(tokenStr: string, parentId: string, name: string): Promise<string> {
-        const found = await findFolderByName(tokenStr, parentId, name);
-        if (found) return found;
-        const r = await fetch('https://www.googleapis.com/drive/v3/files?supportsAllDrives=true&fields=id,name', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${tokenStr}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] }),
+      // ===== Use centralized impersonation =====
+      const { driveAsUser } = require('../../core/impersonation');
+      const drive = driveAsUser();
+      
+      // Direct upload using Drive API v3
+      const fileName = `Brief-${dateKey}-${owner}.docx`;
+      try {
+        const fileMetadata = {
+          name: fileName,
+          parents: [ambaradamFolder],
+          mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        };
+        
+        const media = {
+          mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          body: require('stream').Readable.from(buffer)
+        };
+        
+        const response = await drive.files.create({
+          requestBody: fileMetadata,
+          media: media,
+          fields: 'id,name,webViewLink',
+          supportsAllDrives: true
+        } as any);
+        
+        return res.json({
+          ok: true,
+          fileId: response.data.id,
+          fileName: response.data.name,
+          webViewLink: response.data.webViewLink
         });
-        const d: any = await r.json();
-        if (!r.ok) throw new Error(d?.error?.message || String(r.status));
-        return d.id as string;
+      } catch (uploadError: any) {
+        console.error('Brief upload error:', uploadError);
+        return res.status(500).json({ 
+          ok: false, 
+          error: 'brief_upload_failed', 
+          detail: uploadError?.message || String(uploadError)
+        });
       }
-
-      // ===== Calcolo cartella target Brief =====
-      // Preferenze: DRIVE_FOLDER_BRIEFS (root esplicita), altrimenti DRIVE_FOLDER_AMBARADAM o cartella "AMBARADAM".
-      const forcedBriefRoot = (process.env.DRIVE_FOLDER_BRIEFS || '').trim() || null;
-      const forcedAmbaradam = (process.env.DRIVE_FOLDER_AMBARADAM || '').trim() || null;
-      const ownerFolder = (owner || 'BOSS').replace(/_/g, ' ').trim();
-
-      let rootParent = forcedBriefRoot || forcedAmbaradam || ambaradamFolder;
-
-      // AMBARADAM/<OWNER>/Brief (o <forcedRoot>/<OWNER>/Brief)
-      const ownerId = await ensureFolder(token, rootParent, ownerFolder);
-      const briefRootId = await ensureFolder(token, ownerId, 'Brief');
-
-      // ===== Upload DOCX nella cartella Brief =====
-      const fileMeta = await uploadDocx({ name: `Brief-${owner}-${dateKey}.docx`, parents: [briefRootId] }, Buffer.from(buffer));
-
-      return res.status(200).json({ ok: true, file: fileMeta });
+      
     } catch (error: any) {
       return res.status(500).json({
         ok: false,

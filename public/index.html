@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bali Zero - Your Gateway to Paradise</title>
+    <link rel="stylesheet" href="/css/enhanced-effects.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Raleway:wght@200;300;400;600;800;900&family=Montserrat:wght@300;400;600;700;900&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-red: #FF0000;
+            --bright-red: #FF3333;
+            --dark-red: #CC0000;
+            --black-pure: #000000;
+            --white: #ffffff;
+            --gray-light: #f0f0f0;
+            --glow-red: rgba(255, 0, 0, 0.5);
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background: var(--black-pure);
+            color: var(--white);
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Animated Background */
+        .cosmic-bg {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: -1;
+            background: var(--black-pure);
+        }
+
+        @keyframes cosmic-shift {
+            0%, 100% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(5deg) scale(1.1); }
+        }
+
+        /* Stars Effect */
+        .stars {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: -1;
+        }
+
+        .star {
+            position: absolute;
+            width: 2px;
+            height: 2px;
+            background: white;
+            border-radius: 50%;
+            animation: twinkle 3s infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            padding: 25px 60px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 50px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--gray-light);
+            text-decoration: none;
+            font-weight: 400;
+            font-size: 14px;
+            letter-spacing: 1px;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary-red);
+            transform: translateY(-2px);
+            text-shadow: 0 0 10px var(--glow-red);
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 2px;
+            background: var(--primary-red);
+            box-shadow: 0 0 10px var(--glow-red);
+            transition: width 0.3s;
+        }
+
+        .nav-links a:hover::after {
+            width: 100%;
+        }
+
+        /* Main Content */
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 120px 20px 80px;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Logo Section */
+        .logo-section {
+            text-align: center;
+            margin-bottom: 60px;
+            animation: float-in 1.5s ease-out;
+        }
+
+        @keyframes float-in {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .main-logo {
+            font-size: clamp(4rem, 10vw, 9rem);
+            font-weight: 900;
+            font-family: 'Raleway', sans-serif;
+            letter-spacing: 0;
+            margin-bottom: 30px;
+            position: relative;
+            display: inline-block;
+        }
+
+        .logo-line1 {
+            display: block;
+            margin-bottom: -20px;
+        }
+
+        .logo-line2 {
+            display: block;
+        }
+
+        .logo-three {
+            color: var(--primary-red);
+            font-size: 1.1em;
+            text-shadow: 0 0 40px var(--glow-red);
+            animation: shimmer 3s linear infinite;
+        }
+
+        .logo-text {
+            color: var(--white);
+            text-shadow: 
+                0 0 30px rgba(255, 255, 255, 0.3),
+                0 0 60px rgba(255, 255, 255, 0.1);
+            animation: shimmer 3s linear infinite;
+        }
+
+        .logo-o {
+            display: inline-block;
+            position: relative;
+            width: 1em;
+            height: 1em;
+            border: 0.08em solid var(--white);
+            border-radius: 50%;
+            vertical-align: middle;
+            margin-left: 0.1em;
+        }
+
+        .logo-o .om-inside {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 0.6em;
+            color: var(--white);
+            font-weight: 900;
+        }
+
+        @keyframes shimmer {
+            0% { filter: brightness(1); }
+            50% { filter: brightness(1.2); }
+            100% { filter: brightness(1); }
+        }
+
+        .tagline {
+            font-size: clamp(1rem, 3vw, 1.8rem);
+            font-weight: 300;
+            letter-spacing: 8px;
+            color: var(--gray-light);
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            animation: fade-slide 1.5s ease-out 0.3s both;
+        }
+
+        .mission {
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            font-weight: 800;
+            color: var(--primary-red);
+            text-shadow: 0 0 20px var(--glow-red);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            animation: fade-slide 1.5s ease-out 0.5s both;
+        }
+
+        @keyframes fade-slide {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Zantara Section */
+        .zantara-section {
+            margin: 80px 0;
+            position: relative;
+            animation: fade-slide 1.5s ease-out 0.7s both;
+        }
+
+        .zantara-container {
+            position: relative;
+            width: 320px;
+            height: 320px;
+            margin: 0 auto;
+        }
+
+        /* Golden Spiral Effect */
+        .spiral-ring {
+            position: absolute;
+            border-radius: 50%;
+            border: 1px solid;
+            opacity: 0.8;
+            animation: spiral-rotate 15s linear infinite;
+        }
+
+        @keyframes spiral-rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Multiple spiral rings */
+        .spiral-ring:nth-child(1) {
+            width: 100%;
+            height: 100%;
+            border-color: var(--primary-red);
+            box-shadow: 0 0 20px var(--glow-red);
+            animation-duration: 20s;
+        }
+
+        .spiral-ring:nth-child(2) {
+            width: 95%;
+            height: 95%;
+            top: 2.5%;
+            left: 2.5%;
+            border-color: var(--bright-red);
+            box-shadow: 0 0 15px var(--glow-red);
+            animation-duration: 18s;
+            animation-direction: reverse;
+        }
+
+        .spiral-ring:nth-child(3) {
+            width: 90%;
+            height: 90%;
+            top: 5%;
+            left: 5%;
+            border-color: var(--primary-red);
+            box-shadow: 0 0 10px var(--glow-red);
+            animation-duration: 22s;
+        }
+
+        .spiral-ring:nth-child(4) {
+            width: 85%;
+            height: 85%;
+            top: 7.5%;
+            left: 7.5%;
+            border-color: var(--bright-red);
+            box-shadow: 0 0 8px var(--glow-red);
+            animation-duration: 25s;
+            animation-direction: reverse;
+        }
+
+        .spiral-ring:nth-child(5) {
+            width: 110%;
+            height: 110%;
+            top: -5%;
+            left: -5%;
+            border-color: var(--primary-red);
+            opacity: 0.4;
+            box-shadow: 0 0 30px var(--glow-red);
+            animation-duration: 30s;
+        }
+
+        /* Spiral light trails */
+        .light-trail {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: conic-gradient(
+                from 0deg,
+                transparent,
+                var(--glow-red),
+                transparent,
+                transparent
+            );
+            animation: spiral-rotate 10s linear infinite;
+            filter: blur(2px);
+        }
+
+        .zantara-image-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            overflow: hidden;
+            background: rgba(20, 20, 20, 0.8);
+            box-shadow: 
+                0 0 60px var(--glow-red),
+                inset 0 0 30px rgba(255, 0, 0, 0.1);
+            animation: float 6s ease-in-out infinite;
+            z-index: 10;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(-50%, -50%); }
+            50% { transform: translate(-50%, -54%); }
+        }
+
+        .zantara-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: brightness(1.1) contrast(1.1);
+        }
+
+        .zantara-name {
+            text-align: center;
+            margin-top: 50px;
+            font-size: 2.2rem;
+            font-weight: 300;
+            letter-spacing: 15px;
+            color: var(--white);
+            text-transform: uppercase;
+            text-shadow: 0 0 20px var(--glow-red);
+        }
+
+        .coming-soon {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--primary-red);
+            text-shadow: 0 0 15px var(--glow-red);
+            letter-spacing: 6px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; }
+        }
+
+        /* Waitlist Form */
+        .waitlist-section {
+            margin-top: 60px;
+            animation: fade-slide 1.5s ease-out 0.9s both;
+            text-align: center;
+        }
+
+        .waitlist-form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 18px 25px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50px;
+            color: var(--white);
+            font-size: 16px;
+            text-align: center;
+            transition: all 0.3s;
+            backdrop-filter: blur(10px);
+        }
+
+        .form-input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary-red);
+            box-shadow: 0 0 20px var(--glow-red);
+            background: rgba(255, 0, 0, 0.1);
+        }
+
+        .cta-button {
+            padding: 18px 50px;
+            background: var(--primary-red);
+            border: none;
+            border-radius: 50px;
+            color: var(--white);
+            font-weight: 700;
+            font-size: 16px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 10px 30px var(--glow-red);
+            position: relative;
+            overflow: hidden;
+            min-width: 250px;
+        }
+
+        .cta-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.6s;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 40px var(--primary-red);
+            background: var(--bright-red);
+        }
+
+        .cta-button:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .cta-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .success-message {
+            display: none;
+            color: #00ff00;
+            font-weight: 600;
+            text-shadow: 0 0 10px #00ff00;
+            margin-top: 20px;
+        }
+
+        .error-message {
+            display: none;
+            color: #ff6b6b;
+            font-weight: 600;
+            text-shadow: 0 0 10px #ff6b6b;
+            margin-top: 20px;
+        }
+
+        /* Social Icons */
+        .social-container {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 30px;
+            z-index: 100;
+        }
+
+        .social-icon {
+            width: 45px;
+            height: 45px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--white);
+            text-decoration: none;
+            transition: all 0.3s;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+        }
+
+        .social-icon:hover {
+            background: var(--primary-red);
+            border-color: var(--primary-red);
+            transform: translateY(-5px) scale(1.1);
+            box-shadow: 0 10px 25px var(--glow-red);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            nav {
+                padding: 20px 30px;
+            }
+
+            .nav-links {
+                gap: 25px;
+            }
+
+            .zantara-container {
+                width: 220px;
+                height: 220px;
+            }
+
+            .zantara-image-container {
+                width: 160px;
+                height: 160px;
+            }
+
+            .waitlist-form {
+                max-width: 300px;
+            }
+
+            .form-input {
+                padding: 15px 20px;
+                font-size: 14px;
+            }
+
+            .cta-button {
+                padding: 15px 40px;
+                font-size: 14px;
+                min-width: 200px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Cosmic Background -->
+    <div class="cosmic-bg"></div>
+    
+    <!-- Stars -->
+    <div class="stars" id="stars"></div>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="nav-container">
+            <ul class="nav-links">
+                <li><a href="#home">HOME</a></li>
+                <li><a href="#services">SERVICES</a></li>
+                <li><a href="#about">ABOUT</a></li>
+                <li><a href="#contact">CONTACT</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Logo Section -->
+        <div class="logo-section">
+            <div class="main-logo">
+                <span class="logo-line1"><span class="logo-three">3</span><span class="logo-text">ALI</span></span>
+                <span class="logo-line2"><span class="logo-text">ZER</span><span class="logo-o"><span class="om-inside">॥</span></span></span>
+            </div>
+            <div class="tagline">FROM ZERO TO INFINITY</div>
+            <div class="mission">THE BUREAUCRATIC HUB</div>
+        </div>
+
+        <!-- Zantara Section -->
+        <div class="zantara-section">
+            <div class="zantara-container">
+                <div class="spiral-ring"></div>
+                <div class="spiral-ring"></div>
+                <div class="spiral-ring"></div>
+                <div class="spiral-ring"></div>
+                <div class="spiral-ring"></div>
+                <div class="light-trail"></div>
+                <div class="zantara-image-container">
+                    <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cdefs%3E%3CradialGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%23FF0000;stop-opacity:0.3'/%3E%3Cstop offset='100%25' style='stop-color:%23FF3333;stop-opacity:0.1'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='100' cy='100' r='90' fill='url(%23grad)'/%3E%3C/svg%3E" class="zantara-image" alt="Zantara AI Assistant">
+                </div>
+            </div>
+            <div class="zantara-name">ZANTARA</div>
+            <div class="coming-soon">COMING SOON</div>
+        </div>
+
+        <!-- Waitlist Form -->
+        <div class="waitlist-section">
+            <form class="waitlist-form" id="waitlistForm">
+                <input type="text" class="form-input" id="name" placeholder="Your Full Name" required>
+                <input type="email" class="form-input" id="email" placeholder="Your Email Address" required>
+                <input type="tel" class="form-input" id="phone" placeholder="Your Phone Number (Optional)">
+                <button type="submit" class="cta-button" id="submitBtn">
+                    JOIN THE WAITLIST
+                </button>
+                <div class="success-message" id="successMessage">
+                    🎉 Welcome to the future! You've been added to our exclusive waitlist.
+                </div>
+                <div class="error-message" id="errorMessage">
+                    ❌ Something went wrong. Please try again.
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Social Icons -->
+    <div class="social-container">
+        <a href="mailto:zero@balizero.com" class="social-icon">📧</a>
+        <a href="tel:+62123456789" class="social-icon">📱</a>
+        <a href="#" class="social-icon">💬</a>
+    </div>
+
+    <script>
+        // Create stars
+        const starsContainer = document.getElementById('stars');
+        for (let i = 0; i < 100; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            star.style.animationDelay = Math.random() * 3 + 's';
+            star.style.animationDuration = (3 + Math.random() * 2) + 's';
+            starsContainer.appendChild(star);
+        }
+
+        // Parallax effect
+        document.addEventListener('mousemove', (e) => {
+            const x = e.clientX / window.innerWidth;
+            const y = e.clientY / window.innerHeight;
+            
+            const cosmicBg = document.querySelector('.cosmic-bg');
+            if (cosmicBg) {
+                cosmicBg.style.transform = `translate(${x * 20}px, ${y * 20}px)`;
+            }
+        });
+
+        // Smooth scroll
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+        });
+
+        // Waitlist form submission
+        document.getElementById('waitlistForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const successMessage = document.getElementById('successMessage');
+            const errorMessage = document.getElementById('errorMessage');
+            
+            // Get form data
+            const formData = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                timestamp: new Date().toISOString(),
+                source: 'bali-zero-landing'
+            };
+            
+            // Disable button and show loading
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'JOINING...';
+            successMessage.style.display = 'none';
+            errorMessage.style.display = 'none';
+            
+            try {
+                // Send to API
+                const response = await fetch('/api/waitlist/join', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    // Success
+                    successMessage.style.display = 'block';
+                    document.getElementById('waitlistForm').reset();
+                    
+                    // Track event
+                    if (window.gtag) {
+                        gtag('event', 'waitlist_join', {
+                            'event_category': 'engagement',
+                            'event_label': 'bali-zero-landing'
+                        });
+                    }
+                } else {
+                    throw new Error(result.message || 'Submission failed');
+                }
+            } catch (error) {
+                console.error('Waitlist submission error:', error);
+                errorMessage.style.display = 'block';
+                errorMessage.textContent = error.message || 'Something went wrong. Please try again.';
+            } finally {
+                // Re-enable button
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'JOIN THE WAITLIST';
+            }
+        });
+
+        // Analytics page view
+        if (window.gtag) {
+            gtag('event', 'page_view', {
+                'page_title': 'Bali Zero Landing',
+                'page_location': window.location.href
+            });
+        }
+    </script>
+
+    <!-- Google Analytics -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=GA_MEASUREMENT_ID"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'GA_MEASUREMENT_ID');
+    </script>
+    
+    <!-- Enhanced Effects -->
+    <script src="/js/enhanced-effects.js"></script>
+</body>
+</html>

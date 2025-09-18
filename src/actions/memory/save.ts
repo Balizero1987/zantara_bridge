@@ -1,8 +1,6 @@
 import { Request, Response } from 'express';
-import { google } from 'googleapis';
 import { Readable } from 'stream';
-import { impersonatedClient } from '../../google';
-import { resolveFolderPath } from '../../lib/googleApiHelpers';
+import { driveAsUser } from '../../core/impersonation';
 
 type Body = { title: string; content: string; tags?: string[] };
 
@@ -13,13 +11,17 @@ function tsLabel(d = new Date()) {
 
 export async function memorySaveHandler(req: Request, res: Response) {
   try {
-    const { title, content, tags } = (req.body || {}) as Partial<Body>;
+    const { title, content, tags, folderId, driveId: driveIdBody, supportsAllDrives = true } = req.body || {};
     if (!title || !content) return res.status(400).json({ ok: false, error: 'Missing title/content' });
     
-    // Use path-based folder resolution with DEFAULT_FOLDER_ROOT
+    // Support for Shared Drive from patch
+    const defaultDriveId = process.env.SHARED_DRIVE_MEMORY_ID; // 0AJC3-SJL03OOUk9PVA
+    const driveId = driveIdBody || defaultDriveId;
+    
+    // Use path-based folder resolution with DEFAULT_FOLDER_ROOT if no driveId
     const owner = (req as any).canonicalOwner || 'BOSS';
     const rootFolder = process.env.DEFAULT_FOLDER_ROOT || 'AMBARADAM';
-    const folderPath = `${rootFolder}/${owner}/Notes`;
+    const folderPath = driveId ? 'MEMORY' : `${rootFolder}/${owner}/Notes`;
 
     const safeTitle = String(title).trim().replace(/\s+/g, '-');
     const name = `${tsLabel()}_${safeTitle}.md`;
@@ -27,19 +29,48 @@ export async function memorySaveHandler(req: Request, res: Response) {
     const tagsLine = (Array.isArray(tags) && tags.length) ? `Tags: ${tags.map(t => `#${String(t).trim().replace(/\s+/g, '-')}`).join(' ')}` : '';
     const md = `# ${title}\n[${timestamp}]\n${tagsLine}\n\n${content}\n`;
 
-    const user = process.env.IMPERSONATE_USER || process.env.GMAIL_SENDER || '';
-    const ic = await impersonatedClient(user, ['https://www.googleapis.com/auth/drive']);
-    
-    // Resolve folder path in Shared Drive
-    const targetFolder = await resolveFolderPath(folderPath, ic.auth, true);
-    if (!targetFolder) return res.status(500).json({ ok: false, error: 'Failed to resolve folder path' });
-
-    const drive = google.drive({ version: 'v3', auth: ic.auth });
+    // Use centralized impersonation
+    const drive = driveAsUser();
     const stream = Readable.from(Buffer.from(md, 'utf8'));
+    
+    // If driveId is provided, ensure folder exists in Shared Drive
+    let parentId = folderId;
+    if (driveId && !folderId) {
+      // Ensure MEMORY folder exists in Shared Drive root
+      const folderName = "MEMORY";
+      const { data: searchData } = await drive.files.list({
+        q: `name='${folderName}' and mimeType='application/vnd.google-apps.folder' and '${driveId}' in parents and trashed=false`,
+        fields: "files(id,name)",
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+        corpora: "drive",
+        driveId,
+      } as any);
+      const found = (searchData as any).files?.[0];
+      if (found) {
+        parentId = found.id;
+      } else {
+        const { data: created } = await drive.files.create({
+          requestBody: { 
+            name: folderName, 
+            mimeType: "application/vnd.google-apps.folder", 
+            parents: [driveId]
+          },
+          fields: "id",
+          supportsAllDrives: true,
+        } as any);
+        parentId = (created as any).id;
+      }
+    }
+    
     const { data } = await drive.files.create({
-      requestBody: { name, parents: [targetFolder.id] },
-      media: { mimeType: 'text/markdown', body: stream },
-      fields: 'id,name,webViewLink',
+      requestBody: {
+        name,
+        parents: parentId ? [parentId] : undefined,
+        ...(driveId ? { driveId } : {}),
+      },
+      media: { mimeType: "text/markdown", body: stream },
+      fields: "id,name,webViewLink",
       supportsAllDrives: true,
     } as any);
     (req as any).log?.info?.({ action: 'memory.save', id: (data as any)?.id, name: (data as any)?.name });

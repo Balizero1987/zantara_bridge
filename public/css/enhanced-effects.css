@@ -1,0 +1,290 @@
+/* Enhanced Visual Effects for Bali Zero Landing */
+
+/* Particle System */
+.particle-system {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: radial-gradient(circle, rgba(255,0,0,0.8) 0%, transparent 70%);
+    border-radius: 50%;
+    animation: float-particle 15s infinite linear;
+}
+
+@keyframes float-particle {
+    0% {
+        transform: translateY(100vh) rotate(0deg);
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(-10vh) rotate(360deg);
+        opacity: 0;
+    }
+}
+
+/* Enhanced Logo Effects */
+.logo-line1:hover .logo-three {
+    animation: logo-explosion 0.5s ease-out;
+}
+
+@keyframes logo-explosion {
+    0% { transform: scale(1); }
+    50% { 
+        transform: scale(1.2);
+        text-shadow: 
+            0 0 50px var(--glow-red),
+            0 0 100px var(--glow-red),
+            0 0 150px var(--glow-red);
+    }
+    100% { transform: scale(1); }
+}
+
+/* Cosmic Energy Waves */
+.energy-wave {
+    position: absolute;
+    width: 200%;
+    height: 200%;
+    top: -50%;
+    left: -50%;
+    background: conic-gradient(
+        from 0deg,
+        transparent,
+        rgba(255, 0, 0, 0.1),
+        transparent,
+        transparent,
+        rgba(255, 0, 0, 0.1),
+        transparent
+    );
+    border-radius: 50%;
+    animation: energy-pulse 8s ease-in-out infinite;
+    opacity: 0.3;
+}
+
+@keyframes energy-pulse {
+    0%, 100% { 
+        transform: scale(0.8) rotate(0deg);
+        opacity: 0.1;
+    }
+    50% { 
+        transform: scale(1.2) rotate(180deg);
+        opacity: 0.3;
+    }
+}
+
+/* Holographic Text Effect */
+.holographic {
+    background: linear-gradient(
+        45deg,
+        #ff0000,
+        #ff3333,
+        #ffffff,
+        #ff0000,
+        #ff3333
+    );
+    background-size: 400% 400%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: holographic-shift 3s ease-in-out infinite;
+}
+
+@keyframes holographic-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+/* 3D Tilt Effect for Zantara Container */
+.zantara-container {
+    transform-style: preserve-3d;
+    perspective: 1000px;
+}
+
+.zantara-container:hover {
+    animation: tilt-3d 2s ease-in-out;
+}
+
+@keyframes tilt-3d {
+    0%, 100% { transform: rotateX(0deg) rotateY(0deg); }
+    25% { transform: rotateX(5deg) rotateY(5deg); }
+    50% { transform: rotateX(0deg) rotateY(10deg); }
+    75% { transform: rotateX(-5deg) rotateY(5deg); }
+}
+
+/* Lightning Bolt Effect */
+.lightning-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.lightning-bolt {
+    position: absolute;
+    width: 2px;
+    background: linear-gradient(
+        to bottom,
+        transparent,
+        #ff0000,
+        #ffffff,
+        #ff0000,
+        transparent
+    );
+    opacity: 0;
+    animation: lightning-strike 4s infinite;
+}
+
+@keyframes lightning-strike {
+    0%, 90%, 100% { opacity: 0; }
+    91%, 93%, 95% { opacity: 1; }
+    92%, 94% { opacity: 0.3; }
+}
+
+/* Mystic Glow for OM Symbol */
+.om-inside {
+    animation: mystic-glow 2s ease-in-out infinite alternate;
+}
+
+@keyframes mystic-glow {
+    from {
+        text-shadow: 
+            0 0 5px #ffffff,
+            0 0 10px #ffffff,
+            0 0 15px #ffffff;
+    }
+    to {
+        text-shadow: 
+            0 0 10px #ff0000,
+            0 0 20px #ff0000,
+            0 0 30px #ff0000,
+            0 0 40px #ff0000;
+    }
+}
+
+/* Enhanced Button Effects */
+.cta-button {
+    position: relative;
+    overflow: hidden;
+}
+
+.cta-button::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.3),
+        transparent
+    );
+    transition: left 0.5s;
+}
+
+.cta-button:hover::after {
+    left: 100%;
+}
+
+/* Cyberpunk Grid Background */
+.cyber-grid {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        linear-gradient(rgba(255,0,0,0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,0,0,0.1) 1px, transparent 1px);
+    background-size: 50px 50px;
+    animation: grid-pulse 4s ease-in-out infinite;
+    z-index: -2;
+    opacity: 0.3;
+}
+
+@keyframes grid-pulse {
+    0%, 100% { opacity: 0.1; }
+    50% { opacity: 0.3; }
+}
+
+/* Matrix Rain Effect */
+.matrix-rain {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.matrix-column {
+    position: absolute;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    color: #ff0000;
+    animation: matrix-fall 10s linear infinite;
+}
+
+@keyframes matrix-fall {
+    0% {
+        transform: translateY(-100vh);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100vh);
+        opacity: 0;
+    }
+}
+
+/* Responsive Enhancements */
+@media (max-width: 768px) {
+    .particle {
+        width: 2px;
+        height: 2px;
+    }
+    
+    .energy-wave {
+        width: 150%;
+        height: 150%;
+        top: -25%;
+        left: -25%;
+    }
+    
+    .cyber-grid {
+        background-size: 30px 30px;
+    }
+}
+
+/* Performance Optimizations */
+.gpu-accelerated {
+    transform: translateZ(0);
+    will-change: transform, opacity;
+}
+
+/* Preload animations for smooth start */
+.preload-animation {
+    animation-play-state: paused;
+}
+
+.animation-ready .preload-animation {
+    animation-play-state: running;
+}

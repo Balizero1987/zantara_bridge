@@ -1,52 +1,78 @@
 import { Request, Response, Router } from 'express';
-import { listDriveFiles } from '../services/driveUpload';
+import { driveAsUser } from '../core/impersonation';
 
 const router = Router();
 
-// POST /api/search/drive
+// POST /api/search/drive - Enhanced with impersonation support
 router.post('/drive', async (req: Request, res: Response) => {
-  const { userId, query, limit = 10 } = req.body;
-  
+  const {
+    query = '',
+    fileType,
+    modifiedAfter,
+    folderId,
+    includeFiles = true,
+    includeFolders = true,
+    driveId,
+  } = req.body || {};
+
   try {
-    const files = await listDriveFiles(userId, limit);
+    const drive = driveAsUser();
     
-    let filteredFiles = files;
+    let qParts: string[] = [];
+    if (folderId) qParts.push(`'${folderId}' in parents`);
+    if (!includeFolders) qParts.push(`mimeType != 'application/vnd.google-apps.folder'`);
+    if (!includeFiles) qParts.push(`mimeType = 'application/vnd.google-apps.folder'`);
+    if (fileType) qParts.push(`mimeType = '${fileType}'`);
+    if (modifiedAfter) qParts.push(`modifiedTime > '${modifiedAfter}'`);
+    if (query) qParts.push(`name contains '${query.replace(/'/g, "\\'")}'`);
     
-    // Apply text search filter if query provided
-    if (query) {
-      filteredFiles = files.filter(file => 
-        file.name?.toLowerCase().includes(query.toLowerCase()) ||
-        file.mimeType?.toLowerCase().includes(query.toLowerCase())
-      );
-    }
+    const q = qParts.length ? qParts.join(' and ') : undefined;
     
+    const { data } = await drive.files.list({
+      q,
+      fields: 'files(id,name,mimeType,webViewLink,createdTime,parents)',
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+      ...(driveId ? { corpora: 'drive', driveId } : { corpora: 'allDrives' }),
+      pageSize: 1000
+    } as any);
+    
+    const files = (data as any).files || [];
     res.json({
-      files: filteredFiles,
-      count: filteredFiles.length,
-      query: query || 'all',
-      userId: userId || 'all'
+      files,
+      count: files.length,
+      query: query || (folderId ? 'all-in-folder' : 'all'),
+      userId: process.env.IMPERSONATE_USER || 'impersonated'
     });
-    
   } catch (error: any) {
     console.error('Drive search error:', error);
     res.status(500).json({ 
-      error: 'Search failed',
-      details: error.message 
+      files: [], 
+      count: 0, 
+      error: error?.message || String(error) 
     });
   }
 });
 
 // GET /api/search/recent
 router.get('/recent', async (req: Request, res: Response) => {
-  const userId = req.query.userId as string;
   const limit = parseInt(req.query.limit as string) || 5;
   
   try {
-    const files = await listDriveFiles(userId, limit);
+    const drive = driveAsUser();
+    
+    const { data } = await drive.files.list({
+      orderBy: 'modifiedTime desc',
+      fields: 'files(id,name,mimeType,webViewLink,modifiedTime)',
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+      corpora: 'allDrives',
+      pageSize: limit
+    } as any);
     
     res.json({
-      recentFiles: files,
-      count: files.length
+      recentFiles: (data as any).files || [],
+      count: (data as any).files?.length || 0
     });
     
   } catch (error: any) {
@@ -61,7 +87,17 @@ router.get('/recent', async (req: Request, res: Response) => {
 // GET /api/search/stats
 router.get('/stats', async (req: Request, res: Response) => {
   try {
-    const allFiles = await listDriveFiles(undefined, 100);
+    const drive = driveAsUser();
+    
+    const { data } = await drive.files.list({
+      fields: 'files(id,name,mimeType)',
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+      corpora: 'allDrives',
+      pageSize: 1000
+    } as any);
+    
+    const allFiles = (data as any).files || [];
     
     const stats = {
       totalFiles: allFiles.length,

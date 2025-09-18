@@ -1,6 +1,7 @@
 import { Router } from "express";
 import fetch from "node-fetch";
 import { openai, DEFAULT_MODEL } from "../core/openai";
+import { driveAsUser } from "../core/impersonation";
 
 const router = Router();
 const BASE_URL =
@@ -83,6 +84,31 @@ router.get("/", async (req, res) => {
       results.openai = { ok: true, model: r.model, id: r.id };
     } catch (err: any) {
       results.openai = { ok: false, error: err?.message || String(err) };
+    }
+
+    // Drive with impersonation check
+    try {
+      const drive = driveAsUser();
+      const about = await drive.about.get({ 
+        fields: 'user(emailAddress,displayName),storageQuota' 
+      });
+      const user = about.data.user;
+      const quota = (about.data as any).storageQuota;
+      
+      results.drive = {
+        ok: true,
+        user,
+        quota,
+        isImpersonated: !!process.env.IMPERSONATE_USER && 
+          user?.emailAddress?.toLowerCase() === process.env.IMPERSONATE_USER?.toLowerCase(),
+        impersonateUser: process.env.IMPERSONATE_USER
+      };
+    } catch (e: any) {
+      results.drive = { 
+        ok: false, 
+        error: e?.message || String(e),
+        impersonateUser: process.env.IMPERSONATE_USER
+      };
     }
 
     res.json({ ok: true, monitoring: results, ts: new Date().toISOString() });
