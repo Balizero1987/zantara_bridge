@@ -15,6 +15,7 @@ import registerChat from './routes/api/chat';
 import registerDocgen from './routes/api/docgen';
 import registerDriveBrief from './routes/api/driveBrief';
 import drive, { driveDiagRouter } from './api/drive';
+import codex from './api/codex';
 import registerGitHubBrief from './routes/api/githubBrief';
 import registerWebhooks from './routes/api/webhooks';
 import { saveNote, saveNoteWithRequest } from './lib/driveSave';
@@ -136,6 +137,9 @@ app.use('/api/monitoring', monitoring);
 
 // Actions: Drive upload (requires API key guard)
 app.use('/actions/drive', drive as any);
+
+// Actions: Codex dispatch and status (requires API key guard)
+app.use(codex.prefix, codex.router);
 
 // Back-compat alias: /actions/memory/save → same semantics as /api/notes/save
 app.post('/actions/memory/save', async (req, res) => {
