@@ -70,11 +70,11 @@
         stroke-width="6" 
         stroke-linecap="round"/>
   
-  <!-- PNG text -->
+  <!-- JPG text -->
   <text x="140" y="185" 
         font-family="Arial, sans-serif" 
         font-size="24" 
         font-weight="bold" 
         fill="#888888" 
-        text-anchor="middle">PNG</text>
+        text-anchor="middle">JPG</text>
 </svg>
