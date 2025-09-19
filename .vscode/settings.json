@@ -1,8 +1,0 @@
-{
-    "chatgpt.openOnStartup": true,
-    "chat.agentSessionsViewLocation": "view",
-    "inlineChat.notebookAgent": true,
-    "github.copilot.chat.agent.thinkingTool": true,
-    "terminal.integrated.tabs.defaultIcon": "github",
-    "github.copilot.chat.codesearch.enabled": true
-}
