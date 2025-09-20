@@ -11,7 +11,7 @@ env:
   PROJECT_ID: involuted-box-469105-r0
   REGION: asia-southeast2
   SERVICE: zantara-bridge-v3
-  REGISTRY: asia-southeast2-docker.pkg.dev
+  REGISTRY: gcr.io
 
 jobs:
   deploy:
@@ -47,18 +47,18 @@ jobs:
       with:
         credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-    - name: Configure Docker for Artifact Registry
-      run: gcloud auth configure-docker ${{ env.REGISTRY }}
+    - name: Configure Docker for GCR
+      run: gcloud auth configure-docker
 
     - name: Build Docker image
       run: |
-        docker build -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/zantara-repo/${{ env.SERVICE }}:${{ github.sha }} .
-        docker build -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/zantara-repo/${{ env.SERVICE }}:latest .
+        docker build -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{ github.sha }} .
+        docker build -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:latest .
 
     - name: Push Docker image
       run: |
-        docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/zantara-repo/${{ env.SERVICE }}:${{ github.sha }}
-        docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/zantara-repo/${{ env.SERVICE }}:latest
+        docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{ github.sha }}
+        docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:latest
 
     - name: Deploy to Cloud Run
       id: deploy
@@ -66,7 +66,7 @@ jobs:
       with:
         service: ${{ env.SERVICE }}
         region: ${{ env.REGION }}
-        image: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/zantara-repo/${{ env.SERVICE }}:${{ github.sha }}
+        image: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/${{ env.SERVICE }}:${{ github.sha }}
         flags: |
           --allow-unauthenticated
           --memory=2Gi
