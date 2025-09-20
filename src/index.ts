@@ -60,6 +60,9 @@ app.set('trust proxy', true);
 app.disable('x-powered-by');
 app.use(express.json({ limit: '1mb' }));
 
+// Serve Bali Zero brochure as static files
+app.use('/bali', express.static(path.join(__dirname, '../public')));
+
 // Add monitoring middleware
 app.use(monitoringMiddleware);
 

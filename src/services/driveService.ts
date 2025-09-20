@@ -1,12 +1,15 @@
 import { google } from 'googleapis';
 import { GoogleAuth } from 'google-auth-library';
 import { Readable } from 'stream';
+import { DriveCache } from '../cache/driveCache';
+import { redisClient } from '../lib/redis';
 
 class DriveService {
   private drive: any;
   private auth: GoogleAuth;
   private initialized = false;
   private AMBARADAM_FOLDER_ID = '';
+  private driveCache = new DriveCache(redisClient);
 
   constructor() {
     this.auth = new GoogleAuth({
@@ -131,6 +134,17 @@ class DriveService {
         fields: 'id, webViewLink',
       });
       
+      // Invalidate cache after upload
+      try {
+        await this.driveCache.invalidateFolder('root');
+        if (subfolder) {
+          await this.driveCache.invalidateFolder(subfolder);
+        }
+        console.log('📋 Cache invalidated after file upload');
+      } catch (cacheError) {
+        console.warn('Cache invalidation error:', cacheError);
+      }
+
       console.log(`✅ File uploaded: ${fileName} (${file.data.id})`);
       return file.data.webViewLink || file.data.id;
     } catch (error) {
@@ -148,6 +162,34 @@ class DriveService {
   }
 
   async listFiles(subfolder?: string): Promise<any[]> {
+    const cacheKey = subfolder || 'root';
+
+    // Try cache first
+    try {
+      const cached = await this.driveCache.getCachedFolderList(cacheKey);
+      if (cached) {
+        console.log('📋 Cache HIT: Drive listFiles');
+        return cached;
+      }
+    } catch (cacheError) {
+      console.warn('Cache read error (continuing without cache):', cacheError);
+    }
+
+    // Original logic here...
+    const files = await this.originalListFilesLogic(subfolder);
+
+    // Cache the results
+    try {
+      await this.driveCache.setCachedFolderList(cacheKey, files);
+      console.log('📋 Cache MISS: Drive listFiles cached');
+    } catch (cacheError) {
+      console.warn('Cache write error (continuing without cache):', cacheError);
+    }
+
+    return files;
+  }
+
+  private async originalListFilesLogic(subfolder?: string): Promise<any[]> {
     await this.initialize();
     
     try {
@@ -180,6 +222,17 @@ class DriveService {
   }
 
   async getFile(fileId: string): Promise<any> {
+    // Try cache first for file metadata
+    try {
+      const cached = await this.driveCache.getCachedFileInfo(fileId);
+      if (cached) {
+        console.log('📋 Cache HIT: Drive getFile metadata');
+        return cached;
+      }
+    } catch (cacheError) {
+      console.warn('Cache read error (continuing without cache):', cacheError);
+    }
+
     await this.initialize();
     
     try {
@@ -188,7 +241,17 @@ class DriveService {
         alt: 'media',
       });
       
-      return response.data;
+      const fileData = response.data;
+
+      // Cache the file metadata
+      try {
+        await this.driveCache.setCachedFileInfo(fileId, fileData);
+        console.log('📋 Cache MISS: Drive getFile cached');
+      } catch (cacheError) {
+        console.warn('Cache write error (continuing without cache):', cacheError);
+      }
+      
+      return fileData;
     } catch (error) {
       console.error('Error getting file:', error);
       throw error;
@@ -203,6 +266,15 @@ class DriveService {
         fileId: fileId,
       });
       
+      // Invalidate cache after deletion
+      try {
+        await this.driveCache.invalidateFile(fileId);
+        await this.driveCache.invalidateFolder('root'); // Invalidate folder listings
+        console.log('📋 Cache invalidated for deleted file');
+      } catch (cacheError) {
+        console.warn('Cache invalidation error:', cacheError);
+      }
+      
       console.log(`🗑️ File deleted: ${fileId}`);
     } catch (error) {
       console.error('Error deleting file:', error);
@@ -211,6 +283,17 @@ class DriveService {
   }
 
   async searchFiles(query: string): Promise<any[]> {
+    // Try cache first for search results
+    try {
+      const cached = await this.driveCache.getCachedSearch(query);
+      if (cached) {
+        console.log('📋 Cache HIT: Drive searchFiles');
+        return cached;
+      }
+    } catch (cacheError) {
+      console.warn('Cache read error (continuing without cache):', cacheError);
+    }
+
     await this.initialize();
     
     try {
@@ -221,7 +304,17 @@ class DriveService {
         pageSize: 50,
       });
       
-      return response.data.files || [];
+      const results = response.data.files || [];
+
+      // Cache the search results
+      try {
+        await this.driveCache.setCachedSearch(query, results);
+        console.log('📋 Cache MISS: Drive searchFiles cached');
+      } catch (cacheError) {
+        console.warn('Cache write error (continuing without cache):', cacheError);
+      }
+      
+      return results;
     } catch (error) {
       console.error('Error searching files:', error);
       throw error;

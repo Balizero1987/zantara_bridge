@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import { listDriveFiles } from "../services/driveUpload";
+import { redisHealthEndpoint } from "../lib/redis";
 
 const router = Router();
 
@@ -164,6 +165,31 @@ router.get("/history", async (req: Request, res: Response) => {
       ok: false, 
       error: err.message,
       message: "Failed to retrieve heartbeat history"
+    });
+  }
+});
+
+/**
+ * GET /api/heartbeat/redis
+ * Redis health check and connection status
+ */
+router.get("/redis", async (req: Request, res: Response) => {
+  try {
+    const health = await redisHealthEndpoint();
+    
+    return res.json({
+      ok: health.redis.status === 'connected',
+      ...health,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (err: any) {
+    console.error("❌ Redis health check error:", err.message);
+    return res.status(500).json({ 
+      ok: false, 
+      error: err.message,
+      redis: { status: 'error' },
+      timestamp: new Date().toISOString()
     });
   }
 });

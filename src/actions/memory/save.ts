@@ -14,8 +14,8 @@ export async function memorySaveHandler(req: Request, res: Response) {
     const { title, content, tags, folderId, driveId: driveIdBody, supportsAllDrives = true } = req.body || {};
     if (!title || !content) return res.status(400).json({ ok: false, error: 'Missing title/content' });
     
-    // Support for Shared Drive from patch
-    const defaultDriveId = process.env.SHARED_DRIVE_MEMORY_ID; // 0AJC3-SJL03OOUk9PVA
+    // Support for Shared Drive from environment configuration
+    const defaultDriveId = process.env.SHARED_DRIVE_MEMORY_ID || process.env.DRIVE_FOLDER_ID;
     const driveId = driveIdBody || defaultDriveId;
     
     // Use path-based folder resolution with DEFAULT_FOLDER_ROOT if no driveId

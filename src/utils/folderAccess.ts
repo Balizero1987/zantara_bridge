@@ -1,12 +1,12 @@
 /**
  * Utility per testare e gestire l'accesso OAuth alla cartella Drive specifica
- * Folder ID: 0AJC3-SJL03OOUk9PVA
+ * Use environment variable DRIVE_FOLDER_ID to specify target folder
  */
 
 import { google } from 'googleapis';
 import { buildJwt } from '../core/impersonation';
 
-export const TARGET_FOLDER_ID = '0AJC3-SJL03OOUk9PVA';
+export const TARGET_FOLDER_ID = process.env.DRIVE_FOLDER_ID || process.env.DRIVE_FOLDER_AMBARADAM || '';
 
 export interface FolderAccessResult {
   accessible: boolean;

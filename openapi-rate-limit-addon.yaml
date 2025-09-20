@@ -1,0 +1,54 @@
+# Rate Limiting Addition for OpenAPI
+# Add this to the components/responses section
+
+TooManyRequests:
+  description: Rate limit exceeded
+  headers:
+    X-RateLimit-Limit:
+      description: Request limit per window
+      schema:
+        type: integer
+        example: 100
+    X-RateLimit-Remaining:
+      description: Remaining requests in current window
+      schema:
+        type: integer
+        example: 0
+    X-RateLimit-Reset:
+      description: Time when rate limit resets (Unix timestamp)
+      schema:
+        type: integer
+        example: 1640995200
+    Retry-After:
+      description: Seconds to wait before retrying
+      schema:
+        type: integer
+        example: 900
+  content:
+    application/json:
+      schema:
+        $ref: '#/components/schemas/RateLimitError'
+
+# Add this to the components/schemas section
+
+RateLimitError:
+  type: object
+  properties:
+    error:
+      type: string
+      example: "Rate limit exceeded"
+    retryAfter:
+      type: string
+      example: "15 minutes"
+    limit:
+      type: integer
+      example: 100
+    window:
+      type: string
+      example: "15 minutes"
+  required:
+    - error
+
+# Add '429' responses to all protected endpoints:
+# '429':
+#   $ref: '#/components/responses/TooManyRequests'

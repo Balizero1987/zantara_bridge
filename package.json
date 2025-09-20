@@ -5,8 +5,10 @@
   "scripts": {
     "build": "tsc -p tsconfig.json && npm run build:public",
     "build:public": "echo 'Public assets ready'",
-    "start": "node dist/index.js",
+    "start": "node server-static.js",
+    "start:light": "node dist/lightBridgeServer.js",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "dev:light": "ts-node-dev --respawn --transpile-only src/lightBridgeServer.ts",
     "deploy:ayo": "bash deploy-ayo.sh",
     "codex": "codex",
     "mcp:local": "node scripts/mcp/local_docs/server.js",

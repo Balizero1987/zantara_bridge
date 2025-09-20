@@ -1,0 +1,11 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy static server and public files
+COPY server-static.js .
+COPY public/ ./public/
+
+EXPOSE 8080
+
+CMD ["node", "server-static.js"]

@@ -4,6 +4,12 @@ info:
   description: |
     Comprehensive API for Google Workspace integration, AI-powered chat, and productivity tools.
     The API provides secure endpoints for Drive, Gmail, Calendar operations, AI analytics, and conversation management.
+    
+    **Performance Features:**
+    - Redis-based caching for Drive operations (5min folder cache, 10min file cache, 3min search cache)
+    - Firestore-powered memory system with full-text search and relevance scoring
+    - Automatic cache invalidation on data changes
+    - Zero-cost optimized architecture with graceful fallbacks
   version: 1.0.0
   contact:
     name: Bali Zero HQ
@@ -15,7 +21,7 @@ servers:
   - url: https://zantara-bridge-v2-prod-1064094238013.asia-southeast2.run.app
     description: Production server (Cloud Run)
   - url: https://zantara-light-bridge-1064094238013.asia-southeast2.run.app
-    description: AMBARADAM Light Bridge (Cloud Run)
+    description: Zantara Light Bridge - Zero-cost optimized (Cloud Run)
   - url: http://localhost:8080
     description: Development server
 
@@ -35,6 +41,35 @@ components:
       in: header
       name: X-BZ-USER
       description: User identification header (defaults to 'BOSS' if not provided)
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    Unauthorized:
+      description: Unauthorized - Invalid or missing API key
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    Forbidden:
+      description: Forbidden - Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
 
   schemas:
     Error:
@@ -284,17 +319,50 @@ paths:
   /:
     get:
       tags: [Status]
-      summary: Service status page
-      description: Returns service status information for browser access
+      summary: Light Bridge service information
+      description: Returns JSON service information including available endpoints and uptime metrics
       security: []
       responses:
         '200':
-          description: Service status page
+          description: Light Bridge service information
           content:
-            text/html:
+            application/json:
               schema:
-                type: string
-                example: "🌉 Zantara Bridge v3 - RUNNING<br/>Shared Drive: AMBARADAM (0AJC3-SJL03OOUk9PVA)<br/>Service Account: zantara@involuted-box-469105-r0.iam.gserviceaccount.com"
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    default: true
+                  service:
+                    type: string
+                    example: "zantara-light-bridge"
+                  version:
+                    type: string
+                    example: "1.0.0"
+                  description:
+                    type: string
+                    example: "Lightweight Zantara Bridge - Zero-cost optimized"
+                  endpoints:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        example: "/bridge/status"
+                      health:
+                        type: string
+                        example: "/health"
+                      memory:
+                        type: string
+                        example: "/actions/memory/save"
+                      drive:
+                        type: string
+                        example: "/actions/drive/upload"
+                  uptime:
+                    type: number
+                    description: Service uptime in milliseconds
+                  calls:
+                    type: number
+                    description: Total number of calls processed
 
   /bridge/status:
     get:
@@ -335,14 +403,21 @@ paths:
   /call:
     post:
       tags: [AI & Chat]
-      summary: AI assistant call with AMBARADAM integration
-      description: Process AI assistant requests with automatic saving to AMBARADAM Shared Drive
+      summary: Lightweight AI assistant call
+      description: |
+        Process AI assistant requests with simplified lightweight implementation.
+        Supports basic chat, drive actions, and memory operations with cost optimization.
       parameters:
         - name: X-BZ-USER
           in: header
           schema:
             type: string
-          description: User identifier for logging
+          description: User identifier for logging (defaults to 'LIGHT_USER')
+        - name: X-API-KEY
+          in: header
+          schema:
+            type: string
+          description: API key for authentication (optional for this endpoint)
       requestBody:
         required: true
         content:
@@ -350,39 +425,213 @@ paths:
             schema:
               type: object
               properties:
-                key:
-                  type: string
-                  description: Action key (e.g., 'drive.upload', 'memory.save')
-                params:
-                  type: object
-                  description: Action parameters
                 message:
                   type: string
-                  description: User message
+                  description: User message or content
+                  example: "Help me with my task"
+                key:
+                  type: string
+                  description: Action key to determine behavior
+                  enum: [chat.simple, drive.upload, memory.save]
+                  default: chat.simple
+                  example: "chat.simple"
+                params:
+                  type: object
+                  description: Additional parameters for specific actions
+                  example: {}
                 model:
                   type: string
                   description: AI model to use
+                  default: "gpt-4o-mini"
+                  example: "gpt-4o-mini"
+              required:
+                - message
       responses:
         '200':
-          description: AI response with AMBARADAM integration
+          description: AI response processed successfully
           content:
             application/json:
               schema:
                 type: object
                 properties:
+                  ok:
+                    type: boolean
+                    default: true
+                  service:
+                    type: string
+                    example: "zantara-light-bridge"
+                    description: Service identifier
                   response:
                     type: string
-                  sharedDrive:
+                    description: Processed response text
+                    example: "Light bridge processed: Hello from CLI test"
+                  timestamp:
                     type: string
-                    example: "0AJC3-SJL03OOUk9PVA"
-                    description: Confirms save to AMBARADAM
-                  fileId:
+                    format: date-time
+                    description: Response timestamp
+                    example: "2025-09-19T03:19:02.674Z"
+        '400':
+          description: Bad request - missing message
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    default: false
+                  error:
                     type: string
-                    description: Google Drive file ID if uploaded
+                    example: "Message is required"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /actions/chat/recap:
+    post:
+      tags: [AI & Chat]
+      summary: Save chat recap
+      description: Save a chat recap or content with auto-save middleware
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                recap:
+                  type: string
+                  description: Recap content
+                content:
+                  type: string
+                  description: Alternative content field
+      responses:
+        '200':
+          description: Recap saved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    default: true
+                  recap:
+                    type: string
+                    description: Saved recap content
         '400':
           description: Bad request
         '500':
           description: Internal server error
+
+  /actions/drive/setup-compliance-knowledge:
+    post:
+      tags: [Drive]
+      summary: Setup compliance knowledge structure
+      description: Ensure proper compliance knowledge folder structure in Drive
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Compliance structure setup successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    default: true
+        '500':
+          description: Setup failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /diag/drive/check:
+    get:
+      tags: [Diagnostics]
+      summary: Drive diagnostic check
+      description: Verify Drive access and folder permissions
+      parameters:
+        - name: folderId
+          in: query
+          schema:
+            type: string
+          description: Optional folder ID to verify access
+      responses:
+        '200':
+          description: Drive diagnostic information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  user:
+                    type: object
+                    description: User information
+                  quota:
+                    type: object
+                    description: Storage quota information
+                  folderId:
+                    type: [string, "null"]
+                  folderCheck:
+                    type: [object, "null"]
+                    description: Folder access check results
+                  env:
+                    type: object
+                    description: Environment configuration
+                  ts:
+                    type: string
+                    format: date-time
+        '500':
+          description: Diagnostic check failed
+
+  /diag/drive/find-folder:
+    get:
+      tags: [Diagnostics]
+      summary: Find Drive folders by name
+      description: Search for folders matching the provided name across My Drive and Shared Drives
+      parameters:
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Folder name to search for
+      responses:
+        '200':
+          description: Folder search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  folders:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        driveId:
+                          type: [string, "null"]
+        '400':
+          description: Missing name parameter
+        '500':
+          description: Search failed
 
   /dispatch/{agent}:
     post:
@@ -557,38 +806,489 @@ paths:
   /actions/memory/save:
     post:
       tags: [Memory]
-      summary: Save memory entry
-      description: Save a memory entry to Google Drive with impersonation
+      summary: Save memory entry (Firestore Implementation)
+      description: |
+        Save a memory entry to Firestore with full metadata support.
+        Supports tags, categories, relevance scoring, and automatic access tracking.
+      security:
+        - ApiKeyAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/MemorySaveRequest'
+              type: object
+              properties:
+                userId:
+                  type: string
+                  description: User identifier for memory isolation
+                  example: "user-123"
+                content:
+                  type: string
+                  description: Main memory content
+                  example: "Meeting notes about quarterly planning"
+                title:
+                  type: string
+                  description: Optional memory title
+                  example: "Q4 Planning Meeting"
+                tags:
+                  type: array
+                  items:
+                    type: string
+                  description: Searchable tags
+                  example: ["meeting", "planning", "q4"]
+                category:
+                  type: string
+                  description: Memory category
+                  example: "work"
+                source:
+                  type: string
+                  description: Origin of the memory
+                  example: "api"
+                metadata:
+                  type: object
+                  properties:
+                    tokenCount:
+                      type: number
+                    contextType:
+                      type: string
+                      enum: [conversation, document, note, task]
+                  description: Additional metadata
+              required:
+                - userId
+                - content
       responses:
         '200':
-          description: Memory saved successfully
+          description: Memory entry saved successfully to Firestore
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  id:
-                    type: string
-                  name:
-                    type: string
-                  webViewLink:
-                    type: string
+                  ok:
+                    type: boolean
+                    default: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        description: Firestore document ID
+                        example: "abc123def456"
+                      message:
+                        type: string
+                        example: "Memory entry saved successfully"
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /actions/memory/search:
+    get:
+      tags: [Memory]
+      summary: Search memory entries (Firestore Implementation)
+      description: |
+        Search stored memory entries in Firestore with full-text search, tag filtering, and time range queries.
+        Supports relevance scoring and pagination for optimal performance.
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: User identifier for memory isolation
+        - name: query
+          in: query
+          schema:
+            type: string
+          description: Full-text search query
+        - name: tags
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+          description: Filter by tags
+        - name: category
+          in: query
+          schema:
+            type: string
+          description: Filter by category
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+          description: Maximum number of results
+        - name: minRelevanceScore
+          in: query
+          schema:
+            type: number
+            minimum: 0
+            maximum: 1
+          description: Minimum relevance score filter
+        - name: timeStart
+          in: query
+          schema:
+            type: integer
+          description: Start timestamp for time range filter
+        - name: timeEnd
+          in: query
+          schema:
+            type: integer
+          description: End timestamp for time range filter
+      responses:
+        '200':
+          description: Memory search results from Firestore
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    default: true
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            userId:
+                              type: string
+                            content:
+                              type: string
+                            title:
+                              type: string
+                            tags:
+                              type: array
+                              items:
+                                type: string
+                            category:
+                              type: string
+                            timestamp:
+                              type: number
+                            relevanceScore:
+                              type: number
+                            accessCount:
+                              type: number
+                        description: Array of matching memory entries
+                      count:
+                        type: integer
+                        description: Number of results returned
+
+  /actions/memory/stats:
+    get:
+      tags: [Memory]
+      summary: Get memory statistics
+      description: Retrieve comprehensive memory usage statistics for a user
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: User identifier
+      responses:
+        '200':
+          description: Memory statistics retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    default: true
+                  data:
+                    type: object
+                    properties:
+                      totalEntries:
+                        type: integer
+                      totalTokens:
+                        type: integer
+                      averageRelevanceScore:
+                        type: number
+                      oldestEntry:
+                        type: string
+                        format: date-time
+                      newestEntry:
+                        type: string
+                        format: date-time
+                      compressionRatio:
+                        type: number
+                      estimatedCost:
+                        type: number
+
+  /actions/memory/recent:
+    get:
+      tags: [Memory]
+      summary: Get recent memory entries
+      description: Retrieve the most recent memory entries for a user
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: userId
+          in: query
+          required: true
+          schema:
+            type: string
+          description: User identifier
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 50
+          description: Maximum number of entries to return
+      responses:
+        '200':
+          description: Recent memory entries retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    default: true
+                  data:
+                    type: object
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                            content:
+                              type: string
+                            title:
+                              type: string
+                            timestamp:
+                              type: number
+                            tags:
+                              type: array
+                              items:
+                                type: string
+                      count:
+                        type: integer
+
+  /actions/memory/{id}:
+    get:
+      tags: [Memory]
+      summary: Get memory entry by ID
+      description: Retrieve a specific memory entry by its ID
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Memory entry ID
+        - name: userId
+          in: query
+          schema:
+            type: string
+          description: User identifier for authorization
+      responses:
+        '200':
+          description: Memory entry retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    default: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      userId:
+                        type: string
+                      content:
+                        type: string
+                      title:
+                        type: string
+                      tags:
+                        type: array
+                        items:
+                          type: string
+                      category:
+                        type: string
+                      timestamp:
+                        type: number
+                      accessCount:
+                        type: number
+                      relevanceScore:
+                        type: number
+        '404':
+          description: Memory entry not found
+    
+    put:
+      tags: [Memory]
+      summary: Update memory entry
+      description: Update an existing memory entry
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Memory entry ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                content:
+                  type: string
+                title:
+                  type: string
+                tags:
+                  type: array
+                  items:
+                    type: string
+                category:
+                  type: string
+                relevanceScore:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+      responses:
+        '200':
+          description: Memory entry updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    default: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      message:
+                        type: string
+    
+    delete:
+      tags: [Memory]
+      summary: Delete memory entry
+      description: Delete a memory entry by ID
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Memory entry ID
+        - name: userId
+          in: query
+          schema:
+            type: string
+          description: User identifier for authorization
+      responses:
+        '200':
+          description: Memory entry deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    default: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                      message:
+                        type: string
+
+  /actions/memory/cleanup:
+    post:
+      tags: [Memory]
+      summary: Cleanup old memory entries
+      description: Remove old or low-relevance memory entries for cost optimization
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId:
+                  type: string
+                  description: User identifier
+                maxEntries:
+                  type: integer
+                  description: Maximum entries to keep
+                  default: 1000
+                minRelevanceScore:
+                  type: number
+                  description: Minimum relevance score to keep
+                  default: 0.1
+                maxAgeInDays:
+                  type: integer
+                  description: Maximum age in days
+                  default: 365
+              required:
+                - userId
+      responses:
+        '200':
+          description: Cleanup completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    default: true
+                  data:
+                    type: object
+                    properties:
+                      deletedCount:
+                        type: integer
+                      message:
+                        type: string
+
   /actions/drive/upload:
     post:
       tags: [Drive]
-      summary: Upload file to Drive
-      description: Upload a file to Google Drive with impersonation support
+      summary: Upload file to Drive (with cache invalidation)
+      description: |
+        Upload a file to Google Drive with impersonation support.
+        Automatically invalidates relevant cache entries for folder listings and search results.
       requestBody:
         required: true
         content:
@@ -609,7 +1309,13 @@ paths:
                 - content
       responses:
         '200':
-          description: File uploaded successfully
+          description: File uploaded successfully (cache invalidated)
+          headers:
+            X-Cache-Status:
+              description: Cache invalidation status
+              schema:
+                type: string
+                example: "invalidated"
           content:
             application/json:
               schema:
@@ -621,6 +1327,10 @@ paths:
                     type: string
                   webViewLink:
                     type: string
+                  cacheStatus:
+                    type: string
+                    description: Cache invalidation status
+                    example: "folders_invalidated"
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -1049,43 +1759,6 @@ paths:
                     type: string
                     format: date-time
 
-  components:
-    responses:
-      BadRequest:
-        description: Bad request
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
-      
-      Unauthorized:
-        description: Unauthorized - Invalid or missing API key
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
-      
-      Forbidden:
-        description: Forbidden - Insufficient permissions
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
-      
-      NotFound:
-        description: Resource not found
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
-      
-      ServerError:
-        description: Internal server error
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Error'
-
 tags:
   - name: Status
     description: Service status and health endpoints
@@ -1113,6 +1786,8 @@ tags:
     description: Memory and knowledge management
   - name: Drive
     description: Google Drive operations
+  - name: Diagnostics
+    description: System diagnostic and troubleshooting endpoints
   - name: Calendar
     description: Google Calendar operations
   - name: Email
