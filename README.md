@@ -1,95 +1,63 @@
-# Zantara Bridge
+# 🚀 ZANTARA BRIDGE v3.5.0 - MASSIVE SECURITY REFACTOR
 
-[![Deploy Cloud Run](https://github.com/Balizero1987/zantara_bridge/actions/workflows/deploy-cloudrun.yml/badge.svg)](https://github.com/Balizero1987/zantara_bridge/actions/workflows/deploy-cloudrun.yml)
+## ⚠️ BREAKING CHANGES - LEGGERE PRIMA DI AGGIORNARE! (19 Gennaio 2025)
 
-Pipeline CI/CD sicura via GitHub OIDC (WIF) con deploy su Cloud Run e post-deploy checks automatici.
+### 🔴 ATTENZIONE: Refactoring completo del sistema di autenticazione e sicurezza
 
-## Endpoints principali
-<!-- PR check trigger -->
+---
 
-- POST `/actions/calendar/create`
-  - Body: `{ "title", "start", "end", "attendees?", "description?", "calendarId?" }`
-- GET `/actions/calendar/list`
-  - Query: `calendarId?`, `timeMin?`, `maxResults?`
-- POST `/actions/drive/upload`
-  - Body: `{ "filename", "content", "mimeType?", "folderId?" }`
-- POST `/actions/email/send`
-  - Body: `{ "to", "subject", "text", "cc?" }`
-- POST `/actions/email/draft`
-  - Body: `{ "to", "subject", "text", "cc?" }`
-- POST `/actions/memory/save`
-  - Body: `{ "title", "content", "tags?[]" }`
-- GET `/actions/debug/whoami`
-  - Output: `{ email, userId, drivePermissionId, domain, env }`
+## 🔄 CHANGELOG v3.5.0 (19 Gennaio 2025)
 
-Nota sicurezza: tutti gli endpoint `/actions/*` richiedono API Key. Passa l'header `X-Api-Key: <API_KEY>` (oppure `Authorization: Bearer <API_KEY>`).
+### NUOVE FEATURES
+- **Security Core v2**: Sistema di sicurezza enterprise-grade
+- **JWT Authentication**: Token-based auth con refresh tokens
+- **OAuth2/Google**: Login con Google account
+- **Rate Limiting**: Protezione contro abusi (per IP/User/Endpoint)
+- **Audit Logging**: GDPR-compliant con retention policies
+- **Multi-layer Auth**: 4 metodi di autenticazione supportati
 
-Esempi rapidi
+### FILE MODIFICATI CRITICI
+- `src/server.ts` - Refactoring completo middleware stack
+- `src/core/security/*` - Nuovo security layer (3 componenti)
+- `package.json` - Aggiornato da v1.0.0 a v3.5.0
+- Nuove dipendenze: helmet, express-rate-limit, compression, google-auth-library
 
-```sh
-curl -s -X POST "$SERVICE_URL/actions/calendar/create" \
-  -H "Content-Type: application/json" -H "X-Api-Key: $API_KEY" \
-  -d '{"title":"Riunione Team","start":"2025-09-02T10:00:00Z","end":"2025-09-02T11:00:00Z","attendees":"a@b.com,b@c.com"}'
+### BREAKING CHANGES
+1. Authentication endpoint cambiati (vedi sotto)
+2. Headers di autenticazione modificati
+3. Rate limiting attivo di default
+4. Session management con limiti
 
-curl -s -H "X-Api-Key: $API_KEY" "$SERVICE_URL/actions/calendar/list?maxResults=5"
+---
 
-curl -s -X POST "$SERVICE_URL/actions/drive/upload" \
-  -H "Content-Type: application/json" -H "X-Api-Key: $API_KEY" \
-  -d '{"filename":"note.txt","content":"ciao"}'
-```
+## Esecuzione tramite Docker
 
-## Setup Drive (Cloud Run)
+Questa applicazione è pronta per essere eseguita in ambiente Docker, utilizzando Node.js versione **22.13.1** (come specificato nel Dockerfile). Il servizio espone la porta **8080**.
 
-- Requisiti:
-  - Il Service Account runtime deve avere accesso in scrittura alla cartella AMBARADAM (My Drive condivisa).
-  - Secrets/Env:
-    - Secret `GOOGLE_SERVICE_ACCOUNT_KEY` (JSON del SA)
-    - Env `DRIVE_FOLDER_AMBARADAM=1UGbm5er6Go351S57GQKUjmxMxHyT4QZb`
-    - Secret/API key: `ZANTARA_PLUGIN_API_KEY` oppure `API_KEYS` (CSV)
-    - Opzionale per DWD: `IMPERSONATE_USER=zero@balizero.com`
+### Requisiti
+- Docker e Docker Compose installati
+- API Key per autenticazione sugli endpoint (`X-Api-Key` o `Authorization: Bearer <API_KEY>`)
+- (Opzionale) File `.env` per variabili d'ambiente personalizzate
 
-Esempio (placeholders):
+### Build e avvio rapido
+
+1. **Costruisci e avvia il servizio**:
 
 ```sh
-gcloud run services update zantara-bridge-v2-prod \
-  --region asia-southeast2 --project $PROJ \
-  --set-secrets "GOOGLE_SERVICE_ACCOUNT_KEY=GOOGLE_SERVICE_ACCOUNT_KEY:latest,ZANTARA_PLUGIN_API_KEY=ZANTARA_PLUGIN_API_KEY:latest" \
-  --set-env-vars "DRIVE_FOLDER_AMBARADAM=1UGbm5er6Go351S57GQKUjmxMxHyT4QZb,\
-ENABLE_DIAG=true,\
-IMPERSONATE_USER=zero@balizero.com"
+docker compose up --build
 ```
 
-## Diagnostica Drive
+2. **Accedi all'API**:
 
-- `GET /diag/google` → verifica token SA.
-- `GET /diag/drive` → lista base (ambito utente/SA, no shared drive).
-- `GET /diag/drive/check?folderId=<ID>` → metadata cartella specifica.
-- `GET /diag/drive/find-folder?name=AMBARADAM` → ricerca cartelle per nome.
+Il servizio sarà disponibile su `http://localhost:8080`.
 
-## Upload su Drive (crea cartelle automaticamente)
+### Configurazione
+- La porta **8080** è esposta dal container e mappata sulla stessa porta locale.
+- Non sono richiesti database o servizi esterni: la configurazione è pronta all'uso.
+- Se necessario, puoi aggiungere un file `.env` per gestire variabili d'ambiente personalizzate (vedi commento nel `docker-compose.yml`).
 
-`POST /actions/drive/upload` con API key e utente:
+### Note
+- Il container viene eseguito con utente non-root (`zantara`) per maggiore sicurezza.
+- Tutte le dipendenze sono gestite tramite `npm ci` e ottimizzate per produzione.
+- Per modifiche avanzate, consulta il `Dockerfile` e `docker-compose.yml` inclusi nel progetto.
 
-```sh
-curl -s -X POST "$SERVICE_URL/actions/drive/upload" \
-  -H "Content-Type: application/json" \
-  -H "X-API-KEY: $API_KEY" \
-  -H "X-BZ-USER: boss" \
-  -d '{
-    "filename":"Note-boss.txt",
-    "content":"ciao mondo",
-    "mimeType":"text/plain",
-    "folderPath":"AMBARADAM/BOSS/Notes"
-  }'
-```
-
-Note:
-- Passa `folderId` per caricare direttamente nella cartella AMBARADAM (consigliato).
-- In alternativa, `folderPath` creerà segmenti in My Drive.
-- Header richiesti per `/actions/*`: `X-API-KEY` e `X-BZ-USER`.
-
-## Troubleshooting
-
-- 401/403 su Drive: verificare DWD (se si usa `IMPERSONATE_USER`) e che il SA abbia permessi writer sulla cartella `DRIVE_FOLDER_AMBARADAM`.
-- 404/`notFound`: controllare `DRIVE_FOLDER_AMBARADAM` (folderId corretto e condiviso col SA).
-⚠️ MANDATORY: Read ZANTARA_CONFIG_COMPLETE.md before any work
