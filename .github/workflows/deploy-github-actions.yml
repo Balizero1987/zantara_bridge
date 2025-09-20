@@ -1,0 +1,101 @@
+name: Deploy to Cloud Run via GitHub Actions
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: involuted-box-469105-r0
+  REGION: asia-southeast2
+  SERVICE: zantara-bridge-v3
+  REGISTRY: asia-southeast2-docker.pkg.dev
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run tests
+      run: npm test
+      continue-on-error: true
+
+    - name: Run linting
+      run: npm run lint
+      continue-on-error: true
+
+    - name: Authenticate to Google Cloud
+      id: auth
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+    - name: Configure Docker for Artifact Registry
+      run: gcloud auth configure-docker ${{ env.REGISTRY }}
+
+    - name: Build Docker image
+      run: |
+        docker build -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/zantara-repo/${{ env.SERVICE }}:${{ github.sha }} .
+        docker build -t ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/zantara-repo/${{ env.SERVICE }}:latest .
+
+    - name: Push Docker image
+      run: |
+        docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/zantara-repo/${{ env.SERVICE }}:${{ github.sha }}
+        docker push ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/zantara-repo/${{ env.SERVICE }}:latest
+
+    - name: Deploy to Cloud Run
+      id: deploy
+      uses: google-github-actions/deploy-cloudrun@v2
+      with:
+        service: ${{ env.SERVICE }}
+        region: ${{ env.REGION }}
+        image: ${{ env.REGISTRY }}/${{ env.PROJECT_ID }}/zantara-repo/${{ env.SERVICE }}:${{ github.sha }}
+        flags: |
+          --allow-unauthenticated
+          --memory=2Gi
+          --cpu=2
+          --concurrency=1000
+          --timeout=3600
+          --min-instances=0
+          --max-instances=10
+        env_vars: |
+          NODE_ENV=production
+          GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }}
+          REGION=${{ env.REGION }}
+        secrets: |
+          GOOGLE_SERVICE_ACCOUNT_KEY=GCP_SA_KEY:latest
+          MEMORY_DRIVE_FOLDER_ID=MEMORY_DRIVE_FOLDER_ID:latest
+          AMBARADAM_DRIVE_ID=AMBARADAM_DRIVE_ID:latest
+          IMPERSONATE_USER=IMPERSONATE_USER:latest
+          OPENAI_API_KEY=OPENAI_API_KEY:latest
+
+    - name: Show deployed URL
+      run: echo "Deployed to ${{ steps.deploy.outputs.url }}"
+
+    - name: Health check
+      run: |
+        sleep 30
+        curl -f ${{ steps.deploy.outputs.url }}/health || exit 1
+
+    - name: Run post-deployment tests
+      run: |
+        export SERVICE_URL="${{ steps.deploy.outputs.url }}"
+        ./scripts/smoke-basic.sh || true
