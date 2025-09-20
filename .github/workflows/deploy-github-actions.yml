@@ -79,12 +79,20 @@ jobs:
           NODE_ENV=production
           GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }}
           REGION=${{ env.REGION }}
+          PORT=8080
+          CORS_ORIGINS=*.balizero.com
+          USE_AI_SUMMARY=true
+          FIRESTORE_PROJECT_ID=involuted-box-469105-r0
         secrets: |
-          GOOGLE_SERVICE_ACCOUNT_KEY=GCP_SA_KEY:latest
+          API_KEYS=API_KEYS:latest
+          ZANTARA_PLUGIN_API_KEY=ZANTARA_PLUGIN_API_KEY:latest
+          OPENAI_API_KEY=OPENAI_API_KEY:latest
           MEMORY_DRIVE_FOLDER_ID=MEMORY_DRIVE_FOLDER_ID:latest
           AMBARADAM_DRIVE_ID=AMBARADAM_DRIVE_ID:latest
           IMPERSONATE_USER=IMPERSONATE_USER:latest
-          OPENAI_API_KEY=OPENAI_API_KEY:latest
+          BALI_ZERO_CALENDAR_ID=BALI_ZERO_CALENDAR_ID:latest
+          ZANTARA_SHARED_DRIVE_ID=ZANTARA_SHARED_DRIVE_ID:latest
+          GMAIL_SENDER=GMAIL_SENDER:latest
 
     - name: Show deployed URL
       run: echo "Deployed to ${{ steps.deploy.outputs.url }}"
