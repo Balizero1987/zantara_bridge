@@ -1,0 +1,22 @@
+{
+  "users": [
+    { "name": "ADIT", "email": "consulting@balizero.com", "folderId": "ID_CARTELLA_ADIT" },
+    { "name": "AMANDA", "email": "amanda@balizero.com", "folderId": "ID_CARTELLA_AMANDA" },
+    { "name": "ANGEL", "email": "angel.tax@balizero.com", "folderId": "ID_CARTELLA_ANGEL" },
+    { "name": "ANTON", "email": "anton@balizero.com", "folderId": "ID_CARTELLA_ANTON" },
+    { "name": "ARI", "email": "ari.firda@balizero.com", "folderId": "ID_CARTELLA_ARI" },
+    { "name": "BOSS", "email": "zero@balizero.com", "folderId": "ID_CARTELLA_BOSS" },
+    { "name": "DEA", "email": "dea@balizero.com", "folderId": "ID_CARTELLA_DEA" },
+    { "name": "DEWA AYU", "email": "dewa.ayu.tax@balizero.com", "folderId": "ID_CARTELLA_DEWAAYU" },
+    { "name": "FAISHA", "email": "faisha.tax@balizero.com", "folderId": "ID_CARTELLA_FAISHA" },
+    { "name": "KRISNA", "email": "krisna@balizero.com", "folderId": "ID_CARTELLA_KRISNA" },
+    { "name": "MARTA", "email": "marta@balizero.com", "folderId": "ID_CARTELLA_MARTA" },
+    { "name": "NINA", "email": "nina@balizero.com", "folderId": "ID_CARTELLA_NINA" },
+    { "name": "OLENA", "email": "olena@balizero.com", "folderId": "ID_CARTELLA_OLENA" },
+    { "name": "RUSLANA", "email": "ruslana@balizero.com", "folderId": "ID_CARTELLA_RUSLANA" },
+    { "name": "SAHIRA", "email": "sahira@balizero.com", "folderId": "ID_CARTELLA_SAHIRA" },
+    { "name": "SURYA", "email": "surya@balizero.com", "folderId": "ID_CARTELLA_SURYA" },
+    { "name": "VERONIKA", "email": "tax@balizero.com", "folderId": "ID_CARTELLA_VERONIKA" },
+    { "name": "VINO", "email": "info@balizero.com", "folderId": "ID_CARTELLA_VINO" }
+  ]
+}
