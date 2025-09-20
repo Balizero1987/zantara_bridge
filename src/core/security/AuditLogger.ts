@@ -297,8 +297,8 @@ export class AuditLogger {
         path: req.path,
         query: req.query,
         body: req.body,
-        message: `Request to ${req.method} ${req.path}`,
-        requestId
+        message: `Request to ${req.method} ${req.path}`
+        // requestId removed - not part of the type
       });
 
       // Capture response
